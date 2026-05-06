@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig OS Sentinel Result",
+  "description": "Output of the Rig OS Sentinel governance validator.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "status",
+    "exit_code",
+    "sentinel",
+    "subsystems",
+    "issues",
+    "missing_required_subsystems",
+    "agent_repair_prompt",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.os_sentinel.v1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": { "type": "string", "enum": ["pass", "fail"] },
+    "exit_code": { "type": "integer" },
+    "sentinel": {
+      "type": "object",
+      "required": ["path", "hash", "expected_hash", "hash_status"],
+      "properties": {
+        "path": { "type": "string" },
+        "hash": { "type": "string" },
+        "expected_hash": { "type": "string" },
+        "hash_status": { "type": "string", "enum": ["match", "missing", "mismatch", "not_configured"] }
+      }
+    },
+    "subsystems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["subsystem_id", "required", "status"],
+        "properties": {
+          "subsystem_id": { "type": "string" },
+          "required": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["pass", "fail", "warn", "skipped"] },
+          "required_files": { "type": "array", "items": { "type": "string" } },
+          "required_commands": { "type": "array", "items": { "type": "string" } },
+          "required_schema_families": { "type": "array", "items": { "type": "string" } },
+          "required_tests": { "type": "array", "items": { "type": "string" } },
+          "artifacts": { "type": "array", "items": { "type": "string" } },
+          "issues": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "severity", "subsystem", "message", "fix", "agent_instruction"],
+        "properties": {
+          "code": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "error", "warning"] },
+          "subsystem": { "type": "string" },
+          "message": { "type": "string" },
+          "why_it_matters": { "type": "string" },
+          "required_files": { "type": "array", "items": { "type": "string" } },
+          "required_commands": { "type": "array", "items": { "type": "string" } },
+          "acceptance": { "type": "array", "items": { "type": "string" } },
+          "fix": { "type": "string" },
+          "agent_instruction": { "type": "string" }
+        }
+      }
+    },
+    "missing_required_subsystems": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "agent_repair_prompt": { "type": "string" },
+    "authoritative": { "type": "boolean", "const": true }
+  }
+}

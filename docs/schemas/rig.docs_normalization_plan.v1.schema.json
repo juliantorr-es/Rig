@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.docs_normalization_plan.v1.schema.json",
+  "title": "Rig Docs Normalization Plan",
+  "description": "A plan to normalize and archive documentation and session artifacts.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "plan_id",
+    "created_at",
+    "candidates",
+    "duplicate_groups",
+    "status",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.docs_normalization_plan.v1" },
+    "plan_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["original_path", "proposed_archive_path", "reason", "artifact_class", "action"],
+        "properties": {
+          "original_path": { "type": "string" },
+          "proposed_archive_path": { "type": "string" },
+          "reason": { "type": "string" },
+          "superseded_by": { "type": "string" },
+          "artifact_class": { "enum": ["archive_candidate", "duplicate", "superseded"] },
+          "action": { "enum": ["move", "retain"] },
+          "requires_apply": { "type": "boolean" },
+          "git_tracked": { "type": "boolean" }
+        }
+      }
+    },
+    "duplicate_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["hash", "paths"],
+        "properties": {
+          "hash": { "type": "string" },
+          "paths": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "status": { "enum": ["pass", "warn", "fail"] },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Agent Discovery Schema",
+  "description": "Schema for local CLI agent discovery artifacts (v1)",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.agent_discovery.v1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" },
+          "executable": { "type": ["string", "null"] },
+          "found": { "type": "boolean" },
+          "version": { "type": "string" },
+          "help_status": { "type": "string" },
+          "non_interactive_supported": { "type": "boolean" },
+          "non_interactive_modes": { "type": "array", "items": { "type": "string" } },
+          "structured_output_supported": { "type": "boolean" },
+          "risk_level": { "type": "string" },
+          "enabled_by_default": { "type": "boolean" },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "created_at"]
+}

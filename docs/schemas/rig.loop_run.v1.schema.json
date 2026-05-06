@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.loop_run.v1.schema.json",
+  "title": "Rig Loop Run",
+  "description": "The receipt and telemetry of a completed or active supervisor loop run.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "policy_id",
+    "task",
+    "goal",
+    "mode",
+    "status",
+    "current_step",
+    "max_steps",
+    "started_at",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.loop_run.v1" },
+    "run_id": { "type": "string" },
+    "policy_id": { "type": "string" },
+    "task": { "type": "string" },
+    "goal": { "type": "string" },
+    "mode": { "enum": ["read_only", "bounded", "review"] },
+    "status": { "enum": ["planned", "running", "passed", "failed", "blocked", "needs_approval", "stopped"] },
+    "current_step": { "type": "integer", "minimum": 0 },
+    "max_steps": { "type": "integer", "minimum": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "projection_snapshot_path": { "type": ["string", "null"] },
+    "steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "stop_reason": { "type": ["string", "null"] },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

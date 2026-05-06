@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.architecture_projection_summary.v1.schema.json",
+  "title": "Rig Architecture Projection Summary",
+  "type": "object",
+  "required": ["schema_version", "status", "projection_count", "coupling_record_count", "overlap_record_count", "module_move_candidate_count", "desired_state_record_count"],
+  "properties": {
+    "schema_version": { "const": "rig.architecture_projection.v1" },
+    "status": { "type": "string" },
+    "duckdb_used": { "type": "boolean" },
+    "duckdb_warning": { "type": ["string", "null"] },
+    "projection_count": { "type": "integer" },
+    "coupling_record_count": { "type": "integer" },
+    "overlap_record_count": { "type": "integer" },
+    "module_move_candidate_count": { "type": "integer" },
+    "desired_state_record_count": { "type": "integer" },
+    "top_projections": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  }
+}

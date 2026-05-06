@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "case_id",
+    "source_trace_id",
+    "prompt_kind",
+    "task",
+    "input_context_path",
+    "expected_contract",
+    "failure_type",
+    "failure_summary",
+    "validator_kind",
+    "minimal_reproduction_path",
+    "created_at",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "const": "rig.prompt_regression_case.v1" },
+    "case_id": { "type": "string" },
+    "source_trace_id": { "type": ["string", "null"] },
+    "prompt_kind": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "input_context_path": { "type": ["string", "null"] },
+    "expected_contract": { "type": ["string", "null"] },
+    "failure_type": { "type": "string" },
+    "failure_summary": { "type": "string" },
+    "validator_kind": { "type": "string" },
+    "minimal_reproduction_path": { "type": ["string", "null"] },
+    "created_at": { "type": "string" },
+    "authoritative": { "const": false }
+  }
+}

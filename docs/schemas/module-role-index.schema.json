@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/module-role-index.schema.json",
+  "title": "Module Role Index Schema",
+  "description": "Schema for validating Anigma module role index entries in Docs/architecture/maps/module-role-index.yaml. Each module entry must conform to this schema.",
+  "type": "object",
+  "required": [
+    "version",
+    "last_updated",
+    "modules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version of the module role index schema.",
+      "examples": ["1.0.0"]
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "minLength": 1,
+      "description": "Last update date in YYYY-MM-DD format.",
+      "examples": ["2026-05-02"]
+    },
+    "schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to this schema file.",
+      "examples": ["Docs/schemas/module-role-index.schema.json"]
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "description": "List of module role entries.",
+      "items": {
+        "type": "object",
+        "required": [
+          "module",
+          "tier",
+          "responsibility",
+          "allowed_dependencies",
+          "forbidden_dependencies",
+          "key_files",
+          "tests",
+          "related_docs",
+          "related_tasks",
+          "verification_profiles",
+          "gc_policy",
+          "context_load_policy"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "module": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Module name.",
+            "examples": ["MediaCore", "AnigmaDaemon", "ContractsCore"]
+          },
+          "tier": {
+            "type": "string",
+            "enum": ["Tier 1", "Tier 2", "Tier 3", "Governance"],
+            "description": "Tier classification (Tier 1/2/3 or Governance)."
+          },
+          "responsibility": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Module's responsibility. Minimum 10 characters.",
+            "examples": ["Media processing substrate with zero-copy materialization enforcement"]
+          },
+          "allowed_dependencies": {
+            "type": "array",
+            "description": "List of modules this module is allowed to depend on.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["ContractsCore", "CoreUtilities", "VectorOpsKit"]]
+          },
+          "forbidden_dependencies": {
+            "type": "array",
+            "description": "List of modules this module must NOT depend on.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["AnigmaAppMac", "AnigmaCLI"]]
+          },
+          "key_files": {
+            "type": "array",
+            "description": "Key files in this module.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["Sources/MediaCore/Governance/SurfaceAuthority.swift"]]
+          },
+          "tests": {
+            "type": "array",
+            "description": "Test files/directories for this module.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["Tests/MediaCoreTests/*"]]
+          },
+          "related_docs": {
+            "type": "array",
+            "description": "Related documentation files.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["Docs/ANIGMA_ARCHITECTURE_DIAGRAM.md"]]
+          },
+          "related_tasks": {
+            "type": "array",
+            "description": "Related TD tasks.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["p0-004"]]
+          },
+          "verification_profiles": {
+            "type": "array",
+            "description": "Verification profiles that apply to this module.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["governance", "swift-runtime"]]
+          },
+          "gc_policy": {
+            "type": "string",
+            "enum": ["retain_all", "compact_on_complete", "compact_on_done", "archive_only"],
+            "description": "Garbage collection policy for this module's artifacts."
+          },
+          "context_load_policy": {
+            "type": "string",
+            "enum": ["eager", "lazy", "on_demand", "minimal"],
+            "description": "How aggressively agents should load this module's context."
+          }
+        }
+      }
+    }
+  }
+}

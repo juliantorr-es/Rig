@@ -1,0 +1,4 @@
+anigma/Packages/AnigmaDaemonCore/Sources/AnigmaDaemonCore/DaemonServer.swift
+anigma/Packages/AnigmaDaemonCore/Sources/AnigmaDaemonCore/DaemonCompatibility.swift
+anigma/Packages/AnigmaDaemonCore/Sources/AnigmaDaemonCore/Services/HTTPServer.swift
+anigma/Package.swift

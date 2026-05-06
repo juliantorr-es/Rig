@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.model_behavior_observation.v1.schema.json",
+  "title": "Rig Model Behavior Observation",
+  "description": "Structured observation of model behavior for a specific candidate generation",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "observation_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "swarm_id": { "type": "string" },
+    "candidate_id": { "type": "string" },
+    "model": { "type": "string" },
+    "backend": { "type": "string" },
+    "prompt_template": { "type": "string" },
+    "bias_profiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "strategy": { "type": "string" },
+    "temperature": { "type": "number" },
+    "context_pack_hash": { "type": "string" },
+    "output_status": { "type": "string" },
+    "failure_type": { "type": ["string", "null"] },
+    "validator_results": { "type": "object" },
+    "score": { "type": "integer" },
+    "quarantined": { "type": "boolean" },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": { "type": "boolean", "const": false }
+  },
+  "required": ["schema_version", "observation_id", "created_at", "swarm_id", "candidate_id", "model", "backend", "bias_profiles", "output_status", "score", "quarantined", "authoritative"]
+}

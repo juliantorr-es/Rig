@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.solution_bias_profile.v1.schema.json",
+  "title": "Rig Solution Bias Profile",
+  "description": "Schema for defining deterministic steering of model solution styles",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "profile_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "display_name": { "type": "string" },
+    "description": { "type": "string" },
+    "applies_to": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["plan", "patch_proposal", "validator_error_classification", "docs_normalization_plan", "prompt_repair"]
+      }
+    },
+    "prompt_constraints": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "positive_indicators": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "negative_indicators": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "hard_fail_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "pattern": { "type": "string" },
+          "description": { "type": "string" },
+          "severity": { "type": "string", "enum": ["error"] }
+        },
+        "required": ["id", "pattern", "description", "severity"]
+      }
+    },
+    "scoring_weights": {
+      "type": "object",
+      "properties": {
+        "schema_parse": { "type": "integer" },
+        "safety_pass": { "type": "integer" },
+        "validation_pass": { "type": "integer" },
+        "small_scope": { "type": "integer" },
+        "bounded_memory": { "type": "integer" },
+        "file_backed_artifacts": { "type": "integer" },
+        "telemetry_coverage": { "type": "integer" },
+        "tests_added_or_preserved": { "type": "integer" },
+        "architecture_boundary_preserved": { "type": "integer" },
+        "docs_schema_alignment": { "type": "integer" },
+        "warnings_penalty": { "type": "integer" }
+      }
+    },
+    "default_enabled": { "type": "boolean" },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "profile_id", "display_name", "description", "applies_to", "prompt_constraints", "scoring_weights", "authoritative"]
+}

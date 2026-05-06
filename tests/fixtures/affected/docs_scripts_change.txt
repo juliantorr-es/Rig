@@ -1,0 +1,4 @@
+scripts/rig.py
+scripts/test_rig_cli.py
+Docs/dev/rig/README.md
+Docs/dev/rig/AFFECTED.md

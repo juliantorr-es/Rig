@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.scheduler_run.v1.schema.json",
+  "title": "Rig Scheduler Run",
+  "description": "Receipt of a scheduler run or test execution.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "job_id",
+    "mode",
+    "started_at",
+    "finished_at",
+    "status",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.scheduler_run.v1" },
+    "run_id": { "type": "string" },
+    "job_id": { "type": "string" },
+    "mode": { "enum": ["dry_run", "run_now", "launchd"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["passed", "failed", "blocked", "dry_run"] },
+    "command_plan_path": { "type": "string" },
+    "action_result_path": { "type": "string" },
+    "stdout_path": { "type": "string" },
+    "stderr_path": { "type": "string" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

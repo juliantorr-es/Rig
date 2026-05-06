@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Local LLM Summary",
+  "type": "object",
+  "required": ["schema_version", "status", "authoritative", "backend", "model", "summary", "limitations", "warnings", "created_at", "input_char_count", "output_char_count"],
+  "properties": {
+    "schema_version": { "const": "rig.local_llm_summary.v1" },
+    "status": { "type": "string", "enum": ["generated", "skipped", "failed"] },
+    "authoritative": { "type": "boolean", "const": false },
+    "backend": { "type": "string" },
+    "model": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "source_artifacts": { "type": "array", "items": { "type": "string" } },
+    "prompt_kind": { "type": "string" },
+    "summary": { "type": "string" },
+    "limitations": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string" },
+    "input_char_count": { "type": "integer" },
+    "output_char_count": { "type": "integer" }
+  }
+}

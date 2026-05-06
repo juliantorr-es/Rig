@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.intent_decode_result.v1.schema.json",
+  "title": "Rig Intent Decode Result",
+  "description": "Result of decoding a tool intent into a safe Rig command plan",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "decode_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "intent_id": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["decoded", "repaired", "rejected", "ambiguous"]
+    },
+    "matched_action_id": { "type": ["string", "null"] },
+    "command_plan_path": { "type": ["string", "null"] },
+    "normalized_args": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean", "null", "array", "object"] }
+    },
+    "repairs": { "type": "array", "items": { "type": "string" } },
+    "rejection_reason": { "type": ["string", "null"] },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "decode_id", "created_at", "status", "authoritative"]
+}

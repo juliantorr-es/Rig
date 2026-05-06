@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Local Patch Proposal",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "patch_id",
+    "task",
+    "created_at",
+    "backend",
+    "model",
+    "authoritative",
+    "allowed_paths",
+    "forbidden_paths",
+    "intended_files",
+    "patch_path",
+    "proposal_markdown_path",
+    "source_context",
+    "warnings",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": { "const": "rig.local_patch.v1" },
+    "patch_id": { "type": "string" },
+    "task": { "type": "string" },
+    "created_at": { "type": "string" },
+    "backend": { "type": "string" },
+    "model": { "type": "string" },
+    "authoritative": { "const": false },
+    "allowed_paths": { "type": "array", "items": { "type": "string" } },
+    "forbidden_paths": { "type": "array", "items": { "type": "string" } },
+    "intended_files": { "type": "array", "items": { "type": "string" } },
+    "patch_path": { "type": "string" },
+    "proposal_markdown_path": { "type": "string" },
+    "source_context": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "limitations": { "type": "array", "items": { "type": "string" } }
+  }
+}

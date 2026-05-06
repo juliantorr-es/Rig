@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Auto-Policy Schema",
+  "description": "Schema for Rig auto-approve policies (v1)",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.auto_policy.v1" },
+    "policy_id": { "type": "string" },
+    "mode": { "type": "string", "const": "auto_approve" },
+    "task": { "type": "string" },
+    "allowed_actions": { "type": "array", "items": { "type": "string" } },
+    "forbidden_actions": { "type": "array", "items": { "type": "string" } },
+    "allowed_paths": { "type": "array", "items": { "type": "string" } },
+    "forbidden_paths": { "type": "array", "items": { "type": "string" } },
+    "max_runtime_minutes": { "type": "integer", "default": 60 },
+    "max_agent_runs": { "type": "integer", "default": 2 },
+    "max_patch_attempts": { "type": "integer", "default": 3 },
+    "max_queue_jobs": { "type": "integer", "default": 3 },
+    "allow_external_agents": { "type": "boolean", "default": false },
+    "allowed_agents": { "type": "array", "items": { "type": "string" } },
+    "allow_vibe_auto_approve": { "type": "boolean", "default": false },
+    "allow_git_mutation": { "type": "boolean", "default": false },
+    "allow_main_worktree_patch_apply": { "type": "boolean", "default": false },
+    "allow_production_source_changes": { "type": "boolean", "default": false },
+    "requires_final_human_approval": { "type": "boolean", "default": true },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "default": true }
+  },
+  "required": ["schema_version", "policy_id", "mode"]
+}

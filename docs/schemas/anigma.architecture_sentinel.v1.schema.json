@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "anigma.architecture_sentinel.v1.schema.json",
+  "title": "Anigma Architecture Sentinel Result",
+  "description": "Schema for Anigma Architecture Sentinel validation results. Defines the structure of JSON output emitted by the architecture sentinel validator.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "status",
+    "exit_code",
+    "issue_count",
+    "issues",
+    "checked_surfaces",
+    "missing_required_artifacts",
+    "warnings",
+    "agent_repair_prompt",
+    "authoritative"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of the sentinel schema. Must be 'anigma.architecture_sentinel.v1'.",
+      "enum": ["anigma.architecture_sentinel.v1"]
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp when the sentinel result was generated.",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Overall status of the architecture validation.",
+      "enum": ["pass", "fail", "warn"]
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "Exit code that would be returned to the shell.",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "issue_count": {
+      "type": "integer",
+      "description": "Total number of issues found across all surfaces.",
+      "minimum": 0
+    },
+    "issues": {
+      "type": "array",
+      "description": "List of architecture issues detected by the sentinel.",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "surface",
+          "path",
+          "message",
+          "why_it_matters",
+          "expected_shape",
+          "fix",
+          "agent_instruction",
+          "related_docs",
+          "related_validator"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Unique identifier for this type of issue.",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "description": "Severity level of the issue.",
+            "enum": ["critical", "error", "warning"]
+          },
+          "surface": {
+            "type": "string",
+            "description": "Which architecture surface was being checked when this issue was found.",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "description": "File path or location where the issue was detected (relative to repo root).",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "description": "Line number in the file where the issue was detected (1-indexed). Optional if not known.",
+            "minimum": 1
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of the issue.",
+            "minLength": 1
+          },
+          "why_it_matters": {
+            "type": "string",
+            "description": "Explanation of why this issue violates architecture doctrine.",
+            "minLength": 1
+          },
+          "expected_shape": {
+            "type": "string",
+            "description": "Description of what the correct architecture should look like.",
+            "minLength": 1
+          },
+          "fix": {
+            "type": "string",
+            "description": "Suggested fix for the issue.",
+            "minLength": 1
+          },
+          "agent_instruction": {
+            "type": "string",
+            "description": "Exact instruction for an agent to fix this issue.",
+            "minLength": 1
+          },
+          "related_docs": {
+            "type": "array",
+            "description": "List of related documentation files.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "related_validator": {
+            "type": ["string", "null"],
+            "description": "Name of related validator that also checks for this issue.",
+            "default": null
+          }
+        }
+      }
+    },
+    "checked_surfaces": {
+      "type": "array",
+      "description": "List of architecture surfaces that were checked and their results.",
+      "items": {
+        "type": "object",
+        "required": ["surface", "status", "checked_paths"],
+        "additionalProperties": false,
+        "properties": {
+          "surface": {
+            "type": "string",
+            "description": "Name of the architecture surface checked.",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "description": "Result of the surface check.",
+            "enum": ["pass", "fail", "warn", "skip", "error"]
+          },
+          "checked_paths": {
+            "type": "array",
+            "description": "List of paths that were checked for this surface.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "type": ["string", "null"],
+            "description": "Error message if the surface check failed to run.",
+            "default": null
+          }
+        }
+      }
+    },
+    "missing_required_artifacts": {
+      "type": "array",
+      "description": "List of required artifacts that are missing or failed.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "List of warning messages that don't cause failure.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "agent_repair_prompt": {
+      "type": "string",
+      "description": "Agent-readable instructions for repairing all issues. Must be present even on pass.",
+      "minLength": 1
+    },
+    "sentinel": {
+      "type": "object",
+      "description": "Information about the sentinel validator itself.",
+      "required": ["path", "hash", "hash_status"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative path to the sentinel script.",
+          "minLength": 1
+        },
+        "hash": {
+          "type": "string",
+          "description": "SHA-256 hash of the sentinel script.",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "expected_hash": {
+          "type": "string",
+          "description": "Expected hash from governance file.",
+          "default": ""
+        },
+        "hash_status": {
+          "type": "string",
+          "description": "Status of hash comparison.",
+          "enum": ["match", "mismatch", "missing"]
+        }
+      }
+    },
+    "authoritative": {
+      "type": "boolean",
+      "description": "Whether this sentinel result is authoritative. Must always be true.",
+      "const": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Cache Metadata",
+  "type": "object",
+  "required": ["schema_version", "artifact_id", "producer", "command", "input_files", "output_files", "cache_key", "status"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "rig.cache-metadata.v1"},
+    "artifact_id": {"type": "string"},
+    "producer": {"type": "string"},
+    "command": {"type": "string"},
+    "input_files": {"type": "array", "items": {"type": "object"}},
+    "output_files": {"type": "array", "items": {"type": "object"}},
+    "cache_key": {"type": "string"},
+    "status": {"type": "string", "enum": ["fresh", "missing_outputs", "unknown"]},
+    "environment_fingerprint": {"type": "object"},
+    "duration_seconds": {"type": ["number", "integer", "null"]}
+  }
+}

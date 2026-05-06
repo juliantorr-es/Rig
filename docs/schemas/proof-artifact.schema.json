@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "proof_id": { "type": "string" },
+    "title": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "status": { "type": "string" },
+    "task_id": { "type": "string" },
+    "artifact_type": { "type": "string" },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "commands_run": { "type": "array", "items": { "type": "string" } },
+    "validators": { "type": "array", "items": { "type": "string" } },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "string" }
+  },
+  "required": ["proof_id", "title", "date", "status", "task_id", "artifact_type", "evidence"]
+}

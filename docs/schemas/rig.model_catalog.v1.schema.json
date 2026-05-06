@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.model_catalog.v1.schema.json",
+  "title": "Rig Model Catalog",
+  "description": "Curated set of supported local models for Rig backends",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "model_id": { "type": "string" },
+          "display_name": { "type": "string" },
+          "backend": { "type": "string", "enum": ["llama.cpp", "mlx"] },
+          "format": { "type": "string", "enum": ["gguf", "mlx"] },
+          "repo_id": { "type": "string" },
+          "filename": { "type": ["string", "null"] },
+          "revision": { "type": ["string", "null"] },
+          "size_bytes": { "type": ["integer", "null"] },
+          "quantization": { "type": ["string", "null"] },
+          "parameter_size": { "type": ["string", "null"] },
+          "min_ram_gb": { "type": "number" },
+          "recommended_ram_gb": { "type": "number" },
+          "recommended_context_tokens": { "type": "integer" },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "license_status": {
+            "type": "string",
+            "enum": ["open_download", "gated_hf", "manual_license_acceptance_required", "unknown"]
+          },
+          "license_note": { "type": ["string", "null"] },
+          "source_url": { "type": ["string", "null"] },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["model_id", "display_name", "backend", "format", "repo_id", "min_ram_gb", "recommended_ram_gb", "recommended_context_tokens", "license_status"]
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "created_at", "models", "authoritative"]
+}

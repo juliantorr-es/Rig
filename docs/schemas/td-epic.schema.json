@@ -1,0 +1,315 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/td-epic.schema.json",
+  "title": "TD Epic Descriptor Schema",
+  "description": "Schema for validating Anigma epic descriptors in Docs/td/. Each epic must have a corresponding epic.yaml file that conforms to this schema.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "priority",
+    "status",
+    "lane"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique epic identifier. Must match the directory name.",
+      "examples": ["p0-003-polytropos-phase0", "p0-004-anigmad-subprocess-pooling", "p1-td-source-of-truth-recovery"]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Human-readable epic title. Minimum 10 characters."
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0", "P1", "P2", "P3", "P4"],
+      "description": "Overall priority level for this epic."
+    },
+    "type": {
+      "type": "string",
+      "default": "epic",
+      "enum": ["epic"],
+      "description": "Must be 'epic' for epic descriptors."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["new", "ready", "in_progress", "in_review", "complete", "done", "blocked", "cancelled", "archived"],
+      "description": "Current status. Must match the directory location under Docs/td/."
+    },
+    "lane": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Functional grouping lane for this epic."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 10,
+      "description": "One-sentence summary for quick scanning."
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the epic's purpose and scope."
+    },
+    "recommended_worktree": {
+      "type": ["string", "null"],
+      "description": "Default worktree path for all tasks in this epic.",
+      "examples": ["anigma/", "docs/", "anigma/Packages/SubprocessPooling/"]
+    },
+    "source_docs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of paths to source documentation that define this epic."
+    },
+    "related_docs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of paths to related documentation (roadmaps, ADRs, architecture docs)."
+    },
+    "proofs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of paths to proof artifacts under Docs/proofs/ for the epic itself."
+    },
+    "diagrams": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of paths to epic-specific diagrams."
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of task IDs that belong to this epic."
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of child task IDs (alias for tasks)."
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Epic-level acceptance criteria that apply to all child tasks."
+    },
+    "non_goals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Epic-level non-goals."
+    },
+    "td_labels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Additional labels to apply to all tasks in this epic when creating TD entries."
+    },
+    "worktree": {
+      "type": ["string", "null"],
+      "description": "Alias for recommended_worktree."
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of task/epic IDs that this epic blocks."
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of task/epic IDs that must be completed before this epic can start."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form notes about this epic."
+    },
+    " risk": {
+      "type": ["string", "null"],
+      "description": "Risk assessment for this epic."
+    },
+    "created": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when this epic was initially created."
+    },
+    "updated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when this epic was last updated."
+    },
+    "completion_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Date when this epic was marked complete."
+    },
+    "verification_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of verification profile IDs from verification-profiles.yaml that apply to all tasks in this epic by default."
+    },
+    "verification_overrides": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Override verification profile settings for this specific epic."
+    },
+    "gc_policy": {
+      "type": "string",
+      "enum": ["retain_all", "compact_on_complete", "compact_on_done", "archive_only"],
+      "default": "retain_all",
+      "description": "Garbage collection policy for epic context: retain_all (keep all artifacts), compact_on_complete (remove worktrees on complete), compact_on_done (remove worktrees on done), archive_only (archive but don't delete). Default is retain_all for epics to preserve context for child tasks."
+    },
+    "context_load_policy": {
+      "type": "string",
+      "enum": ["eager", "lazy", "on_demand", "minimal"],
+      "default": "eager",
+      "description": "Context loading policy: eager (load all context upfront), lazy (load as needed), on_demand (load only when explicitly requested), minimal (load only descriptor, not full context). Default is eager for epics."
+    },
+    "research_stage": {
+      "type": ["string", "null"],
+      "enum": ["intake", "source_review", "code_map", "doctrine_alignment", "implementation_plan", "implementation", "verification", "proof", "closed"],
+      "default": null,
+      "description": "Current research stage for this epic. See TD_RESEARCH_AND_TIMELINE_DOCTRINE.md for stage semantics."
+    },
+    "research_files": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "List of files inspected as part of epic-level research."
+    },
+    "inspected_symbols": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "List of symbols inspected at the epic level. Only populated when actually inspected."
+    },
+    "change_map": {
+      "type": ["string", "null"],
+      "description": "Path to the epic-level change-map.yaml file, if it exists."
+    },
+    "timeline": {
+      "type": ["string", "null"],
+      "description": "Path to the epic-level timeline directory or file."
+    },
+    "decisions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "List of decision IDs from the epic's decision log."
+    },
+    "canonical_doc_effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "path"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["add", "modify", "remove", "move", "deprecate"],
+            "description": "Type of documentation change."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path to the affected documentation file."
+          },
+          "summary": {
+            "type": ["string", "null"],
+            "description": "Brief description of the change."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["proposed", "approved", "implemented", "reverted"],
+            "default": "proposed",
+            "description": "Status of this documentation change."
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "Effects this epic has or will have on canonical documentation."
+    },
+    "doctrine_alignment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "reference", "status"],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The doctrine rule being aligned with."
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path to the doctrine document containing this rule."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["compliant", "needs_waiver", "violation", "unknown"],
+            "description": "Alignment status with this rule."
+          },
+          "waiver_requested": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether a waiver has been requested."
+          },
+          "waiver_approved": {
+            "type": ["string", "null"],
+            "description": "Who approved the waiver, if granted."
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "Epic-level doctrine alignment for planned changes."
+    },
+    "affected_files": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Files expected to be affected by this epic. Only populated when actually identified."
+    },
+    "expected_proof": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Proof artifacts expected to be generated by this epic."
+    }
+  },
+  "additionalProperties": false
+}

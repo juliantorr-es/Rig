@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Anigma Pipeline Result",
+  "type": "object",
+  "required": ["schema", "run_id", "task_id", "profile", "step_id", "command", "exit_code", "status"],
+  "properties": {
+    "schema": {"type": "string"},
+    "run_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "profile": {"type": "string"},
+    "step_id": {"type": "string"},
+    "command": {"type": "string"},
+    "exit_code": {"type": "integer"},
+    "status": {"type": "string", "enum": ["passed", "failed", "known_blocked", "skipped"]},
+    "started_at": {"type": "string"},
+    "finished_at": {"type": "string"},
+    "duration_seconds": {"type": "number"},
+    "stdout_log": {"type": "string"},
+    "stderr_log": {"type": "string"}
+    ,
+    "git": {"type": "object"}
+  }
+}

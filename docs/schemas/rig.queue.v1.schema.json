@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Queue",
+  "type": "object",
+  "required": ["schema_version", "jobs"],
+  "properties": {
+    "schema_version": { "const": "rig.queue.v1" },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["schema_version", "job_id", "task", "mode", "status", "max_steps", "created_at", "authoritative"],
+        "properties": {
+          "schema_version": { "const": "rig.queue.v1" },
+          "job_id": { "type": "string" },
+          "task": { "type": "string" },
+          "mode": { "type": "string" },
+          "status": { "type": "string", "enum": ["queued", "running", "paused", "blocked", "failed", "completed", "cancelled"] },
+          "max_steps": { "type": "integer" },
+          "created_at": { "type": "string" },
+          "started_at": { "type": ["string", "null"] },
+          "finished_at": { "type": ["string", "null"] },
+          "latest_checkpoint": { "type": ["string", "null"] },
+          "stop_reason": { "type": ["string", "null"] },
+          "artifacts": { "type": "array", "items": { "type": "string" } },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "authoritative": { "const": false }
+        },
+        "additionalProperties": true
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

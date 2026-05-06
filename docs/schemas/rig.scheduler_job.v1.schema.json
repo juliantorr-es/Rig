@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.scheduler_job.v1.schema.json",
+  "title": "Rig Scheduler Job",
+  "description": "Definition of a background job managed by the Rig OS scheduler.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "label",
+    "enabled",
+    "command_argv",
+    "working_directory",
+    "schedule_kind",
+    "plist_path",
+    "stdout_path",
+    "stderr_path",
+    "risk",
+    "install_status",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.scheduler_job.v1" },
+    "job_id": { "type": "string" },
+    "label": { "type": "string" },
+    "enabled": { "type": "boolean" },
+    "action_id": { "type": "string" },
+    "command_argv": { "type": "array", "items": { "type": "string" } },
+    "working_directory": { "type": "string" },
+    "schedule_kind": { "enum": ["interval", "calendar"] },
+    "start_interval": { "type": "integer", "minimum": 1 },
+    "start_calendar_interval": {
+      "type": "object",
+      "properties": {
+        "Hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "Minute": { "type": "integer", "minimum": 0, "maximum": 59 }
+      }
+    },
+    "plist_path": { "type": "string" },
+    "stdout_path": { "type": "string" },
+    "stderr_path": { "type": "string" },
+    "risk": { "enum": ["low", "medium", "high"] },
+    "install_status": { "enum": ["not_installed", "dry_run", "installed", "loaded", "unknown"] },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

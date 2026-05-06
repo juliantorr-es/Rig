@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/roadmap-phase.schema.json",
+  "title": "Roadmap Phase Schema",
+  "description": "Schema for roadmap phase definitions. Defines the structure of a phase in Anigma's roadmap.",
+  "type": "object",
+  "required": ["phase_id", "name", "status", "priority", "start_date"],
+  "properties": {
+    "phase_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Machine-readable phase identifier.",
+      "examples": ["phase0-polytropos", "phase1-unification", "phase2-stabilization"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Human-readable phase name.",
+      "examples": ["Polytropos Phase 0", "Unification", "Stabilization"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_started", "planning", "in_progress", "blocked", "paused", "completed", "cancelled"],
+      "description": "Current status of the phase."
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0", "P1", "P2", "P3", "P4"],
+      "description": "Priority level."
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Planned or actual start date."
+    },
+    "end_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Planned or actual end date."
+    },
+    "completion_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "When the phase was actually completed."
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the phase."
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Short one-sentence summary."
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "description": "List of objectives for this phase.",
+      "items": {
+        "type": "string",
+        "minLength": 5
+      }
+    },
+    "success_criteria": {
+      "type": "array",
+      "description": "Measurable criteria for phase completion.",
+      "items": {
+        "type": "object",
+        "required": ["description", "metric"],
+        "properties": {
+          "description": {"type": "string", "minLength": 5},
+          "metric": {"type": "string", "minLength": 1},
+          "target": {"type": "string"},
+          "current": {"type": "string"}
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Other phases this phase depends on.",
+      "items": {"type": "string"}
+    },
+    "dependents": {
+      "type": "array",
+      "description": "Phases that depend on this phase.",
+      "items": {"type": "string"}
+    },
+    "epics": {
+      "type": "array",
+      "description": "TD epics belonging to this phase.",
+      "items": {"type": "string"}
+    },
+    "tasks": {
+      "type": "array",
+      "description": "TD tasks belonging to this phase.",
+      "items": {"type": "string"}
+    },
+    "blockers": {
+      "type": "array",
+      "description": "Items blocking this phase.",
+      "items": {
+        "type": "object",
+        "required": ["description", "type"],
+        "properties": {
+          "description": {"type": "string"},
+          "type": {"type": "string", "enum": ["technical", "resource", "dependency", "decision"]},
+          "severity": {"type": "string", "enum": ["P0", "P1", "P2"]},
+          "eta": {"type": "string", "format": "date"}
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Resource requirements and allocations.",
+      "properties": {
+        "estimated_hours": {"type": "integer", "minimum": 0},
+        "actual_hours": {"type": "integer", "minimum": 0},
+        "assigned_team": {"type": "array", "items": {"type": "string"}},
+        "budget": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "risks": {
+      "type": "array",
+      "description": "Known risks for this phase.",
+      "items": {
+        "type": "object",
+        "required": ["description", "likelihood", "impact"],
+        "properties": {
+          "description": {"type": "string"},
+          "likelihood": {"type": "string", "enum": ["low", "medium", "high"]},
+          "impact": {"type": "string", "enum": ["low", "medium", "high"]},
+          "mitigation": {"type": "string"}
+        }
+      }
+    },
+    " lessons_learned": {
+      "type": "array",
+      "description": "Lessons learned during this phase.",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": {"type": "string"},
+          "category": {"type": "string", "enum": ["technical", "process", "people"]},
+          "recommendation": {"type": "string"}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "Proof artifacts and deliverables.",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "path"],
+        "properties": {
+          "name": {"type": "string"},
+          "type": {"type": "string", "enum": ["proof", "document", "diagram", "schema", "script", "data"]},
+          "path": {"type": "string"},
+          "description": {"type": "string"}
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "description": "External and internal links.",
+      "properties": {
+        "roadmap": {"type": "string"},
+        "design_docs": {"type": "array", "items": {"type": "string"}},
+        "adt": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "version": {
+      "type": "string",
+      "description": "Phase schema version.",
+      "examples": ["1.0.0"]
+    }
+  },
+  "additionalProperties": false
+}

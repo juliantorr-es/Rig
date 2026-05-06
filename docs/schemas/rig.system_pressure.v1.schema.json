@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig System Pressure Schema",
+  "description": "Schema for system and model telemetry (v1)",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.system_pressure.v1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "hostname": { "type": "string" },
+    "platform": { "type": "string" },
+    "cpu": {
+      "type": "object",
+      "properties": {
+        "percent": { "type": "number" },
+        "load_average": { "type": "array", "items": { "type": "number" } }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "total_bytes": { "type": "integer" },
+        "used_bytes": { "type": "integer" },
+        "percent": { "type": "number" }
+      }
+    },
+    "swap": {
+      "type": "object",
+      "properties": {
+        "total_bytes": { "type": "integer" },
+        "used_bytes": { "type": "integer" },
+        "percent": { "type": "number" }
+      }
+    },
+    "disk": {
+      "type": "object",
+      "properties": {
+        "free_bytes": { "type": "integer" },
+        "percent": { "type": "number" }
+      }
+    },
+    "rig_process": {
+      "type": "object",
+      "properties": {
+        "pid": { "type": "integer" },
+        "rss_bytes": { "type": "integer" },
+        "cpu_percent": { "type": "number" }
+      }
+    },
+    "local_model": {
+      "type": "object",
+      "properties": {
+        "latest_backend": { "type": "string" },
+        "latest_model": { "type": "string" },
+        "context_used_percent_estimate": { "type": "number" }
+      }
+    },
+    "status": { "type": "string" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "created_at"]
+}

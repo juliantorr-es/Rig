@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/td-decision.schema.json",
+  "title": "TD Decision Schema",
+  "description": "Schema for validating decision log entries in Docs/td/. Captures architectural and implementation decisions with rationale and doctrine alignment.",
+  "type": "object",
+  "required": ["decision_id", "timestamp", "type", "summary"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for this document."
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this decision. Must be unique within the containing decision log.",
+      "examples": ["dec-20250115-001", "p0-004-process-pool-choice", "td-a84da2-interface-design"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this decision was made."
+    },
+    "task_id": {
+      "type": ["string", "null"],
+      "description": "Task ID that generated this decision, if applicable."
+    },
+    "epic_id": {
+      "type": ["string", "null"],
+      "description": "Epic ID containing the task, if applicable."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "architectural",
+        "implementation",
+        "design",
+        "api",
+        "tooling",
+        "process",
+        "doctrine",
+        "publication",
+        "deferral",
+        "rejection",
+        "other"
+      ],
+      "description": "Type/category of this decision."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Brief summary of the decision."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "Detailed description of the decision and its context."
+    },
+    "chosen_option": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The option that was chosen."
+    },
+    "options_considered": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option"],
+        "properties": {
+          "option": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The option that was considered."
+          },
+          "pros": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "default": [],
+            "description": "Advantages of this option."
+          },
+          "cons": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "default": [],
+            "description": "Disadvantages of this option."
+          },
+          "Feasibility": {
+            "type": ["string", "null"],
+            "enum": ["high", "medium", "low"],
+            "description": "How feasible this option is to implement."
+          },
+          "complexity": {
+            "type": ["string", "null"],
+            "enum": ["low", "medium", "high"],
+            "description": "Implementation complexity of this option."
+          },
+          "risk": {
+            "type": ["string", "null"],
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Risk level of choosing this option."
+          },
+          "rejected_reason": {
+            "type": ["string", "null"],
+            "description": "Why this option was rejected, if applicable."
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "All options that were considered for this decision."
+    },
+    "rationale": {
+      "type": ["string", "null"],
+      "description": "Detailed rationale for choosing the selected option."
+    },
+    "doctrine_sources": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Doctrine documents referenced in making this decision."
+    },
+    "doctrine_alignment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "reference", "status"],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The doctrine rule being aligned with."
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path to the doctrine document."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["compliant", "needs_waiver", "violation"],
+            "description": "Alignment status."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Additional alignment notes."
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "Explicit doctrine alignment for this decision."
+    },
+    "affected_docs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Documentation files affected by this decision."
+    },
+    "affected_code": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Source files affected by this decision."
+    },
+    "proof_links": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Paths to proof artifacts related to this decision."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "draft", "approved", "implemented", "revisited", "superseded", "rejected"],
+      "default": "draft",
+      "description": "Current status of this decision."
+    },
+    "decision_maker": {
+      "type": ["string", "null"],
+      "description": "Who made this decision (agent, human, or team)."
+    },
+    "approved_by": {
+      "type": ["string", "null"],
+      "description": "Who approved this decision, if approval was required."
+    },
+    "approved_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this decision was approved."
+    },
+    "implemented_by": {
+      "type": ["string", "null"],
+      "description": "Task ID or agent that implemented this decision."
+    },
+    "implemented_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this decision was implemented."
+    },
+    "stakeholders": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "People or roles who were consulted or should be informed."
+    },
+    "constraints": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Constraints that influenced this decision."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Assumptions made in reaching this decision."
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Description of the risk."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Severity of this risk."
+          },
+          "mitigation": {
+            "type": ["string", "null"],
+            "description": "How this risk will be mitigated."
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "Risks associated with this decision."
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Tags for categorizing this decision."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-form notes about this decision."
+    },
+    "supersedes": {
+      "type": ["string", "null"],
+      "description": "ID of the decision this one supersedes, if any."
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "description": "ID of the decision that supersedes this one, if any."
+    }
+  },
+  "additionalProperties": false
+}

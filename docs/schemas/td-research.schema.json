@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/td-research.schema.json",
+  "title": "TD Research State Schema",
+  "description": "Schema for validating research state artifacts in Docs/td/. Captures the journey of investigation, discovery, and planning for tasks and epics.",
+  "type": "object",
+  "definitions": {
+    "file_entry": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path to the file from repository root."
+        },
+        "exists": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the file exists at the recorded path."
+        },
+        "inspection_status": {
+          "type": "string",
+          "enum": ["identified", "scanned", "reviewed", "analyzed", "skipped"],
+          "default": "identified",
+          "description": "How thoroughly the file has been inspected."
+        },
+        "relevance": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown", "none"],
+          "default": "unknown",
+          "description": "Relevance of this file to the task/epic."
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "description": "Free-form notes about this file."
+        }
+      },
+      "additionalProperties": false
+    },
+    "symbol_entry": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Symbol name (function, class, type, protocol, etc.)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["class", "struct", "enum", "protocol", "function", "method", "property", "typealias", "extension", "module", "package", "import", "variable", "constant", "unknown"],
+          "description": "Kind of symbol."
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "File path where this symbol is defined."
+        },
+        "line": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Line number where symbol is defined. Only set if actually inspected."
+        },
+        "inspection_status": {
+          "type": "string",
+          "enum": ["identified", "scanned", "reviewed", "analyzed", "skipped"],
+          "default": "identified",
+          "description": "How thoroughly the symbol has been inspected."
+        },
+        "role": {
+          "type": ["string", "null"],
+          "description": "Role this symbol plays in the task context."
+        },
+        "tier": {
+          "type": ["string", "null"],
+          "enum": ["T1", "T2", "T3", "unknown"],
+          "description": "Tier classification if applicable."
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "description": "Free-form notes about this symbol."
+        }
+      },
+      "additionalProperties": false
+    },
+    "finding_entry": {
+      "type": "object",
+      "required": ["id", "type", "summary"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique finding identifier within this research scope."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["fact", "issue", "opportunity", "constraint", "risk", "question", "observation"],
+          "description": "Type of finding."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Brief summary of the finding."
+        },
+        "details": {
+          "type": ["string", "null"],
+          "description": "Detailed description of the finding."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info", "unknown"],
+          "default": "unknown",
+          "description": "Severity or importance of this finding."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "investigating", "confirmed", "resolved", "accepted", "wontfix"],
+          "default": "open",
+          "description": "Current status of this finding."
+        },
+        "related_files": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "File paths related to this finding."
+        },
+        "related_symbols": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Symbol names related to this finding."
+        },
+        "evidence": {
+          "type": ["string", "null"],
+          "description": "Path to evidence file or inline evidence."
+        },
+        "resolution": {
+          "type": ["string", "null"],
+          "description": "How this finding was or will be resolved."
+        },
+        "resolved_by": {
+          "type": ["string", "null"],
+          "description": "Task ID or agent that resolved this finding."
+        },
+        "resolved_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When this finding was resolved."
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Tags for categorizing findings."
+        }
+      },
+      "additionalProperties": false
+    },
+    "open_question": {
+      "type": "object",
+      "required": ["id", "question"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique question identifier."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The open question."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["architectural", "implementation", "doctrine", "tooling", "documentation", "testing", "performance", "security", "other"],
+          "default": "other",
+          "description": "Category of question."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2", "P3", "P4"],
+          "default": "P2",
+          "description": "Priority of resolving this question."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "investigating", "blocked", "resolved", "answered", "deferred", "wontfix"],
+          "default": "open",
+          "description": "Current status of this question."
+        },
+        "context": {
+          "type": ["string", "null"],
+          "description": "Context or background for this question."
+        },
+        "possible_answers": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Possible answers being considered."
+        },
+        "exploration_notes": {
+          "type": ["string", "null"],
+          "description": "Notes from exploring this question."
+        },
+        "answer": {
+          "type": ["string", "null"],
+          "description": "The answer, if resolved."
+        },
+        "answered_by": {
+          "type": ["string", "null"],
+          "description": "Who answered this question."
+        },
+        "answered_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When this question was answered."
+        },
+        "blocking": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this question is blocking progress."
+        },
+        "related_tasks": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Task IDs related to investigating this question."
+        },
+        "references": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Documentation or resource references."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "type", "task_id"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for this document."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this research artifact. Typically matches task_id or epic_id with suffix."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["epic_research", "task_research"],
+      "description": "Type of research scope: epic-level or task-level."
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The task ID this research belongs to. For epic-level research, use the epic ID."
+    },
+    "epic_id": {
+      "type": ["string", "null"],
+      "description": "The epic ID this research belongs to, if different from task_id."
+    },
+    "research_stage": {
+      "type": "string",
+      "enum": ["intake", "source_review", "code_map", "doctrine_alignment", "implementation_plan", "implementation", "verification", "proof", "closed"],
+      "description": "Current research stage. See TD_RESEARCH_AND_TIMELINE_DOCTRINE.md for stage semantics."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_started", "in_progress", "paused", "complete"],
+      "default": "not_started",
+      "description": "Overall status of this research effort."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable title for this research."
+    },
+    "summary": {
+      "type": ["string", "null"],
+      "description": "Brief summary of research focus."
+    },
+    "research_log_path": {
+      "type": ["string", "null"],
+      "description": "Path to the research-log.md file for this scope."
+    },
+    "inspected_files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/file_entry"},
+      "default": [],
+      "description": "Files that have been inspected as part of this research."
+    },
+    "inspected_symbols": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/symbol_entry"},
+      "default": [],
+      "description": "Symbols that have been inspected as part of this research."
+    },
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding_entry"},
+      "default": [],
+      "description": "Structured findings from this research."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/open_question"},
+      "default": [],
+      "description": "Outstanding questions identified during research."
+    },
+    "affected_files": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Files that are expected to be modified based on this research. Only populated when actually identified."
+    },
+    "affected_surfaces": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "High-level surfaces or components affected."
+    },
+    "doctrine_sources": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Doctrine documents that apply to this research."
+    },
+    "started_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this research started."
+    },
+    "last_updated": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this research was last updated."
+    },
+    "updated_by": {
+      "type": ["string", "null"],
+      "description": "Who last updated this research."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-form notes about this research."
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.action_definition.v1.schema.json",
+  "title": "Rig Action Definition",
+  "description": "Defines a typed action that can be planned and executed by the Rig OS.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "action_id",
+    "label",
+    "description",
+    "argv_template",
+    "accepts_task",
+    "requires_task",
+    "allowed_modes",
+    "requires_confirmation",
+    "mutates_git",
+    "mutates_main_worktree",
+    "launches_external_agent",
+    "timeout_seconds",
+    "writes_receipts",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.action_definition.v1" },
+    "action_id": { "type": "string", "pattern": "^[a-z0-9_.-]+$" },
+    "label": { "type": "string" },
+    "description": { "type": "string" },
+    "argv_template": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "accepts_task": { "type": "boolean" },
+    "requires_task": { "type": "boolean" },
+    "allowed_modes": {
+      "type": "array",
+      "items": { "enum": ["safe", "action", "auto-approve"] },
+      "minItems": 1
+    },
+    "requires_confirmation": { "type": "boolean" },
+    "mutates_git": { "type": "boolean" },
+    "mutates_main_worktree": { "type": "boolean" },
+    "launches_external_agent": { "type": "boolean" },
+    "timeout_seconds": { "type": "integer", "minimum": 1 },
+    "writes_receipts": { "type": "boolean" },
+    "disabled_reason": { "type": ["string", "null"] },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

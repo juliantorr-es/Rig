@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anigma.io/schemas/chunk-storage-receipt.schema.json",
+  "title": "Chunk Storage Receipt Schema",
+  "description": "Schema for proving chunk/SoA data layout, materialization events, and copy-minimized/zero-copy claims in Anigma's ECS-inspired runtime.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "operation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "operation_kind": {
+      "type": "string",
+      "enum": [
+        "allocation",
+        "compaction",
+        "materialization",
+        "no_copy_wrap",
+        "transfer",
+        "fallback"
+      ]
+    },
+    "source_chunk_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "destination_chunk_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "component_type_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "layout_kind": {
+      "type": "string",
+      "enum": [
+        "aos",
+        "soa",
+        "hybrid",
+        "native_buffer",
+        "sidecar_buffer"
+      ]
+    },
+    "memory_domain": {
+      "type": "string",
+      "enum": [
+        "cpu",
+        "shared_cpu_gpu",
+        "gpu_private",
+        "mmap",
+        "sidecar",
+        "unknown"
+      ]
+    },
+    "movement_classification": {
+      "type": "string",
+      "enum": [
+        "zero_copy_proven",
+        "no_copy_wrap",
+        "copy_minimized",
+        "materialized_copy",
+        "sidecar_transfer",
+        "unknown"
+      ]
+    },
+    "proof_method": {
+      "type": "string",
+      "enum": [
+        "static_graph",
+        "runtime_trace",
+        "materialization_gate",
+        "allocator_receipt",
+        "executor_receipt",
+        "sidecar_receipt"
+      ]
+    },
+    "byte_counts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "alignment": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "chunk_capacity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "component_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "executor_id": {
+      "type": "string"
+    },
+    "fallback_reason": {
+      "type": ["string", "null"]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "schema_version",
+    "operation_id",
+    "operation_kind",
+    "destination_chunk_id",
+    "component_type_ids",
+    "layout_kind",
+    "memory_domain",
+    "movement_classification",
+    "proof_method",
+    "byte_counts",
+    "alignment",
+    "chunk_capacity",
+    "component_count",
+    "executor_id"
+  ]
+}

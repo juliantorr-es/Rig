@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anigma.io/schemas/anigma-diagnostic-index.schema.json",
+  "title": "Anigma Diagnostic Index Schema",
+  "description": "Schema for a single line in the diagnostic JSONL index.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "anigma.diagnostic_index.v1"
+    },
+    "taskId": { "type": "string" },
+    "commitHash": { "type": "string" },
+    "phase": {
+      "type": "string",
+      "enum": ["baseline", "validate", "review", "diff", "final"]
+    },
+    "bundlePath": { "type": "string" },
+    "artifactManifestPath": { "type": "string" },
+    "diagnosticSummaryPath": { "type": "string", "nullable": true },
+    "reviewBundlePath": { "type": "string", "nullable": true },
+    "buildStatus": {
+      "type": "string",
+      "enum": ["FAILED", "CLEAN", "CONTAMINATED", "PASSED", "NOT_APPLICABLE"],
+      "nullable": true
+    },
+    "command": { "type": "string", "nullable": true },
+    "exitCode": { "type": "integer", "nullable": true },
+    "warningCount": { "type": "integer" },
+    "errorCount": { "type": "integer" },
+    "changedFileCount": { "type": "integer" },
+    "highRiskFileCount": { "type": "integer" },
+    "criticalRiskFileCount": { "type": "integer" },
+    "forbiddenFindingCount": { "type": "integer" },
+    "docsJsonCount": { "type": "integer" },
+    "docsCsvCount": { "type": "integer" },
+    "docsArtifactValidationStatus": {
+      "type": "string",
+      "enum": ["FAILED", "CLEAN", "CONTAMINATED", "PASSED", "NOT_APPLICABLE"],
+      "nullable": true
+    }
+  },
+  "required": ["schema", "taskId", "commitHash", "phase", "bundlePath", "artifactManifestPath"]
+}

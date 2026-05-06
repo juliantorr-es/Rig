@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.structural_finding.v1.schema.json",
+  "title": "Rig Structural Finding",
+  "description": "A single finding from a structural code scan",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "finding_id": { "type": "string" },
+    "engine": { "type": "string" },
+    "language": { "type": "string" },
+    "rule_id": { "type": "string" },
+    "severity": { "type": "string", "enum": ["info", "warning", "error", "critical"] },
+    "path": { "type": "string" },
+    "start_line": { "type": "integer" },
+    "end_line": { "type": "integer" },
+    "start_column": { "type": "integer" },
+    "end_column": { "type": "integer" },
+    "message": { "type": "string" },
+    "fix": { "type": "string" },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "source_excerpt": { "type": "string" },
+    "authoritative": { "type": "boolean", "const": false }
+  },
+  "required": ["schema_version", "finding_id", "engine", "language", "rule_id", "severity", "path", "message", "confidence", "authoritative"]
+}

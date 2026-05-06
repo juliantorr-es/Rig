@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.architecture_projection.v1.schema.json",
+  "title": "Rig Architecture Projections",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["schema_version", "projection_id", "kind", "target", "current_shape", "recommended_shape", "evidence", "confidence"],
+    "properties": {
+      "schema_version": { "const": "rig.architecture_projection.v1" },
+      "projection_id": { "type": "string" },
+      "kind": { "type": "string" },
+      "title": { "type": "string" },
+      "target": { "type": "string" },
+      "current_shape": { "type": "object" },
+      "recommended_shape": { "type": "object" },
+      "evidence": { "type": "object" },
+      "coupling_effect": { "type": "string" },
+      "cohesion_effect": { "type": "string" },
+      "zero_copy_effect": { "type": "string" },
+      "risk_of_tight_coupling": { "type": "string" },
+      "risk_of_god_object": { "type": "string" },
+      "counterarguments": { "type": "array", "items": { "type": "string" } },
+      "confidence": { "type": "string" },
+      "recommended_task_type": { "type": "string" },
+      "validation_plan": { "type": "array", "items": { "type": "string" } },
+      "suggested_task_brief_seed": { "type": "string" }
+    }
+  }
+}

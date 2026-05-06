@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.loop_step.v1.schema.json",
+  "title": "Rig Loop Step",
+  "description": "A single step within a supervisor loop run.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "step_id",
+    "run_id",
+    "step_index",
+    "phase",
+    "status",
+    "started_at",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.loop_step.v1" },
+    "step_id": { "type": "string" },
+    "run_id": { "type": "string" },
+    "step_index": { "type": "integer", "minimum": 0 },
+    "phase": { "enum": ["observe", "decide", "act", "validate", "checkpoint", "stop"] },
+    "selected_action": { "type": ["string", "null"] },
+    "command_plan_path": { "type": ["string", "null"] },
+    "action_result_path": { "type": ["string", "null"] },
+    "status": { "enum": ["planned", "running", "passed", "failed", "blocked", "skipped"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "stop_reason": { "type": ["string", "null"] },
+    "events": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

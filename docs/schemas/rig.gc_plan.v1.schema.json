@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.gc_plan.v1.schema.json",
+  "title": "Rig GC Plan",
+  "description": "A planned garbage collection operation identifying candidates for deletion.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "plan_id",
+    "created_at",
+    "status",
+    "retention_policy",
+    "candidates",
+    "protected",
+    "bytes_reclaimable",
+    "delete_count",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.gc_plan.v1" },
+    "plan_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["pass", "warn", "fail"] },
+    "retention_policy": { "type": "object" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "artifact_class", "age_days", "size_bytes", "reason", "action", "requires_apply"],
+        "properties": {
+          "path": { "type": "string" },
+          "artifact_class": { "enum": ["canonical", "receipt", "projection", "cache", "ephemeral", "archive_candidate", "protected_unknown"] },
+          "age_days": { "type": "integer", "minimum": 0 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "reason": { "type": "string" },
+          "action": { "enum": ["delete", "retain", "protect"] },
+          "requires_apply": { "type": "boolean" }
+        }
+      }
+    },
+    "protected": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "bytes_reclaimable": { "type": "integer", "minimum": 0 },
+    "delete_count": { "type": "integer", "minimum": 0 },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

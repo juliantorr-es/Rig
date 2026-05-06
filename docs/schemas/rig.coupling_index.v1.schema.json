@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.coupling_index.v1.schema.json",
+  "title": "Rig Coupling Index",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["schema_version", "target", "coupling_score"],
+    "properties": {
+      "schema_version": { "const": "rig.coupling_index.v1" },
+      "target": { "type": "string" },
+      "fan_in": { "type": "integer" },
+      "fan_out": { "type": "integer" },
+      "risk_count": { "type": "integer" },
+      "state_count": { "type": "integer" },
+      "flow_count": { "type": "integer" },
+      "diagnostic_count": { "type": "integer" },
+      "affected_count": { "type": "integer" },
+      "coupling_score": { "type": "integer" },
+      "coupling_rationale": { "type": "string" }
+    }
+  }
+}

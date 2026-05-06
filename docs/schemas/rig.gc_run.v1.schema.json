@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.gc_run.v1.schema.json",
+  "title": "Rig GC Run",
+  "description": "The receipt of a garbage collection operation execution.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "plan_id",
+    "started_at",
+    "finished_at",
+    "mode",
+    "deleted_paths",
+    "retained_paths",
+    "protected_paths",
+    "failed_paths",
+    "bytes_reclaimed",
+    "status",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.gc_run.v1" },
+    "run_id": { "type": "string" },
+    "plan_id": { "type": "string" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "mode": { "enum": ["dry_run", "apply"] },
+    "deleted_paths": { "type": "array", "items": { "type": "string" } },
+    "retained_paths": { "type": "array", "items": { "type": "string" } },
+    "protected_paths": { "type": "array", "items": { "type": "string" } },
+    "failed_paths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "error"],
+        "properties": {
+          "path": { "type": "string" },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "bytes_reclaimed": { "type": "integer", "minimum": 0 },
+    "status": { "enum": ["passed", "failed", "partial", "dry_run"] },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

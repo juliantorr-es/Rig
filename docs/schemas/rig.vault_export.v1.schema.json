@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anigma-ai/anigma rig.vault_export.v1.schema.json",
+  "title": "Rig Vault Export Manifest",
+  "description": "Schema for Rig OS vault export manifest. Vault is a projection, not source of truth.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "export_id",
+    "created_at",
+    "status",
+    "vault_path",
+    "note_count",
+    "task_note_count",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version identifier",
+      "enum": ["rig.vault_export.v1"]
+    },
+    "export_id": {
+      "type": "string",
+      "description": "Unique identifier for this export run",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp when export was created",
+      "format": "date-time",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "description": "Overall status of the export",
+      "enum": ["pass", "warn", "fail", "dry_run"]
+    },
+    "vault_path": {
+      "type": "string",
+      "description": "Relative path to the vault from repo root",
+      "minLength": 1
+    },
+    "note_count": {
+      "type": "integer",
+      "description": "Total number of notes exported",
+      "minimum": 0
+    },
+    "task_note_count": {
+      "type": "integer",
+      "description": "Number of task-specific notes exported",
+      "minimum": 0
+    },
+    "copied_json_count": {
+      "type": "integer",
+      "description": "Number of JSON receipts copied to attachments",
+      "minimum": 0
+    },
+    "copied_bundle_count": {
+      "type": "integer",
+      "description": "Number of bundle manifests copied to attachments",
+      "minimum": 0
+    },
+    "source_artifacts": {
+      "type": "array",
+      "description": "List of source artifact paths referenced by this export",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "warnings": {
+      "type": "array",
+      "description": "List of non-fatal warnings encountered during export",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "notes": {
+      "type": "array",
+      "description": "Metadata for each exported note",
+      "items": {
+        "$ref": "#/$defs/note_metadata"
+      },
+      "default": []
+    },
+    "authoritative": {
+      "type": "boolean",
+      "description": "Whether this export is authoritative (always false for vault projections)",
+      "enum": [false]
+    }
+  },
+  "$defs": {
+    "note_metadata": {
+      "type": "object",
+      "required": [
+        "note_id",
+        "rig_type",
+        "title",
+        "path",
+        "source_artifacts",
+        "links",
+        "frontmatter",
+        "status",
+        "warnings"
+      ],
+      "properties": {
+        "note_id": {
+          "type": "string",
+          "description": "Unique identifier for this note",
+          "minLength": 1
+        },
+        "rig_type": {
+          "type": "string",
+          "description": "Type of Rig artifact this note represents",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title of the note",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path of the note within the vault",
+          "minLength": 1
+        },
+        "source_artifacts": {
+          "type": "array",
+          "description": "Source artifact paths that contributed to this note",
+          "items": {
+            "type": "string"
+          }
+        },
+        "links": {
+          "type": "array",
+          "description": "Wiki-style links to other vault notes",
+          "items": {
+            "type": "string"
+          }
+        },
+        "frontmatter": {
+          "type": "object",
+          "description": "YAML frontmatter key-value pairs for the note",
+          "additionalProperties": true
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the note",
+          "enum": ["pass", "warn", "fail"]
+        },
+        "warnings": {
+          "type": "array",
+          "description": "Note-specific warnings",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

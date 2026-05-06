@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/runtime-receipt.schema.json",
+  "title": "Runtime Receipt Schema",
+  "description": "Schema for runtime execution receipts. Records what was executed, by whom, with what result.",
+  "type": "object",
+  "required": ["receipt_id", "timestamp", "executor", "command", "exit_code"],
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this receipt.",
+      "examples": ["rr-20260502-123456"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the command was executed."
+    },
+    "executor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who/what executed the command.",
+      "examples": ["anigmad", "anigma-cli", "agent:vibe", "user@host"]
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The command that was executed.",
+      "examples": ["swift build", "python3 Scripts/validate_tiers.py"]
+    },
+    "args": {
+      "type": "array",
+      "description": "Command arguments as array.",
+      "items": {"type": "string"}
+    },
+    "working_directory": {
+      "type": "string",
+      "description": "Working directory for the execution.",
+      "examples": ["/Users/user/Developer/GitHub/Anigma_clean"]
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "Process exit code.",
+      "examples": [0, 1, 137]
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Execution time in seconds."
+    },
+    "stdout": {
+      "type": "string",
+      "description": "Captured stdout (truncated if too long)."
+    },
+    "stderr": {
+      "type": "string",
+      "description": "Captured stderr (truncated if too long)."
+    },
+    "stdout_size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Size of stdout in bytes."
+    },
+    "stderr_size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Size of stderr in bytes."
+    },
+    "stdout_truncated": {
+      "type": "boolean",
+      "description": " Whether stdout was truncated."
+    },
+    "stderr_truncated": {
+      "type": "boolean",
+      "description": "Whether stderr was truncated."
+    },
+    "git_commit": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Git commit hash if in a repository.",
+      "examples": ["30231dd21fe837e"]
+    },
+    "git_status": {
+      "type": "string",
+      "description": "Git status at time of execution (clean/dirty)."
+    },
+    "environment": {
+      "type": "object",
+      "description": "Relevant environment variables.",
+      "properties": {
+        "SWIFT_VERSION": {"type": "string"},
+        "PYTHON_VERSION": {"type": "string"},
+        "OS": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags for categorization.",
+      "items": {"type": "string"},
+      "examples": [["build", "validation", "ci"]]
+    },
+    "related_task": {
+      "type": "string",
+      "description": "TD task ID if executed for a specific task."
+    },
+    "proof_artifact": {
+      "type": "string",
+      "description": "Path to related proof artifact."
+    },
+    "receipt_chain": {
+      "type": "array",
+      "description": "Parent/child receipt IDs for chains of execution.",
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}

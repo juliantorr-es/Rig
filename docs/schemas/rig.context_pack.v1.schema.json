@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Context Pack",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task",
+    "purpose",
+    "created_at",
+    "max_chars",
+    "input_artifacts",
+    "selected_artifacts",
+    "omitted_artifacts",
+    "sections",
+    "citations",
+    "hashes",
+    "char_count",
+    "compression_ratio",
+    "warnings",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "const": "rig.context_pack.v1" },
+    "task": { "type": "string" },
+    "purpose": { "type": "string" },
+    "created_at": { "type": "string" },
+    "max_chars": { "type": "integer" },
+    "input_artifacts": { "type": "array", "items": { "type": "string" } },
+    "selected_artifacts": { "type": "array", "items": { "type": "string" } },
+    "omitted_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": { "type": "string" },
+          "sha256": { "type": ["string", "null"] },
+          "size_bytes": { "type": ["integer", "null"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section_type", "text"],
+        "properties": {
+          "section_type": {
+            "type": "string",
+            "enum": [
+              "task_brief",
+              "latest_status",
+              "affected_summary",
+              "architecture_projection",
+              "embedding_hits",
+              "swift_diagnostics",
+              "schema_status",
+              "registry_gate",
+              "git_commit_plan",
+              "agent_summary",
+              "loop_summary",
+              "proof_summary",
+              "patch_summary",
+              "review_questions"
+            ]
+          },
+          "path": { "type": ["string", "null"] },
+          "advisory": { "type": ["boolean", "null"] },
+          "text": { "type": "string" },
+          "llm_summary": {
+            "type": ["object", "null"],
+            "properties": {
+              "status": { "type": ["string", "null"] },
+              "model": { "type": ["string", "null"] },
+              "backend": { "type": ["string", "null"] },
+              "output": { "type": ["string", "null"] },
+              "warnings": { "type": ["array", "null"], "items": { "type": "string" } },
+              "limitations": { "type": ["array", "null"], "items": { "type": "string" } },
+              "advisory": { "type": ["boolean", "null"] }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": ["string", "null"] },
+          "size_bytes": { "type": ["integer", "null"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "hashes": { "type": "object", "additionalProperties": { "type": "string" } },
+    "char_count": { "type": "integer" },
+    "compression_ratio": { "type": "number" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "const": false },
+    "markdown": { "type": ["string", "null"] },
+    "source_repo_root": { "type": ["string", "null"] },
+    "json_path": { "type": ["string", "null"] },
+    "md_path": { "type": ["string", "null"] },
+    "latest_json_path": { "type": ["string", "null"] },
+    "latest_md_path": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

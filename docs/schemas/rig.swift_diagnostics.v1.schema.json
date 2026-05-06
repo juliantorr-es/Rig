@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Swift Diagnostics",
+  "type": "object",
+  "required": ["run_label", "command", "exit_code", "status", "summary", "diagnostics"],
+  "properties": {
+    "schema_version": {"type": ["string", "null"]},
+    "run_label": {"type": "string"},
+    "command": {"type": "array", "items": {"type": "string"}},
+    "target": {"type": ["string", "null"]},
+    "exit_code": {"type": "integer"},
+    "status": {"type": "string"},
+    "summary": {"type": "object"},
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "message", "raw_line"],
+        "properties": {
+          "severity": {"type": "string"},
+          "category": {"type": "string"},
+          "file": {"type": "string"},
+          "line": {"type": "integer"},
+          "column": {"type": "integer"},
+          "message": {"type": "string"},
+          "symbol": {"type": ["string", "null"]},
+          "target": {"type": ["string", "null"]},
+          "known_blocker_id": {"type": ["string", "null"]},
+          "suggested_review": {"type": ["string", "null"]},
+          "raw_line": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Checkpoint",
+  "type": "object",
+  "required": ["schema_version", "job_id", "task", "authoritative"],
+  "properties": {
+    "schema_version": { "const": "rig.checkpoint.v1" },
+    "job_id": { "type": "string" },
+    "task": { "type": "string" },
+    "loop_run_id": { "type": ["string", "null"] },
+    "step_index": { "type": "integer" },
+    "last_action": { "type": ["string", "null"] },
+    "last_result_path": { "type": ["string", "null"] },
+    "next_allowed_actions": { "type": "array", "items": { "type": "string" } },
+    "stop_reason": { "type": ["string", "null"] },
+    "resume_policy": { "type": "string" },
+    "artifacts": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "const": false }
+  },
+  "additionalProperties": true
+}

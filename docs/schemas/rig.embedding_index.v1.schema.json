@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Embedding Index",
+  "type": "object",
+  "required": ["schema_version", "backend", "model", "status", "document_count", "vector_count", "created_at", "warnings", "authoritative"],
+  "properties": {
+    "schema_version": { "const": "rig.embedding_index.v1" },
+    "backend": { "type": "string" },
+    "model": { "type": "string" },
+    "status": { "type": "string" },
+    "document_count": { "type": "integer" },
+    "vector_count": { "type": "integer" },
+    "dimension": { "type": ["integer", "null"] },
+    "source_artifacts": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": false }
+  }
+}

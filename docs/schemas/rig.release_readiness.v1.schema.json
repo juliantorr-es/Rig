@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Release Readiness",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_id",
+    "created_at",
+    "status",
+    "checks",
+    "failures",
+    "warnings",
+    "recommendations",
+    "artifact_paths",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "const": "rig.release_readiness.v1" },
+    "report_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "status": { "enum": ["pass", "warn", "fail"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "status", "command", "exit_code", "stdout_excerpt", "stderr_excerpt", "artifact_path", "recommendation"],
+        "properties": {
+          "check_id": { "type": "string" },
+          "status": { "enum": ["pass", "warn", "fail", "skipped"] },
+          "command": { "type": "string" },
+          "exit_code": { "type": "integer" },
+          "stdout_excerpt": { "type": "string" },
+          "stderr_excerpt": { "type": "string" },
+          "artifact_path": { "type": "string" },
+          "recommendation": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "failures": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "recommendations": { "type": "array", "items": { "type": "string" } },
+    "artifact_paths": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "const": true }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anigma.io/schemas/td-proof-artifact.schema.json",
+  "title": "Anigma TD Proof Artifact",
+  "allOf": [
+    { "$ref": "td-artifact-common.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "frontmatter": {
+          "type": "object",
+          "properties": {
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "custom": { "type": "object" }
+          }
+        },
+        "diagrams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "const": "mermaid" },
+              "title": { "type": "string" },
+              "content": { "type": "string" }
+            }
+          }
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "changeType": { "type": "string" },
+              "risk": { "type": "string" },
+              "category": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "validationResults": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": { "type": "string" },
+              "exitCode": { "type": "integer" },
+              "warningCount": { "type": "integer" },
+              "errorCount": { "type": "integer" },
+              "buildStatus": { "type": "string" },
+              "logPath": { "type": "string" },
+              "classification": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "graphInvariants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim": { "type": "string" },
+              "command": { "type": "string" },
+              "result": { "type": "string" },
+              "status": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "decision": { "type": "string" },
+              "rationale": { "type": "string" },
+              "accepted": { "type": "boolean" },
+              "reviewer": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "remainingWork": { "type": "array", "items": { "type": "string" } },
+        "followups": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  ]
+}

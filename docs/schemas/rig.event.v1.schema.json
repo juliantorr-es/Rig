@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Event",
+  "type": "object",
+  "required": ["schema_version", "event_type", "timestamp_utc", "run_id", "command_group", "command", "attributes"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "rig.event.v1"},
+    "event_type": {"type": "string", "enum": ["run_started", "step_started", "step_output", "step_finished", "artifact", "warning", "error", "run_finished"]},
+    "timestamp_utc": {"type": "string"},
+    "run_id": {"type": "string"},
+    "command_group": {"type": "string"},
+    "command": {"type": "string"},
+    "task": {"type": ["string", "null"]},
+    "attributes": {"type": "object"}
+  }
+}

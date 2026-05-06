@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/td-change-map.schema.json",
+  "title": "TD Change Map Schema",
+  "description": "Schema for validating change map artifacts in Docs/td/. Declares intended modifications with doctrine alignment and rationale. Change maps are commitment devices - they force explicit declaration before modification.",
+  "type": "object",
+  "definitions": {
+    "line_range": {
+      "type": "object",
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Start line number (1-indexed). Only set if actually inspected."
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "End line number (1-indexed). Only set if actually inspected."
+        },
+        "inspection_status": {
+          "type": "string",
+          "enum": ["not_inspected", "scanned", "reviewed", "analyzed"],
+          "default": "not_inspected",
+          "description": "How thoroughly this range has been inspected."
+        }
+      },
+      "additionalProperties": false
+    },
+    "file_modification": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path to the file from repository root."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["create", "modify", "delete", "move", "rename", "refactor", "extract", "inline", "deprecate"],
+          "description": "Type of modification planned for this file."
+        },
+        "rationale": {
+          "type": ["string", "null"],
+          "description": "Why this file needs to be modified."
+        },
+        "line_ranges": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/line_range"},
+          "default": [],
+          "description": "Specific line ranges to be modified. Must be empty if not inspected."
+        },
+        "symbols": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Symbols within this file affected by the change."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Other files that must be modified before this one."
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical", "unknown"],
+          "default": "unknown",
+          "description": "Risk level of modifying this file."
+        },
+        "verification_required": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": [],
+          "description": "Verification commands or checks required after modification."
+        }
+      },
+      "additionalProperties": false
+    },
+    "doctrine_alignment_entry": {
+      "type": "object",
+      "required": ["rule", "reference", "status"],
+      "properties": {
+        "rule": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The doctrine rule being aligned with."
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the doctrine document containing this rule."
+        },
+        "section": {
+          "type": ["string", "null"],
+          "description": "Section within the doctrine document."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["compliant", "needs_waiver", "violation", "unknown"],
+          "description": "Alignment status with this rule."
+        },
+        "waiver_requested": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether a waiver has been requested for this rule."
+        },
+        "waiver_approved": {
+          "type": ["string", "null"],
+          "description": "Who approved the waiver, if granted."
+        },
+        "waiver_rationale": {
+          "type": ["string", "null"],
+          "description": "Justification for requesting a waiver."
+        },
+        "verified_by": {
+          "type": ["string", "null"],
+          "description": "Validation script or method that verified compliance."
+        },
+        "verification_date": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When compliance was verified."
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "description": "Additional notes about this alignment."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["task_id", "status", "affected_surface"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for this document."
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The task ID this change map belongs to."
+    },
+    "epic_id": {
+      "type": ["string", "null"],
+      "description": "The epic ID this change map belongs to, if different from task_id."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["not_started", "planned", "in_progress", "completed", "abandoned", "superseded"],
+      "description": "Status of this change map."
+    },
+    "affected_surface": {
+      "type": "string",
+      "minLength": 1,
+      "description": "High-level surface or component being modified (e.g., 'SubprocessPooling', 'TierValidation', 'MediaCore')."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["create", "extend", "refactor", "fix", "remove", "replace", "extract", "inline", "migrate", "upgrade", "configure"],
+      "description": "Overall action type for this change map."
+    },
+    "summary": {
+      "type": ["string", "null"],
+      "description": "Brief summary of the planned changes."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "Detailed description of the planned changes."
+    },
+    "files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/file_modification"},
+      "default": [],
+      "description": "Files to be modified with their planned actions."
+    },
+    "doctrine_alignment": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/doctrine_alignment_entry"},
+      "default": [],
+      "description": "Explicit alignment of planned changes with doctrine rules."
+    },
+    "rationale": {
+      "type": ["string", "null"],
+      "description": "Overall rationale for these changes."
+    },
+    "verification_profiles": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Verification profile IDs that must pass after these changes."
+    },
+    "expected_proof": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Proof artifacts expected to be generated by these changes."
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical", "unknown"],
+      "default": "unknown",
+      "description": "Overall risk level of this change map."
+    },
+    "risk_notes": {
+      "type": ["string", "null"],
+      "description": "Details about the risk assessment."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Open questions that must be resolved before implementation."
+    },
+    "non_goals": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Explicit list of what this change map does NOT cover."
+    },
+    "created_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this change map was created."
+    },
+    "updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this change map was last updated."
+    },
+    "created_by": {
+      "type": ["string", "null"],
+      "description": "Who created this change map."
+    },
+    "approved_by": {
+      "type": ["string", "null"],
+      "description": "Who approved this change map."
+    },
+    "approval_date": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this change map was approved."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-form notes about this change map."
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.bootstrap_walkthrough.v1.schema.json",
+  "title": "Rig Bootstrap Walkthrough Session",
+  "description": "State of a guided project initialization session",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "session_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "repo_root": { "type": "string" },
+    "detected_state": { "type": "string", "enum": ["empty", "unknown", "existing_project"] },
+    "answers": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean", "array", "null"] }
+    },
+    "recommended_blueprint_path": { "type": ["string", "null"] },
+    "status": { "type": "string", "enum": ["planned", "dry_run", "applied", "cancelled"] },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": false }
+  },
+  "required": ["schema_version", "session_id", "created_at", "repo_root", "detected_state", "status", "authoritative"]
+}

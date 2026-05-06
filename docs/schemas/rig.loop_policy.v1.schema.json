@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.loop_policy.v1.schema.json",
+  "title": "Rig Loop Policy",
+  "description": "Defines the governance and constraints for a supervisor loop run.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "policy_id",
+    "task",
+    "goal",
+    "mode",
+    "max_steps",
+    "allowed_actions",
+    "stop_conditions",
+    "requires_human_approval",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.loop_policy.v1" },
+    "policy_id": { "type": "string" },
+    "task": { "type": "string" },
+    "goal": { "type": "string" },
+    "mode": { "enum": ["read_only", "bounded", "review"] },
+    "max_steps": { "type": "integer", "minimum": 1 },
+    "max_actions": { "type": "integer", "minimum": 1 },
+    "max_duration_seconds": { "type": "integer", "minimum": 1 },
+    "allowed_actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "stop_conditions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "max_steps_reached",
+          "validator_failed",
+          "action_failed",
+          "needs_human_approval",
+          "dirty_git",
+          "command_unavailable",
+          "budget_exceeded",
+          "no_next_action",
+          "unsafe_action_requested"
+        ]
+      }
+    },
+    "requires_human_approval": { "type": "boolean" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

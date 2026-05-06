@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.archive_manifest.v1.schema.json",
+  "title": "Rig Archive Manifest",
+  "description": "A manifest of archived documentation and session artifacts.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "archive_root",
+    "entries",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.archive_manifest.v1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "archive_root": { "type": "string" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["original_path", "archive_path", "artifact_class", "reason", "action", "applied"],
+        "properties": {
+          "original_path": { "type": "string" },
+          "archive_path": { "type": "string" },
+          "artifact_class": { "enum": ["archive_candidate", "duplicate", "superseded"] },
+          "reason": { "type": "string" },
+          "superseded_by": { "type": "string" },
+          "content_hash": { "type": "string" },
+          "git_tracked": { "type": "boolean" },
+          "action": { "enum": ["move", "copy", "retain", "protect"] },
+          "applied": { "type": "boolean" }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

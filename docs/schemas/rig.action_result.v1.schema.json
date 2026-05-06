@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.action_result.v1.schema.json",
+  "title": "Rig Action Result",
+  "description": "The receipt of an executed action plan.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "result_id",
+    "plan_id",
+    "action_id",
+    "status",
+    "exit_code",
+    "started_at",
+    "finished_at",
+    "duration_ms",
+    "human_summary",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.action_result.v1" },
+    "result_id": { "type": "string" },
+    "plan_id": { "type": "string" },
+    "action_id": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "status": { "enum": ["passed", "failed", "blocked", "timeout"] },
+    "exit_code": { "type": "integer" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "stdout_path": { "type": ["string", "null"] },
+    "stderr_path": { "type": ["string", "null"] },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "human_summary": { "type": "string" },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

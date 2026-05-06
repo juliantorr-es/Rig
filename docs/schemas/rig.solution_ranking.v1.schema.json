@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.solution_ranking.v1.schema.json",
+  "title": "Rig Solution Ranking",
+  "description": "Ranking of candidates within a swarm based on base score and bias alignment",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "swarm_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "bias_profiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "candidate_rankings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "rank": { "type": "integer" },
+          "base_score": { "type": "integer" },
+          "bias_alignment_score": { "type": "integer" },
+          "final_score": { "type": "integer" },
+          "matched_positive_indicators": { "type": "array", "items": { "type": "string" } },
+          "matched_negative_indicators": { "type": "array", "items": { "type": "string" } },
+          "hard_fail": { "type": "boolean" },
+          "hard_fail_reason": { "type": "string" }
+        },
+        "required": ["candidate_id", "rank", "base_score", "bias_alignment_score", "final_score"]
+      }
+    },
+    "winner_candidate_id": { "type": ["string", "null"] },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "swarm_id", "created_at", "bias_profiles", "candidate_rankings", "authoritative"]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.project_profile.v1.schema.json",
+  "title": "Rig Project Profile",
+  "description": "Active profile for a Rig-initialized project repo",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "project_id": { "type": "string" },
+    "repo_root": { "type": "string" },
+    "selected_adapters": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "enabled_validators": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "build_commands": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "string" } }
+    },
+    "test_commands": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "string" } }
+    },
+    "docs_roots": { "type": "array", "items": { "type": "string" } },
+    "source_roots": { "type": "array", "items": { "type": "string" } },
+    "risk_rules": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "project_id", "repo_root", "selected_adapters", "authoritative"]
+}

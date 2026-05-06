@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.model_download.v1.schema.json",
+  "title": "Rig Model Download Receipt",
+  "description": "Receipt of a model download and registration event",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "download_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "model_id": { "type": "string" },
+    "repo_id": { "type": "string" },
+    "filename": { "type": ["string", "null"] },
+    "revision": { "type": ["string", "null"] },
+    "backend": { "type": "string" },
+    "format": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "downloading", "downloaded", "verified", "failed", "blocked", "dry_run"]
+    },
+    "local_path": { "type": ["string", "null"] },
+    "cache_path": { "type": ["string", "null"] },
+    "size_bytes": { "type": ["integer", "null"] },
+    "checksum": { "type": ["string", "null"] },
+    "license_status": { "type": "string" },
+    "dry_run": { "type": "boolean" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "download_id", "created_at", "model_id", "repo_id", "status", "authoritative"]
+}

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/file-role-index.schema.json",
+  "title": "File Role Index Schema",
+  "description": "Schema for validating Anigma file role index entries in Docs/architecture/maps/file-role-index.yaml. Each file entry must conform to this schema.",
+  "type": "object",
+  "required": [
+    "version",
+    "last_updated",
+    "files"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version of the file role index schema.",
+      "examples": ["1.0.0"]
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "minLength": 1,
+      "description": "Last update date in YYYY-MM-DD format.",
+      "examples": ["2026-05-02"]
+    },
+    "schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to this schema file.",
+      "examples": ["Docs/schemas/file-role-index.schema.json"]
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "description": "List of file role entries.",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "module",
+          "tier",
+          "role",
+          "key_symbols",
+          "canonical_concepts",
+          "doctrine",
+          "context_load_policy",
+          "update_policy"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File path relative to repository root.",
+            "examples": ["Sources/MediaCore/Governance/SurfaceAuthority.swift"]
+          },
+          "module": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Module this file belongs to.",
+            "examples": ["MediaCore", "AnigmaDaemon", "Governance Validators"]
+          },
+          "tier": {
+            "type": "string",
+            "enum": ["Tier 1", "Tier 2", "Tier 3", "Governance"],
+            "description": "Tier classification (Tier 1/2/3 or Governance)."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "authority",
+              "gate",
+              "orchestrator",
+              "executor",
+              "backend",
+              "substrate",
+              "infrastructure",
+              "adapter",
+              "validator",
+              "bootstrap",
+              "generator",
+              "garbage_collector",
+              "bridge",
+              "types",
+              "descriptor",
+              "documentation",
+              "model",
+              "manifest",
+              "doctrine"
+            ],
+            "description": "Role of this file in the system."
+          },
+          "key_symbols": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Key symbols/types/classes/functions defined or used in this file.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["SurfaceAuthority", "SurfaceHandle", "SurfaceToken"]]
+          },
+          "canonical_concepts": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Canonical Anigma concepts this file implements or uses.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["Zero-copy surface management", "Hot-path protection"]]
+          },
+          "doctrine": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Doctrine rules/principles that apply to this file.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["ZeroCopyProof: All hot-path payloads must have zero-copy option"]]
+          },
+          "related_tasks": {
+            "type": "array",
+            "description": "TD tasks related to this file.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["p0-004", "p1-public-history-excision"]]
+          },
+          "verification": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Verification commands/methods for this file.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "examples": [["validate_tiers.py: Tier 2 compliance", "Proof artifacts exist"]]
+          },
+          "context_load_policy": {
+            "type": "string",
+            "enum": ["eager", "lazy", "minimal"],
+            "description": "How aggressively agents should load this file's context."
+          },
+          "update_policy": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Policy for updating this file.",
+            "examples": ["strict - changes require tier validation", "standard", "test-only"]
+          }
+        }
+      }
+    }
+  }
+}

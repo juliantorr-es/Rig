@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.window_session.v1.schema.json",
+  "title": "Rig Window Session",
+  "description": "State schema for a local Rig window or browser session",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^win-[0-9]{8}-[0-9]{6}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["dry_run", "browser", "pywebview"]
+    },
+    "host": {
+      "type": "string"
+    },
+    "port": {
+      "type": "integer"
+    },
+    "url": {
+      "type": "string"
+    },
+    "command_argv": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "server_pid": {
+      "type": ["integer", "null"]
+    },
+    "token_enabled": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "running", "failed", "stopped", "dry_run"]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "authoritative": {
+      "type": "boolean",
+      "const": false
+    },
+    "error": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "created_at",
+    "mode",
+    "host",
+    "port",
+    "url",
+    "command_argv",
+    "status",
+    "warnings",
+    "authoritative"
+  ],
+  "additionalProperties": false
+}

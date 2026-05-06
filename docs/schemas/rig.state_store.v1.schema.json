@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.state_store.v1.schema.json",
+  "title": "Rig State Store Status",
+  "description": "The status of the Rig OS operational state store.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "db_path",
+    "status",
+    "tables",
+    "migrations",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.state_store.v1" },
+    "db_path": { "type": "string" },
+    "status": { "enum": ["initialized", "missing", "error"] },
+    "tables": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["exists", "count"],
+        "properties": {
+          "exists": { "type": "boolean" },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "migrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["version", "applied_at"],
+        "properties": {
+          "version": { "type": "string" },
+          "applied_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

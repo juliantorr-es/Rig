@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rig.git_commit_plan.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task",
+    "generated_at",
+    "branch",
+    "head",
+    "dirty",
+    "staged_files",
+    "unstaged_files",
+    "untracked_files",
+    "included_files",
+    "excluded_files",
+    "forbidden_files",
+    "scope_status",
+    "validation_status",
+    "schema_status",
+    "registry_gate_status",
+    "known_blockers",
+    "baselines_changed",
+    "production_source_changed",
+    "proof_artifact",
+    "review_bundle",
+    "commit_message",
+    "blocking_reasons",
+    "status"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.git_commit_plan.v1" },
+    "task": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "branch": { "type": ["string", "null"] },
+    "head": { "type": ["string", "null"] },
+    "dirty": { "type": "boolean" },
+    "staged_files": { "type": "array", "items": { "type": "string" } },
+    "unstaged_files": { "type": "array", "items": { "type": "string" } },
+    "untracked_files": { "type": "array", "items": { "type": "string" } },
+    "included_files": { "type": "array", "items": { "type": "string" } },
+    "excluded_files": { "type": "array", "items": { "type": "string" } },
+    "forbidden_files": { "type": "array", "items": { "type": "string" } },
+    "scope_status": { "type": "string", "enum": ["passed", "failed"] },
+    "validation_status": { "type": "string" },
+    "schema_status": { "type": "string" },
+    "registry_gate_status": { "type": "string" },
+    "known_blockers": { "type": "array", "items": { "type": "string" } },
+    "baselines_changed": { "type": "boolean" },
+    "production_source_changed": { "type": "boolean" },
+    "proof_artifact": {
+      "type": ["object", "null"],
+      "properties": {
+        "path": { "type": "string" }
+      },
+      "required": ["path"]
+    },
+    "review_bundle": {
+      "type": ["object", "null"],
+      "properties": {
+        "path": { "type": "string" }
+      },
+      "required": ["path"]
+    },
+    "commit_message": { "type": "string" },
+    "blocking_reasons": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string", "enum": ["ready_to_commit", "blocked", "needs_confirmation", "dry_run"] }
+  },
+  "additionalProperties": true
+}

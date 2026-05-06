@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/td-timeline-event.schema.json",
+  "title": "TD Timeline Event Schema",
+  "description": "Schema for validating timeline event artifacts in Docs/td/ and Docs/timeline/. Events capture occurrences with rollup from task to epic to project level.",
+  "type": "object",
+  "required": ["event_id", "timestamp", "type", "summary"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for this document."
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this event. Must be unique within the containing timeline file.",
+      "examples": ["evt-20250115-001", "p0-004-phase1-start", "td-a84da2-doctrine-aligned"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this event occurred.",
+      "examples": ["2025-01-15T10:30:00Z", "2025-01-15T10:30:00-08:00"]
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "research_start",
+        "research_complete",
+        "decision",
+        "implementation_start",
+        "implementation_complete",
+        "verification_start",
+        "verification_complete",
+        "proof_created",
+        "task_complete",
+        "epic_complete",
+        "milestone",
+        "blocker_found",
+        "blocker_resolved",
+        "lane_start",
+        "lane_complete",
+        "release",
+        "event",
+        "meeting",
+        "review",
+        "merge"
+      ],
+      "description": "Type of timeline event."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable summary of this event."
+    },
+    "task_id": {
+      "type": ["string", "null"],
+      "description": "Task ID that generated this event, if applicable."
+    },
+    "epic_id": {
+      "type": ["string", "null"],
+      "description": "Epic ID containing the task, if applicable."
+    },
+    "lane_id": {
+      "type": ["string", "null"],
+      "description": "Lane ID associated with this event, if applicable."
+    },
+    "actor": {
+      "type": ["string", "null"],
+      "description": "Who performed the action. Can be agent ID, human name, or script name.",
+      "examples": ["agent-vibe", "human-reviewer", "validate_td_folder_system.py"]
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "Detailed description of this event."
+    },
+    "evidence": {
+      "type": ["string", "null"],
+      "description": "Path to proof or evidence artifact, or inline description."
+    },
+    "evidence_paths": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "List of paths to evidence artifacts."
+    },
+    "affected_docs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "List of Docs/ files affected by this event."
+    },
+    "affected_code": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "List of source files affected by this event."
+    },
+    "canonical_effect": {
+      "type": ["string", "null"],
+      "description": "Effect on canonical documentation (addition, modification, removal, etc.)."
+    },
+    "canonical_doc_effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "path"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["add", "modify", "remove", "move", "deprecate"],
+            "description": "Type of documentation change."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path to the affected documentation file."
+          },
+          "summary": {
+            "type": ["string", "null"],
+            "description": "Brief description of the change."
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "Structured canonical documentation effects."
+    },
+    "followups": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Related event IDs or task IDs that follow up on this event."
+    },
+    "related_events": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Other event IDs related to this event."
+    },
+    "status": {
+      "type": ["string", "null"],
+      "enum": ["pending", "confirmed", "resolved", "cancelled"],
+      "description": "Current status of this event."
+    },
+    "severity": {
+      "type": ["string", "null"],
+      "enum": ["critical", "high", "medium", "low", "info"],
+      "description": "Severity or importance level."
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": [],
+      "description": "Tags for categorizing this event."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-form notes about this event."
+    },
+    "rollup_level": {
+      "type": "string",
+      "enum": ["task", "epic", "project"],
+      "default": "task",
+      "description": "The level at which this event is recorded (task, epic, or project)."
+    },
+    "source": {
+      "type": ["string", "null"],
+      "description": "Source of this event (e.g., 'task-timeline', 'epic-timeline', 'manual')."
+    },
+    "sequence": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Sequence number within the containing timeline for ordering."
+    }
+  },
+  "additionalProperties": false
+}

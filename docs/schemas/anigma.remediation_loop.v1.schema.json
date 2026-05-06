@@ -1,0 +1,649 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anigma.dev/schemas/anigma.remediation_loop.v1.schema.json",
+  "title": "Anigma Sentinel Remediation Loop Output Schema v1",
+  "description": "Schema for Anigma Sentinel Remediation Loop MVP output. Defines the structure of loop execution results, remediation plans, and artifacts.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "created_at",
+    "loop_type",
+    "status",
+    "issues",
+    "mode",
+    "remediation_plan",
+    "artifacts",
+    "warnings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0.0"],
+      "description": "Version of this schema. Increment on breaking changes."
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this loop execution run."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when loop execution began."
+    },
+    "completed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when loop execution completed. Null if still running or failed."
+    },
+    "loop_type": {
+      "type": "string",
+      "const": "anigma_remediation",
+      "description": "Type identifier for Anigma remediation loops."
+    },
+    "loop_version": {
+      "type": "string",
+      "description": "Version of the loop implementation."
+    },
+    "source_sentinel_path": {
+      "type": "string",
+      "description": "Path to the source sentinel output file (e.g., .build/anigma/sentinel/latest.json)."
+    },
+    "source_sentinel_hash": {
+      "type": ["string", "null"],
+      "description": "SHA256 hash of the source sentinel output for integrity verification."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["initialized", "planning", "executing", "paused", "completed", "blocked", "failed", "cancelled"],
+      "description": "Current execution status of the loop."
+    },
+    "stop_reason": {
+      "type": ["string", "null"],
+      "description": "Reason for stopping execution (e.g., 'threshold_exceeded', 'unknown_family', 'approval_required', 'sandbox_unsupported', 'max_steps_reached', 'user_cancelled')."
+    },
+    "stop_details": {
+      "type": ["object", "null"],
+      "description": "Additional details about why execution stopped.",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "type": ["string", "null"],
+          "description": "Issue family that caused the stop."
+        },
+        "code": {
+          "type": ["string", "null"],
+          "description": "Issue code that caused the stop."
+        },
+        "count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Number of issues that triggered the stop."
+        },
+        "threshold": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Threshold value that was exceeded."
+        },
+        "message": {
+          "type": ["string", "null"],
+          "description": "Human-readable explanation of the stop reason."
+        }
+      }
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["plan_only", "dry_run", "sandbox", "interactive"],
+      "description": "Execution mode of the loop. plan_only=read-only planning, dry_run=safe execution without mutations, sandbox=deferred/blocked execution, interactive=requires user approval between steps."
+    },
+    "max_steps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Maximum number of steps the loop is allowed to execute."
+    },
+    "steps_executed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of steps actually executed."
+    },
+    "human_approval_required": {
+      "type": "boolean",
+      "description": "Whether human approval is required to continue execution."
+    },
+    "authoritative": {
+      "type": "boolean",
+      "description": "Whether this loop run is authoritative (has approval to execute beyond safe operations)."
+    },
+    "issues": {
+      "type": "object",
+      "description": "All issues from the source sentinel, grouped and classified.",
+      "additionalProperties": false,
+      "properties": {
+        "total_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of issues in the source sentinel output."
+        },
+        "by_family": {
+          "type": "object",
+          "description": "Issues grouped by family.",
+          "additionalProperties": {
+            "$ref": "#/definitions/IssueFamilyGroup"
+          }
+        },
+        "classifiers": {
+          "type": "object",
+          "description": "Issue classifiers used for grouping and planning.",
+          "additionalProperties": {
+            "$ref": "#/definitions/IssueClassifier"
+          }
+        },
+        "unknown_families": {
+          "type": "array",
+          "description": "List of issue families that are not recognized by the loop.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "families_requiring_approval": {
+          "type": "array",
+          "description": "List of issue families that require human approval to remediate.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "selection": {
+      "type": ["object", "null"],
+      "description": "Issue selection criteria for this loop run.",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "type": ["string", "null"],
+          "description": "Selected issue family to address."
+        },
+        "code": {
+          "type": ["string", "null"],
+          "description": "Selected specific issue code to address."
+        },
+        "severity_threshold": {
+          "type": ["string", "null"],
+          "enum": ["critical", "high", "medium", "low", "info"],
+          "description": "Minimum severity level to include."
+        },
+        "max_issues": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Maximum number of issues to include in selection."
+        },
+        "sort_by": {
+          "type": ["string", "null"],
+          "enum": ["severity", "count", "family", "code"],
+          "description": "How to sort selected issues."
+        },
+        "selected_issue_ids": {
+          "type": "array",
+          "description": "List of specific issue IDs selected for remediation.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "remediation_plan": {
+      "$ref": "#/definitions/RemediationPlan"
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Artifacts produced by this loop run.",
+      "additionalProperties": false,
+      "properties": {
+        "loop_session_path": {
+          "type": ["string", "null"],
+          "description": "Path to the loop session file."
+        },
+        "loop_output_path": {
+          "type": ["string", "null"],
+          "description": "Path to the loop output JSON file."
+        },
+        "loop_markdown_path": {
+          "type": ["string", "null"],
+          "description": "Path to the human-readable loop markdown report."
+        },
+        "remediation_receipt_path": {
+          "type": ["string", "null"],
+          "description": "Path to the remediation receipt."
+        },
+        "validation_commands": {
+          "type": "array",
+          "description": "Commands that can be run to validate this loop output.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "related_proofs": {
+          "type": "array",
+          "description": "List of proof artifact paths related to this loop run.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Non-fatal warnings generated during loop execution.",
+      "items": {
+        "$ref": "#/definitions/Warning"
+      }
+    },
+    "loop_session": {
+      "type": ["object", "null"],
+      "description": "Session information for interactive loops.",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Unique session identifier."
+        },
+        "state_file": {
+          "type": "string",
+          "description": "Path to the session state file."
+        },
+        "approvals_granted": {
+          "type": "boolean",
+          "description": "Whether approvals have been granted for this session."
+        },
+        "approvals_required": {
+          "type": "array",
+          "description": "List of approvals that were required.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "system_info": {
+      "type": ["object", "null"],
+      "description": "System and environment information.",
+      "additionalProperties": false,
+      "properties": {
+        "python_version": {
+          "type": "string",
+          "description": "Python version used for execution."
+        },
+        "platform": {
+          "type": "string",
+          "description": "Operating system platform."
+        },
+        "working_directory": {
+          "type": "string",
+          "description": "Current working directory during execution."
+        },
+        "environment": {
+          "type": "object",
+          "description": "Relevant environment variables.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "IssueFamilyGroup": {
+      "type": "object",
+      "description": "Group of issues belonging to the same family.",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of issues in this family."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"],
+          "description": "Overall severity of issues in this family."
+        },
+        "issues": {
+          "type": "array",
+          "description": "List of individual issues in this family.",
+          "items": {
+            "$ref": "#/definitions/Issue"
+          }
+        },
+        "remediation_hint": {
+          "type": ["string", "null"],
+          "description": "Suggested remediation approach for this family."
+        },
+        "requires_approval": {
+          "type": "boolean",
+          "description": "Whether issues in this family require human approval to remediate."
+        },
+        "sandbox_supported": {
+          "type": "boolean",
+          "description": "Whether issues in this family can be remediated in sandbox mode."
+        }
+      },
+      "required": ["count", "severity", "issues", "requires_approval", "sandbox_supported"]
+    },
+    "Issue": {
+      "type": "object",
+      "description": "Individual sentinel issue.",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this issue."
+        },
+        "code": {
+          "type": "string",
+          "description": "Machine-readable issue code."
+        },
+        "family": {
+          "type": "string",
+          "description": "Issue family/category."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"],
+          "description": "Severity level of this issue."
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title."
+        },
+        "message": {
+          "type": "string",
+          "description": "Detailed issue message."
+        },
+        "file": {
+          "type": ["string", "null"],
+          "description": "File path where the issue was detected."
+        },
+        "line": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Line number in the file."
+        },
+        "column": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Column number in the file."
+        },
+        "remediation": {
+          "type": ["string", "null"],
+          "description": "Suggested remediation for this specific issue."
+        },
+        "related_tiers": {
+          "type": ["array", "null"],
+          "description": "Anigma tiers related to this issue.",
+          "items": {
+            "type": "string",
+            "enum": ["tier_1_contracts", "tier_2_substrate", "tier_3_daemon"]
+          }
+        },
+        "packet": {
+          "type": ["object", "null"],
+          "description": "Packet containing machine-readable details."
+        }
+      },
+      "required": ["id", "code", "family", "severity", "title", "message"]
+    },
+    "IssueClassifier": {
+      "type": "object",
+      "description": "Classifier definition for grouping and planning.",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "type": "string",
+          "description": "Issue family this classifier handles."
+        },
+        "codes": {
+          "type": "array",
+          "description": "Issue codes handled by this classifier.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "family_group": {
+          "type": "string",
+          "description": "Broader category this family belongs to for planning purposes."
+        },
+        "severity_order": {
+          "type": "array",
+          "description": "Severity levels in order of importance.",
+          "items": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"]
+          }
+        },
+        "default_action": {
+          "type": ["string", "null"],
+          "description": "Default remediation action for issues in this family."
+        },
+        "requires_approval": {
+          "type": "boolean",
+          "description": "Whether remediation for this family requires human approval."
+        },
+        "sandbox_supported": {
+          "type": "boolean",
+          "description": "Whether this family can be remediated in sandbox mode."
+        },
+        "max_concurrent": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of issues from this family to remediate concurrently."
+        }
+      },
+      "required": ["family", "codes", "family_group", "requires_approval", "sandbox_supported"]
+    },
+    "RemediationPlan": {
+      "type": "object",
+      "description": "Remediation plan generated by the loop.",
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the plan was created."
+        },
+        "family": {
+          "type": ["string", "null"],
+          "description": "Issue family this plan addresses."
+        },
+        "code": {
+          "type": ["string", "null"],
+          "description": "Specific issue code this plan addresses."
+        },
+        "issue_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of issues in this plan."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Human-readable summary of the remediation plan."
+        },
+        "estimated_duration_seconds": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Estimated duration for plan execution in seconds."
+        },
+        "planned_actions": {
+          "type": "array",
+          "description": "List of planned remediation actions.",
+          "items": {
+            "$ref": "#/definitions/PlannedAction"
+          }
+        },
+        "blocked": {
+          "type": "boolean",
+          "description": "Whether plan execution is blocked."
+        },
+        "block_reasons": {
+          "type": "array",
+          "description": "Reasons why the plan is blocked.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Plan dependencies that must be executed first.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "validation_restricts_autonomy": {
+          "type": "boolean",
+          "description": "Whether validation results restrict loop autonomy."
+        }
+      },
+      "required": ["created_at", "issue_count", "summary", "planned_actions", "blocked", "block_reasons"]
+    },
+    "PlannedAction": {
+      "type": "object",
+      "description": "Individual action in the remediation plan.",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this action."
+        },
+        "action_type": {
+          "type": "string",
+          "enum": ["diagnose", "analyze", "classify", "plan", "execute", "validate", "verify", "document", "report"],
+          "description": "Type of action."
+        },
+        "subject": {
+          "type": "string",
+          "description": "What this action operates on (e.g., 'native_import_unknown_tier issues')."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the action."
+        },
+        "targets": {
+          "type": "array",
+          "description": "Specific targets for this action.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command_template": {
+          "type": ["string", "null"],
+          "description": "Template for the command to execute."
+        },
+        "argv": {
+          "type": ["array", "null"],
+          "description": "Argument list for command execution (no shell=True).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dry_run_command": {
+          "type": ["string", "null"],
+          "description": "Command to run in dry-run mode."
+        },
+        "dry_run_argv": {
+          "type": ["array", "null"],
+          "description": "Argument list for dry-run command.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "safety_class": {
+          "type": "string",
+          "enum": ["read_only", "safe_mutate", "unsafe", "blocked"],
+          "description": "Safety classification of this action."
+        },
+        "requires_approval": {
+          "type": "boolean",
+          "description": "Whether this action requires human approval."
+        },
+        "step_position": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Position of this action in the execution sequence."
+        },
+        "estimated_duration_seconds": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Estimated duration for this action."
+        },
+        "issue_ids": {
+          "type": "array",
+          "description": "List of issue IDs this action addresses.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_outcome": {
+          "type": ["string", "null"],
+          "description": "Expected outcome of this action."
+        },
+        "verification_command": {
+          "type": ["string", "null"],
+          "description": "Command to verify the action was successful."
+        },
+        "verification_argv": {
+          "type": ["array", "null"],
+          "description": "Argument list for verification command.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rollback_command": {
+          "type": ["string", "null"],
+          "description": "Command to rollback this action if needed."
+        },
+        "rollback_argv": {
+          "type": ["array", "null"],
+          "description": "Argument list for rollback command.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["id", "action_type", "subject", "safety_class", "requires_approval", "step_position"]
+    },
+    "Warning": {
+      "type": "object",
+      "description": "Non-fatal warning from loop execution.",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this warning."
+        },
+        "code": {
+          "type": "string",
+          "description": "Machine-readable warning code."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable warning message."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "Severity of this warning."
+        },
+        "context": {
+          "type": ["object", "null"],
+          "description": "Context information for the warning.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["id", "code", "message", "severity"]
+    }
+  }
+}

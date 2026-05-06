@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.project_digest.v1.schema.json",
+  "title": "Rig Project Digest",
+  "description": "Deterministic map of a project codebase",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "digest_id": { "type": "string", "pattern": "^dig-[a-f0-9]{8}$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "repo_root": { "type": "string" },
+    "git_repo_detected": { "type": "boolean" },
+    "rig_initialized": { "type": "boolean" },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "language": { "type": "string" },
+          "file_count": { "type": "integer" },
+          "bytes": { "type": "integer" },
+          "percentage": { "type": "number" },
+          "confidence": { "type": "string", "enum": ["low", "medium", "high"] }
+        },
+        "required": ["language", "file_count", "bytes", "percentage", "confidence"]
+      }
+    },
+    "detected_stacks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stack_id": { "type": "string" },
+          "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "recommended_adapter": { "type": "string" }
+        },
+        "required": ["stack_id", "confidence", "evidence", "recommended_adapter"]
+      }
+    },
+    "build_systems": { "type": "array", "items": { "type": "string" } },
+    "package_managers": { "type": "array", "items": { "type": "string" } },
+    "source_roots": { "type": "array", "items": { "type": "string" } },
+    "test_roots": { "type": "array", "items": { "type": "string" } },
+    "docs_roots": { "type": "array", "items": { "type": "string" } },
+    "config_files": { "type": "array", "items": { "type": "string" } },
+    "generated_roots": { "type": "array", "items": { "type": "string" } },
+    "ignored_roots": { "type": "array", "items": { "type": "string" } },
+    "existing_commands": { "type": "array", "items": { "type": "string" } },
+    "recommended_adapters": { "type": "array", "items": { "type": "string" } },
+    "recommended_validators": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "artifact_paths": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": false }
+  },
+  "required": ["schema_version", "digest_id", "created_at", "repo_root", "git_repo_detected", "rig_initialized", "languages", "detected_stacks", "authoritative"]
+}

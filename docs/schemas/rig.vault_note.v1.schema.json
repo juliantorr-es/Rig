@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anigma-ai/anigma rig.vault_note.v1.schema.json",
+  "title": "Rig Vault Note",
+  "description": "Schema for individual vault notes. Vault is a projection, not source of truth.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "note_id",
+    "rig_type",
+    "title",
+    "path",
+    "frontmatter",
+    "body_sections",
+    "links",
+    "source_artifacts",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version identifier",
+      "enum": ["rig.vault_note.v1"]
+    },
+    "note_id": {
+      "type": "string",
+      "description": "Unique identifier for this note",
+      "minLength": 1
+    },
+    "rig_type": {
+      "type": "string",
+      "description": "Type of Rig artifact this note represents",
+      "minLength": 1,
+      "examples": ["dashboard", "task", "tasks_index", "loop_run", "sentinel", "gc_index", "settings_reference"]
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title of the note",
+      "minLength": 1
+    },
+    "path": {
+      "type": "string",
+      "description": "Relative path of the note within the vault",
+      "minLength": 1,
+      "examples": ["00 Dashboard.md", "01 Tasks/td-123.md", "06 Sentinels/index.md"]
+    },
+    "frontmatter": {
+      "type": "object",
+      "description": "YAML frontmatter key-value pairs for the note. Values can be strings, lists, or booleans.",
+      "minProperties": 1,
+      "additionalProperties": true
+    },
+    "body_sections": {
+      "type": "array",
+      "description": "Ordered sections of Markdown body content",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "links": {
+      "type": "array",
+      "description": "List of wiki-style links to other vault notes",
+      "items": {
+        "type": "string",
+        "description": "Wiki link in format [[Note Title]] or [[path/to/note.md]]"
+      },
+      "default": []
+    },
+    "source_artifacts": {
+      "type": "array",
+      "description": "Paths of source artifacts that contributed to this note",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "authoritative": {
+      "type": "boolean",
+      "description": "Whether this note is authoritative (always false for vault projections)",
+      "enum": [false]
+    },
+    "status": {
+      "type": "string",
+      "description": "Status of the note generation",
+      "enum": ["pass", "warn", "fail"],
+      "default": "pass"
+    },
+    "warnings": {
+      "type": "array",
+      "description": "List of warnings encountered while generating this note",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

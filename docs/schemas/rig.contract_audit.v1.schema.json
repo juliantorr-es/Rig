@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "rig.contract_audit.v1.schema.json",
+  "title": "Rig Contract Audit",
+  "description": "Verification of system invariants and command contracts",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["rig.contract_audit.v1"]
+    },
+    "audit_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "warn", "fail"]
+    },
+    "surfaces": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "invariant_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "invariant": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "warn", "fail", "skipped"]
+          },
+          "detail": { "type": "string" }
+        },
+        "required": ["invariant", "status"],
+        "additionalProperties": false
+      }
+    },
+    "authoritative": {
+      "type": "boolean",
+      "enum": [true]
+    }
+  },
+  "required": [
+    "schema_version",
+    "audit_id",
+    "created_at",
+    "status",
+    "surfaces",
+    "issues",
+    "invariant_results",
+    "authoritative"
+  ],
+  "additionalProperties": false
+}

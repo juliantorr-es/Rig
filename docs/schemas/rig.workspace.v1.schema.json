@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.workspace.v1.schema.json",
+  "title": "Rig Workspace",
+  "description": "Metadata container for a unit of work in Rig",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "workspace_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "repo_root": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "title": { "type": "string" },
+    "mode": { "type": "string", "enum": ["safe", "action", "auto_approve"] },
+    "status": { "type": "string", "enum": ["planned", "active", "review", "blocked", "archived"] },
+    "selected_adapters": { "type": "array", "items": { "type": "string" } },
+    "selected_bias_profiles": { "type": "array", "items": { "type": "string" } },
+    "worktree": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "path": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] }
+      }
+    },
+    "loop_run_id": { "type": ["string", "null"] },
+    "swarm_run_id": { "type": ["string", "null"] },
+    "diff_review_id": { "type": ["string", "null"] },
+    "receipt_paths": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "workspace_id", "created_at", "repo_root", "mode", "status", "authoritative"]
+}

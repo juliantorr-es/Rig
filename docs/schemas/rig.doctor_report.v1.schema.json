@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "rig.doctor_report.v1.schema.json",
+  "title": "Rig Doctor Report",
+  "description": "Validation report of integrated Rig OS runtime health",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["rig.doctor_report.v1"]
+    },
+    "report_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "warn", "fail"]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check_id": { "type": "string" },
+          "subsystem": { "type": "string" },
+          "command": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "warn", "fail", "skipped"]
+          },
+          "exit_code": { "type": "integer" },
+          "stdout_excerpt": { "type": "string" },
+          "stderr_excerpt": { "type": "string" },
+          "artifact_path": { "type": "string" },
+          "recommendation": { "type": "string" }
+        },
+        "required": ["check_id", "subsystem", "status"],
+        "additionalProperties": false
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "artifact_paths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authoritative": {
+      "type": "boolean",
+      "enum": [true]
+    }
+  },
+  "required": [
+    "schema_version",
+    "report_id",
+    "created_at",
+    "status",
+    "checks",
+    "failures",
+    "warnings",
+    "recommendations",
+    "artifact_paths",
+    "authoritative"
+  ],
+  "additionalProperties": false
+}

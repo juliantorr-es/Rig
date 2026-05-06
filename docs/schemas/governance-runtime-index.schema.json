@@ -1,0 +1,301 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Governance Runtime Index",
+  "description": "Machine-readable governance index derived from Docs/, TD task records, schemas, and manifests for daemon startup ingestion",
+  "type": "object",
+  "required": [
+    "version",
+    "generated_at",
+    "source_commit",
+    "source_files",
+    "governance_policies",
+    "td_tasks",
+    "validation_results"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version of the governance index"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the index was generated"
+    },
+    "source_commit": {
+      "type": "object",
+      "required": ["hash", "timestamp"],
+      "properties": {
+        "hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Git commit hash"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Commit timestamp"
+        },
+        "message": {
+          "type": "string",
+          "description": "Commit message"
+        }
+      },
+      "description": "Source control commit information"
+    },
+    "source_files": {
+      "type": "object",
+      "required": ["td_registry", "governance_docs", "schemas", "manifests"],
+      "properties": {
+        "td_registry": {
+          "type": "string",
+          "description": "Path to TD task registry file"
+        },
+        "governance_docs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of governance documentation files"
+        },
+        "schemas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of schema files"
+        },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of manifest files"
+        }
+      },
+      "description": "Source files used to generate the index"
+    },
+    "governance_policies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "source_file"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Policy identifier"
+          },
+          "title": {
+            "type": "string",
+            "description": "Policy title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Policy description"
+          },
+          "source_file": {
+            "type": "string",
+            "description": "Source documentation file"
+          },
+          "validation_rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "name", "severity"],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": ["INFO", "WARNING", "ERROR"]
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Validation rules defined by this policy"
+          }
+        }
+      },
+      "description": "Governance policies extracted from documentation"
+    },
+    "td_tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "priority", "type", "lane", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Task identifier"
+          },
+          "title": {
+            "type": "string",
+            "description": "Task title"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["P0", "P1", "P2", "P3"],
+            "description": "Task priority"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["task", "epic", "research", "decision"],
+            "description": "Task type"
+          },
+          "lane": {
+            "type": "string",
+            "description": "Task lane/worktree"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ready", "in_progress", "in_review", "blocked", "complete", "archived"],
+            "description": "Task status"
+          },
+          "description": {
+            "type": "string",
+            "description": "Task description"
+          },
+          "source_docs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Source documentation files"
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Acceptance criteria"
+          },
+          "proof": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Proof artifacts"
+          },
+          "parent": {
+            "type": ["string", "null"],
+            "description": "Parent task ID"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Child task IDs"
+          },
+          "non_goals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit non-goals"
+          }
+        }
+      },
+      "description": "Task definitions from TD registry"
+    },
+    "validation_results": {
+      "type": "object",
+      "required": ["is_valid", "timestamp", "validator_version"],
+      "properties": {
+        "is_valid": {
+          "type": "boolean",
+          "description": "Whether the index passed validation"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Validation timestamp"
+        },
+        "validator_version": {
+          "type": "string",
+          "description": "Version of the validator used"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message", "severity"],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["INFO", "WARNING", "ERROR"]
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "description": "Validation warnings"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message", "severity"],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["ERROR"]
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "description": "Validation errors"
+        }
+      },
+      "description": "Validation results for this index"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "generator_version": {
+          "type": "string",
+          "description": "Version of the generator script"
+        },
+        "generator_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the generator was run"
+        },
+        "repository": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "additional_notes": {
+          "type": "string",
+          "description": "Any additional notes"
+        }
+      },
+      "description": "Additional metadata about index generation"
+    }
+  },
+  "additionalProperties": false
+}

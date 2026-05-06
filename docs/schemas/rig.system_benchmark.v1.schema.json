@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.system_benchmark.v1.schema.json",
+  "title": "Rig System Benchmark",
+  "description": "Profile of local system capabilities and recommended Rig settings",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "benchmark_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "platform": { "type": "string" },
+    "machine": { "type": "string" },
+    "python_version": { "type": "string" },
+    "total_memory_bytes": { "type": "integer" },
+    "available_memory_bytes": { "type": "integer" },
+    "cpu_count": { "type": "integer" },
+    "backend_availability": {
+      "type": "object",
+      "properties": {
+        "mlx": { "type": "boolean" },
+        "llama_cpp_python": { "type": "boolean" },
+        "llama_server": { "type": "boolean" },
+        "huggingface_hub": { "type": "boolean" }
+      }
+    },
+    "quick_results": {
+      "type": "object",
+      "properties": {
+        "prompt_eval_tokens_per_second": { "type": ["number", "null"] },
+        "generation_tokens_per_second": { "type": ["number", "null"] },
+        "model_id": { "type": ["string", "null"] }
+      }
+    },
+    "recommended_profile": {
+      "type": "object",
+      "properties": {
+        "profile_id": { "type": "string" },
+        "max_parallel_candidates": { "type": "integer" },
+        "default_context_tokens": { "type": "integer" },
+        "patch_context_tokens": { "type": "integer" },
+        "swarm_mode": { "type": "string", "enum": ["sequential", "parallel"] }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "benchmark_id", "created_at", "total_memory_bytes", "backend_availability", "authoritative"]
+}

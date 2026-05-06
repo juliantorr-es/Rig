@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.project_adapter.v1.schema.json",
+  "title": "Rig Project Adapter",
+  "description": "Definition of a project type adapter for specialized mapping and validation",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "adapter_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "display_name": { "type": "string" },
+    "description": { "type": "string" },
+    "detectors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "source_patterns": { "type": "array", "items": { "type": "string" } },
+    "test_patterns": { "type": "array", "items": { "type": "string" } },
+    "docs_patterns": { "type": "array", "items": { "type": "string" } },
+    "build_commands": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "string" } }
+    },
+    "test_commands": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "string" } }
+    },
+    "lint_commands": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "string" } }
+    },
+    "validator_rules": { "type": "array", "items": { "type": "string" } },
+    "doctor_checks": { "type": "array", "items": { "type": "string" } },
+    "risk_rules": { "type": "array", "items": { "type": "string" } },
+    "default_bias_profiles": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "adapter_id", "display_name", "description", "detectors", "authoritative"]
+}

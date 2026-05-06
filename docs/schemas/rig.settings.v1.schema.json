@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.settings.v1.schema.json",
+  "title": "Rig Settings",
+  "description": "Configuration and policy settings for the Rig OS.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "default_mode",
+    "active_model_backend",
+    "vault_path",
+    "state_path",
+    "projection_path",
+    "scheduler_enabled",
+    "tui",
+    "retention",
+    "safety",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.settings.v1" },
+    "default_mode": { "enum": ["safe", "action", "auto_approve"] },
+    "active_model_backend": { "enum": ["mlx", "llama-cpp", "none"] },
+    "active_mlx_model": { "type": ["string", "null"] },
+    "active_llama_cpp_model_path": { "type": ["string", "null"] },
+    "vault_path": { "type": "string" },
+    "state_path": { "type": "string" },
+    "projection_path": { "type": "string" },
+    "scheduler_enabled": { "type": "boolean" },
+    "tui": {
+      "type": "object",
+      "required": ["theme", "animations", "remember_mode"],
+      "properties": {
+        "theme": { "enum": ["bauhaus", "default"] },
+        "animations": { "type": "boolean" },
+        "remember_mode": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "retention": {
+      "type": "object",
+      "required": ["ephemeral_days", "cache_days", "projection_days", "receipt_days", "bundle_days"],
+      "properties": {
+        "ephemeral_days": { "type": "integer", "minimum": 0 },
+        "cache_days": { "type": "integer", "minimum": 0 },
+        "projection_days": { "type": "integer", "minimum": 0 },
+        "receipt_days": { "type": "integer", "minimum": 0 },
+        "bundle_days": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "safety": {
+      "type": "object",
+      "required": ["allow_git_mutation", "allow_main_worktree_patch", "allow_confirmed_external_agent_launch", "require_confirmation_for_auto_approve"],
+      "properties": {
+        "allow_git_mutation": { "type": "boolean" },
+        "allow_main_worktree_patch": { "type": "boolean" },
+        "allow_confirmed_external_agent_launch": { "type": "boolean" },
+        "require_confirmation_for_auto_approve": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": false },
+    "mode": { "type": "string" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": true
+}

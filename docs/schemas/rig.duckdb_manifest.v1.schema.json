@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.duckdb_manifest.v1.schema.json",
+  "title": "Rig DuckDB Manifest",
+  "type": "object",
+  "required": ["schema_version", "db_path", "generated_at", "duckdb_available", "canonical_truth_statement"],
+  "properties": {
+    "schema_version": { "const": "rig.duckdb_manifest.v1" },
+    "db_path": { "type": "string" },
+    "db_schema_version": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "duckdb_available": { "type": "boolean" },
+    "duckdb_version": { "type": ["string", "null"] },
+    "table_counts": { "type": "object" },
+    "source_artifact_counts": { "type": "object" },
+    "omitted_artifacts": { "type": "array" },
+    "warnings": { "type": "array" },
+    "canonical_truth_statement": { "type": "string" }
+  }
+}

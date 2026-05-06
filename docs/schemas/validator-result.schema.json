@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.dev/schemas/validator-result.schema.json",
+  "title": "Validator Result Schema",
+  "description": "Schema for validation result objects emitted by governance validators.",
+  "type": "object",
+  "required": ["validator_name", "status", "timestamp", "exit_code"],
+  "properties": {
+    "validator_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Name of the validator that produced this result.",
+      "examples": ["validate_tiers.py", "validate_no_cycles.py", "validate_exported_imports.py"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PASSED", "FAILED", "WARNING", "ERROR", "SKIPPED"],
+      "description": "Overall validation status."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the validation was performed."
+    },
+    "exit_code": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Process exit code."
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Time taken to run validation."
+    },
+    "violations": {
+      "type": "array",
+      "description": "List of specific violations found.",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message", "file", "line"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["ERROR", "WARNING", "INFO"],
+            "description": "Severity level of the violation."
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable violation message."
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File path where violation occurred."
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Line number in the file."
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Column number in the file."
+          },
+          "details": {
+            "type": "string",
+            "description": "Additional context or remediation hints."
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "List of warnings (non-blocking issues).",
+      "items": {
+        "type": "object",
+        "required": ["message", "file"],
+        "properties": {
+          "message": {"type": "string", "minLength": 1},
+          "file": {"type": "string", "minLength": 1},
+          "line": {"type": "integer", "minimum": 1},
+          "suggestion": {"type": "string"}
+        }
+      }
+    },
+    "checked_files": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of files checked."
+    },
+    "checked_targets": {
+      "type": "array",
+      "description": "List of targets/checks performed.",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "validator_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version of the validator script."
+    },
+    "anigma_snapshot": {
+      "type": "string",
+      "description": "Git commit or tag this validation was run against."
+    }
+  },
+  "additionalProperties": false
+}

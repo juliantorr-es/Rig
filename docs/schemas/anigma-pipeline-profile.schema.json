@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Anigma Pipeline Profile",
+  "type": "object",
+  "required": ["name", "steps"],
+  "properties": {
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "continue_on_known_blocked_required": {"type": "boolean"},
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "command"],
+        "properties": {
+          "id": {"type": "string"},
+          "command": {"type": "string"},
+          "required": {"type": "boolean"},
+          "timeout_seconds": {"type": "integer"},
+          "description": {"type": "string"}
+        }
+      }
+    }
+  }
+}

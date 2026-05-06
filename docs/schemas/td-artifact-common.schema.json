@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anigma.io/schemas/td-artifact-common.schema.json",
+  "title": "Anigma TD Artifact Common Fields",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string" },
+    "taskId": { "type": "string" },
+    "title": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["RESEARCH", "IMPLEMENTING", "IN_REVIEW", "DONE", "BLOCKED", "ACCEPTED", "REJECTED"]
+    },
+    "artifactType": {
+      "type": "string",
+      "enum": ["research", "hypothesis", "validation", "proof", "review", "handoff"]
+    },
+    "summary": { "type": "string" },
+    "generatedMarkdownPath": { "type": "string" },
+    "relatedArtifacts": { "type": "array", "items": { "type": "string" } },
+    "diagnosticsBundlePaths": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "string" }
+  },
+  "required": ["schema", "taskId", "title", "status", "artifactType"]
+}

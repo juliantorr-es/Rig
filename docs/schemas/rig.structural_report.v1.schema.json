@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anigma.io/schemas/rig.structural_report.v1.schema.json",
+  "title": "Rig Structural Report",
+  "description": "Full report from a structural code scan session",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "report_id": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": { "type": "string", "enum": ["pass", "warn", "fail"] },
+    "engines": { "type": "array", "items": { "type": "string" } },
+    "languages": { "type": "array", "items": { "type": "string" } },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "https://anigma.io/schemas/rig.structural_finding.v1.schema.json" }
+    },
+    "counts_by_severity": {
+      "type": "object",
+      "properties": {
+        "info": { "type": "integer" },
+        "warning": { "type": "integer" },
+        "error": { "type": "integer" },
+        "critical": { "type": "integer" }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "artifact_paths": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "required": ["schema_version", "report_id", "created_at", "status", "engines", "languages", "findings", "authoritative"]
+}

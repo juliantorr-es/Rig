@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Affected",
+  "type": "object",
+  "required": ["mode", "changed_files", "directly_affected_targets", "recommended_profiles", "affected_risk_count"],
+  "properties": {
+    "schema_version": {"type": ["string", "null"]},
+    "mode": {"type": "string"},
+    "base": {"type": ["string", "null"]},
+    "head": {"type": ["string", "null"]},
+    "task": {"type": ["string", "null"]},
+    "changed_files": {"type": "array", "items": {"type": "string"}},
+    "directly_affected_targets": {"type": "array", "items": {"type": "string"}},
+    "upstream_or_dependent_targets": {"type": "array", "items": {"type": "string"}},
+    "recommended_profiles": {"type": "array", "items": {"type": "string"}},
+    "recommended_validation_commands": {"type": "array", "items": {"type": "string"}},
+    "affected_risk_count": {"type": "integer"}
+  }
+}

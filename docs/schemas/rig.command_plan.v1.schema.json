@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.command_plan.v1.schema.json",
+  "title": "Rig Command Plan",
+  "description": "A specific plan to execute an action, resolved with a task and environment parameters.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "plan_id",
+    "action_id",
+    "mode",
+    "argv",
+    "working_directory",
+    "timeout_seconds",
+    "allowed",
+    "safety",
+    "created_at",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "rig.command_plan.v1" },
+    "plan_id": { "type": "string" },
+    "action_id": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "mode": { "enum": ["safe", "action", "auto-approve"] },
+    "argv": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "working_directory": { "type": "string" },
+    "timeout_seconds": { "type": "integer", "minimum": 1 },
+    "allowed": { "type": "boolean" },
+    "disabled_reason": { "type": ["string", "null"] },
+    "safety": {
+      "type": "object",
+      "required": ["shell", "mutates_git", "mutates_main_worktree", "launches_external_agent"],
+      "properties": {
+        "shell": { "type": "boolean", "const": false },
+        "mutates_git": { "type": "boolean" },
+        "mutates_main_worktree": { "type": "boolean" },
+        "launches_external_agent": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "authoritative": { "type": "boolean", "const": true }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Policy Decision",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "decision_id",
+    "action_kind",
+    "risk_level",
+    "decision",
+    "reason",
+    "matched_rules",
+    "requires_confirm",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": { "const": "rig.policy_decision.v1" },
+    "decision_id": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "action_kind": { "type": "string" },
+    "risk_level": { "type": "string" },
+    "decision": { "type": "string" },
+    "reason": { "type": "string" },
+    "matched_rules": { "type": "array", "items": { "type": "string" } },
+    "requires_confirm": { "type": "boolean" },
+    "authoritative": { "const": true }
+  },
+  "additionalProperties": true
+}

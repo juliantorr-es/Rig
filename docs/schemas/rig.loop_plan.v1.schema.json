@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rig Supervisor Loop Plan",
+  "type": "object",
+  "required": ["schema_version", "plan_id", "task", "mode", "step_index", "action_id", "arguments", "reason", "expected_artifacts", "safety_class", "requires_confirm", "authoritative", "stop_after", "warnings"],
+  "properties": {
+    "schema_version": {"const": "rig.loop_plan.v1"},
+    "plan_id": {"type": "string"},
+    "task": {"type": "string"},
+    "mode": {"type": "string"},
+    "step_index": {"type": "integer"},
+    "action_id": {"type": "string", "enum": ["affected_summary","embeddings_query","project_architecture","monitor_snapshot","schema_validate_results","schema_validate_events","swift_diagnostics","agent_plan","agent_dry_run","bundle_session","stop"]},
+    "arguments": {"type": "object"},
+    "reason": {"type": "string"},
+    "expected_artifacts": {"type": "array", "items": {"type": "string"}},
+    "safety_class": {"type": "string"},
+    "requires_confirm": {"type": "boolean"},
+    "authoritative": {"type": "boolean", "const": false},
+    "stop_after": {"type": "boolean"},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Memory Contract",
+  "type": "object",
+  "required": ["schema_version", "status", "checks", "warnings", "artifact_paths", "authoritative"],
+  "properties": {
+    "schema_version": { "const": "rig.memory_contract.v1" },
+    "status": { "type": "string", "enum": ["pass", "warn", "fail"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "subsystem", "status", "detail"],
+        "properties": {
+          "check_id": { "type": "string" },
+          "subsystem": { "type": "string" },
+          "status": { "type": "string", "enum": ["pass", "warn", "fail"] },
+          "detail": { "type": "string" },
+          "recommendation": { "type": "string" },
+          "artifact_path": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "artifact_paths": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

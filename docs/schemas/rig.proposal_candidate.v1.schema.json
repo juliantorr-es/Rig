@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rig.proposal_candidate.v1",
+  "title": "Rig Proposal Candidate v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "swarm_id",
+    "candidate_id",
+    "task",
+    "kind",
+    "strategy",
+    "prompt_path",
+    "raw_output_path",
+    "parsed_output_path",
+    "validation_path",
+    "score_path",
+    "status",
+    "score",
+    "authoritative"
+  ],
+  "properties": {
+    "schema_version": {"const": "rig.proposal_candidate.v1"},
+    "swarm_id": {"type": "string"},
+    "candidate_id": {"type": "string"},
+    "task": {"type": "string"},
+    "kind": {"type": "string"},
+    "strategy": {"type": "string"},
+    "prompt_path": {"type": ["string", "null"]},
+    "raw_output_path": {"type": ["string", "null"]},
+    "parsed_output_path": {"type": ["string", "null"]},
+    "validation_path": {"type": ["string", "null"]},
+    "score_path": {"type": ["string", "null"]},
+    "status": {"type": "string", "enum": ["planned", "running", "passed", "failed", "quarantined"]},
+    "score": {"type": "number"},
+    "failure_type": {"type": ["string", "null"]},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "authoritative": {"const": false}
+  },
+  "additionalProperties": true
+}
