@@ -1,33 +1,15 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anigma.io/schemas/rig.diff_review.v1.schema.json",
-  "title": "Rig Diff Review",
-  "description": "Summary of changes and classification of risks in a diff",
+  "$id": "https://rig.anigma.internal/schemas/rig.diff_review.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Diff Review Schema",
+  "description": "Schema for Rig diff review output.",
   "type": "object",
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0.0" },
     "diff_review_id": { "type": "string" },
-    "created_at": { "type": "string", "format": "date-time" },
-    "repo_root": { "type": "string" },
-    "workspace_id": { "type": ["string", "null"] },
+    "workspace_id": { "type": "string" },
     "status": { "type": "string", "enum": ["pass", "warn", "fail", "skipped"] },
-    "changed_files": { "type": "array", "items": { "type": "string" } },
-    "counts": {
-      "type": "object",
-      "properties": {
-        "files_changed": { "type": "integer" },
-        "insertions": { "type": "integer" },
-        "deletions": { "type": "integer" }
-      }
-    },
-    "risky_paths": { "type": "array", "items": { "type": "string" } },
-    "generated_paths": { "type": "array", "items": { "type": "string" } },
-    "proof_paths": { "type": "array", "items": { "type": "string" } },
-    "schema_paths": { "type": "array", "items": { "type": "string" } },
-    "source_paths": { "type": "array", "items": { "type": "string" } },
-    "diff_excerpt_path": { "type": ["string", "null"] },
-    "warnings": { "type": "array", "items": { "type": "string" } },
-    "authoritative": { "type": "boolean", "const": true }
+    "path_classifications": { "type": "object" },
+    "authoritative": { "type": "boolean" }
   },
-  "required": ["schema_version", "diff_review_id", "created_at", "repo_root", "status", "authoritative"]
+  "required": ["diff_review_id", "workspace_id", "status", "authoritative"]
 }
