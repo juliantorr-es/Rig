@@ -23,7 +23,8 @@ def list_profiles(repo_root: Path) -> list[dict[str, Any]]:
             logger.warning(f"Failed to load bias profile {p.name}: {e}")
     return out
 
-def get_profile(repo_root: Path, profile_id: str) -> dict[str, Any] | None:
+from typing import Optional, Dict
+def get_profile(repo_root: Path, profile_id: str) -> Optional[Dict[str, Any]]:
     path = repo_root / "Docs" / "dev" / "rig" / "bias-profiles" / f"{profile_id}.json"
     if not path.exists():
         return None

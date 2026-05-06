@@ -16,7 +16,7 @@ def _load_json(path: Path, default: Any) -> Any:
         return default
 
 
-def _repo_rel(repo_root: Path, path: str | Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: str | Path| Optional) -> str| Optional:
     if path is None:
         return None
     text = str(path)
@@ -62,14 +62,14 @@ def _count_artifacts(value: Any) -> int:
     return len(value) if isinstance(value, list) else 0
 
 
-def _latest_pipeline_manifest(repo_root: Path, task: str | None, run_id: str | None) -> str | None:
+def _latest_pipeline_manifest(repo_root: Path, task: str| Optional, run_id: str| Optional) -> str| Optional:
     runs_root = repo_root / ".build" / "anigma-pipeline" / "runs"
     if not runs_root.exists():
         return None
     candidates = list(runs_root.glob("*/*/manifest.json"))
     if not candidates:
         return None
-    best: Path | None = None
+    best: Path| Optional = None
     for manifest in candidates:
         if task and task not in manifest.as_posix():
             try:
@@ -230,7 +230,7 @@ def build_swift_rows(repo_root: Path) -> list[dict[str, Any]]:
 
 
 def build_affected_rows(repo_root: Path) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str | None, str | None], dict[str, Any]] = {}
+    grouped: dict[tuple[str| Optional, str| Optional], dict[str, Any]] = {}
     for path in _discover_affected(repo_root):
         data = _load_json(path, {})
         if not isinstance(data, dict):
@@ -329,7 +329,7 @@ def build_registry_rows(repo_root: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def _read_review_bundle_manifest(repo_root: Path, bundle_path: Path) -> dict[str, Any] | None:
+def _read_review_bundle_manifest(repo_root: Path, bundle_path: Path) -> dict[str, Any]| Optional:
     import zipfile
 
     if not bundle_path.exists():
@@ -383,7 +383,7 @@ def write_indexes(repo_root: Path) -> dict[str, Path]:
     return output_paths
 
 
-def build_context_pack(repo_root: Path, *, task: str | None = None, budget: str = "small") -> dict[str, Any]:
+def build_context_pack(repo_root: Path, *, task: str| Optional = None, budget: str = "small") -> dict[str, Any]:
     run_rows = build_run_rows(repo_root)
     swift_rows = build_swift_rows(repo_root)
     affected_rows = build_affected_rows(repo_root)

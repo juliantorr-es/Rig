@@ -61,7 +61,7 @@ class MemoryContractReport:
         }
 
 
-def memory_settings(settings: dict[str, Any] | None = None) -> dict[str, Any]:
+def memory_settings(settings: dict[str, Any]| Optional = None) -> dict[str, Any]:
     merged = json.loads(json.dumps(DEFAULT_MEMORY_SETTINGS))
     if isinstance(settings, dict):
         mem = settings.get("memory")
@@ -202,7 +202,7 @@ def _check_prompt_trace_storage(repo_root: Path, limits: dict[str, Any]) -> Memo
     )
 
 
-def can_launch_parallel_agents(settings: dict[str, Any] | None, pressure: dict[str, Any] | None) -> bool:
+def can_launch_parallel_agents(settings: dict[str, Any]| Optional, pressure: dict[str, Any]| Optional) -> bool:
     limits = memory_settings(settings)
     if not limits.get("high_pressure_disable_parallel_agents", True):
         return True
@@ -219,7 +219,7 @@ def can_launch_parallel_agents(settings: dict[str, Any] | None, pressure: dict[s
     return True
 
 
-def evaluate_memory_contracts(repo_root: Path, settings: dict[str, Any] | None = None, pressure: dict[str, Any] | None = None) -> dict[str, Any]:
+def evaluate_memory_contracts(repo_root: Path, settings: dict[str, Any]| Optional = None, pressure: dict[str, Any]| Optional = None) -> dict[str, Any]:
     limits = memory_settings(settings)
     report = MemoryContractReport()
     checks = [

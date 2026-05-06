@@ -53,7 +53,7 @@ MAX_SECTION_BYTES = {
 }
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -69,7 +69,7 @@ def _load_json(path: Path, default: Any = None) -> Any:
         return default
 
 
-def _read_text(path: Path, limit: int | None = None) -> str:
+def _read_text(path: Path, limit: int| Optional = None) -> str:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
         return text if limit is None else text[:limit]
@@ -77,7 +77,7 @@ def _read_text(path: Path, limit: int | None = None) -> str:
         return ""
 
 
-def _sha256(path: Path) -> str | None:
+def _sha256(path: Path) -> str| Optional:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except Exception:
@@ -164,7 +164,7 @@ def _hash_record(repo_root: Path, path: Path) -> dict[str, Any]:
     return {"path": _repo_rel(repo_root, path), "sha256": _sha256(path), "size_bytes": path.stat().st_size}
 
 
-def _section_from_text(name: str, text: str, path: Path | None, repo_root: Path, advisory: bool = False) -> dict[str, Any]:
+def _section_from_text(name: str, text: str, path: Path| Optional, repo_root: Path, advisory: bool = False) -> dict[str, Any]:
     return {
         "section_type": name,
         "path": _repo_rel(repo_root, path) if path else None,
@@ -173,7 +173,7 @@ def _section_from_text(name: str, text: str, path: Path | None, repo_root: Path,
     }
 
 
-def _first_nonempty(*values: str | None) -> str | None:
+def _first_nonempty(*values: str| Optional) -> str| Optional:
     for value in values:
         if isinstance(value, str) and value.strip():
             return value
@@ -212,7 +212,7 @@ def _fit_text(text: str, limit: int) -> str:
     return combined[:limit]
 
 
-def _maybe_llm_summary(repo_root: Path, *, task: str, purpose: str, text: str, use_llm: bool, model: str | None) -> dict[str, Any] | None:
+def _maybe_llm_summary(repo_root: Path, *, task: str, purpose: str, text: str, use_llm: bool, model: str| Optional) -> dict[str, Any]| Optional:
     if not use_llm:
         return None
     result = mlx_local.generate_summary(
@@ -273,7 +273,7 @@ def _build_section(repo_root: Path, task: str, purpose: str, path: Path) -> dict
     return _section_from_text(name, _summarize_text(path, text, MAX_SECTION_BYTES.get(name, 3000)), path, repo_root)
 
 
-def build_context_pack(repo_root: Path, *, task: str, purpose: str = "review", max_chars: int | None = None, use_llm: bool = False, model: str | None = None) -> dict[str, Any]:
+def build_context_pack(repo_root: Path, *, task: str, purpose: str = "review", max_chars: int| Optional = None, use_llm: bool = False, model: str| Optional = None) -> dict[str, Any]:
     max_chars = int(max_chars or DEFAULT_BUDGETS.get(purpose, 32000))
     candidate_paths = _discover_paths(repo_root, task)
     selected: list[Path] = []
@@ -407,7 +407,7 @@ def build_context_pack(repo_root: Path, *, task: str, purpose: str = "review", m
     return pack
 
 
-def write_context_pack(repo_root: Path, *, task: str, purpose: str = "review", max_chars: int | None = None, use_llm: bool = False, model: str | None = None) -> dict[str, Any]:
+def write_context_pack(repo_root: Path, *, task: str, purpose: str = "review", max_chars: int| Optional = None, use_llm: bool = False, model: str| Optional = None) -> dict[str, Any]:
     pack = build_context_pack(repo_root, task=task, purpose=purpose, max_chars=max_chars, use_llm=use_llm, model=model)
     out_dir = repo_root / ".build" / "rig" / "context"
     out_dir.mkdir(parents=True, exist_ok=True)

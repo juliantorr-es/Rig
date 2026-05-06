@@ -475,7 +475,7 @@ class ContractAudit:
         json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def run_contract_audit(repo_root: Path, format_type: str = "text", surface: str | None = None) -> int:
+def run_contract_audit(repo_root: Path, format_type: str = "text", surface: str| Optional = None) -> int:
     report = ContractAudit(repo_root).run_audit()
     if surface:
         report["surfaces"] = [s for s in report["surfaces"] if s == surface]

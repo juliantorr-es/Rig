@@ -21,6 +21,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Optional
 
+from .paths import repo_root, resolve_repo_path
+
 
 def register(subparsers, helpers):
     """Registers the 'anigma' command group."""
@@ -110,12 +112,14 @@ def register(subparsers, helpers):
 def anigma_sentinel(format: str = "text", explain: bool = False,
                     write_hash: bool = False, dry_run: bool = False) -> int:
     """Runs the Anigma Architecture Sentinel governance validator."""
-    repo_root = Path(__file__).parent.parent.parent.resolve()
-    sentinel_py = repo_root / "Scripts" / "anigma_architecture_sentinel.py"
+    sentinel_py = resolve_repo_path("scripts", "anigma_architecture_sentinel.py")
 
     if not sentinel_py.exists():
-        print(f"Error: Anigma Architecture Sentinel not found at {sentinel_py}", file=sys.stderr)
-        return 1
+        # Fallback to old path if not found, but log warning
+        sentinel_py = repo_root() / "Scripts" / "anigma_architecture_sentinel.py"
+        if not sentinel_py.exists():
+            print(f"Error: Anigma Architecture Sentinel not found at {sentinel_py}", file=sys.stderr)
+            return 1
 
     # Build command arguments
     cmd = [sys.executable, str(sentinel_py)]

@@ -13,7 +13,7 @@ from rig_tools.action_manifest import write_action_manifest
 from rig_tools.events import make_event, write_event_stream
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -105,7 +105,7 @@ def _command_for_plan(plan: dict[str, Any], prompt_file: Path, prompt_text: str)
     raise ValueError("unknown agent")
 
 
-def launch_from_plan(repo_root: Path, plan_path_: Path, *, dry_run: bool = False, confirm: bool = False, allow_vibe: bool = False, timeout_seconds: int | None = None) -> dict[str, Any]:
+def launch_from_plan(repo_root: Path, plan_path_: Path, *, dry_run: bool = False, confirm: bool = False, allow_vibe: bool = False, timeout_seconds: int| Optional = None) -> dict[str, Any]:
     plan = load_plan(plan_path_)
     validation = validate_plan(repo_root, plan, allow_vibe=allow_vibe)
     if validation["status"] != "passed":

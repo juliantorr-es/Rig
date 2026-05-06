@@ -24,7 +24,7 @@ def _load_json(path: Path, default: Any) -> Any:
         return default
 
 
-def _repo_rel(repo_root: Path, value: str | Path | None) -> str | None:
+def _repo_rel(repo_root: Path, value: str | Path| Optional) -> str| Optional:
     if value is None:
         return None
     path = Path(str(value))
@@ -42,7 +42,7 @@ def _list_paths(root: Path, pattern: str) -> list[Path]:
     return sorted([p for p in root.glob(pattern) if p.is_file()], key=lambda p: (p.stat().st_mtime, p.name))
 
 
-def _latest_path(paths: list[Path]) -> Path | None:
+def _latest_path(paths: list[Path]) -> Path| Optional:
     return paths[-1] if paths else None
 
 
@@ -75,7 +75,7 @@ def _summarize_result(path: Path, repo_root: Path) -> dict[str, Any]:
     }
 
 
-def _parse_event_line(line: str) -> dict[str, Any] | None:
+def _parse_event_line(line: str) -> dict[str, Any]| Optional:
     stripped = line.strip()
     if not stripped:
         return None
@@ -85,7 +85,7 @@ def _parse_event_line(line: str) -> dict[str, Any] | None:
         return {"schema_version": "rig.event.v1", "event_type": "parse_error", "raw": stripped}
 
 
-def read_events(repo_root: Path, run_id: str | None = None) -> list[dict[str, Any]]:
+def read_events(repo_root: Path, run_id: str| Optional = None) -> list[dict[str, Any]]:
     events_dir = repo_root / ".build" / "rig" / "events"
     if run_id == "latest":
         latest = events_dir / "latest.jsonl"

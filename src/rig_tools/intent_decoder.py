@@ -28,7 +28,7 @@ FORBIDDEN_KEYWORDS = {
     "git push", "git pull", "git rebase", "git merge", "rm -rf", "curl", "wget", "chmod +x"
 }
 
-def decode_intent(repo_root: Path, input_text: str, current_task: str | None = None) -> Dict[str, Any]:
+def decode_intent(repo_root: Path, input_text: str, current_task: str| Optional = None) -> Dict[str, Any]:
     """Decodes a model intent into a result."""
     decode_id = f"dec-{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc).isoformat()
@@ -160,7 +160,7 @@ def _map_to_action(data: Dict[str, Any]) -> tuple[Optional[str], List[str]]:
             
     return None, repairs
 
-def _normalize_args(action_id: str, args: Dict[str, Any], current_task: str | None) -> tuple[Dict[str, Any], List[str]]:
+def _normalize_args(action_id: str, args: Dict[str, Any], current_task: str| Optional) -> tuple[Dict[str, Any], List[str]]:
     normalized = args.copy()
     repairs = []
     

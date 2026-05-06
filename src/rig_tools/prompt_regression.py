@@ -14,7 +14,7 @@ SCHEMA_VERSION = "rig.prompt_regression_case.v1"
 EXPERIMENT_SCHEMA_VERSION = "rig.prompt_experiment.v1"
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -92,7 +92,7 @@ def _cases(repo_root: Path, prompt_kind: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _validate_output(raw_output: str) -> tuple[dict[str, Any] | None, list[str]]:
+def _validate_output(raw_output: str) -> tuple[dict[str, Any]| Optional, list[str]]:
     try:
         parsed = json.loads(raw_output)
         if isinstance(parsed, dict):
@@ -133,7 +133,7 @@ def _timeout_rate(rows: list[dict[str, Any]]) -> float:
     return round(sum(1 for r in rows if r.get("status") == "timeout") / len(rows), 3) if rows else 0.0
 
 
-def _promotion_blockers(*, case_count: int, metrics: dict[str, Any], allow_small_sample: bool, baseline_timeout_rate: float | None = None, candidate_timeout_rate: float | None = None, unsafe_regression_count: int | None = None, critical_regression: bool | None = None) -> list[str]:
+def _promotion_blockers(*, case_count: int, metrics: dict[str, Any], allow_small_sample: bool, baseline_timeout_rate: float| Optional = None, candidate_timeout_rate: float| Optional = None, unsafe_regression_count: int| Optional = None, critical_regression: bool| Optional = None) -> list[str]:
     blockers: list[str] = []
     if case_count < 5 and not allow_small_sample:
         blockers.append("insufficient_case_count")
@@ -148,7 +148,7 @@ def _promotion_blockers(*, case_count: int, metrics: dict[str, Any], allow_small
     return blockers
 
 
-def _run_backend(repo_root: Path, prompt: str, *, task: str | None, prompt_kind: str, backend: str, model: str | None = None, model_path: str | None = None, prompt_knobs: dict[str, Any] | None = None) -> dict[str, Any]:
+def _run_backend(repo_root: Path, prompt: str, *, task: str| Optional, prompt_kind: str, backend: str, model: str| Optional = None, model_path: str| Optional = None, prompt_knobs: dict[str, Any]| Optional = None) -> dict[str, Any]:
     if backend == "llama-cpp":
         from rig_tools import llama_cpp_local
         params = llama_cpp_local.resolve_params(preset=(prompt_knobs or {}).get("preset"), overrides=prompt_knobs)
@@ -213,7 +213,7 @@ def _run_backend(repo_root: Path, prompt: str, *, task: str | None, prompt_kind:
     )
 
 
-def run_regression(repo_root: Path, *, prompt_kind: str, baseline_template: str | None = None, candidate_template: str | None = None, allow_small_sample: bool = False, backend: str = "mlx", preset: str | None = None, model: str | None = None, model_path: str | None = None, prompt_knobs: dict[str, Any] | None = None, baseline_knobs: dict[str, Any] | None = None, candidate_knobs: dict[str, Any] | None = None, minimum_case_threshold: int = 5) -> dict[str, Any]:
+def run_regression(repo_root: Path, *, prompt_kind: str, baseline_template: str| Optional = None, candidate_template: str| Optional = None, allow_small_sample: bool = False, backend: str = "mlx", preset: str| Optional = None, model: str| Optional = None, model_path: str| Optional = None, prompt_knobs: dict[str, Any]| Optional = None, baseline_knobs: dict[str, Any]| Optional = None, candidate_knobs: dict[str, Any]| Optional = None, minimum_case_threshold: int = 5) -> dict[str, Any]:
     cases = _cases(repo_root, prompt_kind)
     if backend == "llama-cpp":
         from rig_tools import llama_cpp_local
@@ -307,13 +307,13 @@ def compare_backends(
     *,
     prompt_kind: str,
     baseline_backend: str,
-    baseline_preset: str | None = None,
-    baseline_model: str | None = None,
-    baseline_model_path: str | None = None,
+    baseline_preset: str| Optional = None,
+    baseline_model: str| Optional = None,
+    baseline_model_path: str| Optional = None,
     candidate_backend: str,
-    candidate_preset: str | None = None,
-    candidate_model: str | None = None,
-    candidate_model_path: str | None = None,
+    candidate_preset: str| Optional = None,
+    candidate_model: str| Optional = None,
+    candidate_model_path: str| Optional = None,
     allow_small_sample: bool = False,
     minimum_case_threshold: int = 5,
 ) -> dict[str, Any]:

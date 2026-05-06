@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from typing import Optional, Dict
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,7 @@ def find_free_port() -> int:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
 
-def get_textual_bin() -> str | None:
+def get_textual_bin() -> Optional[str]:
     return shutil.which("textual") or shutil.which("textual-serve")
 
 def get_pywebview() -> bool:
@@ -36,7 +37,7 @@ def get_pywebview() -> bool:
     except ImportError:
         return False
 
-def save_session(repo_root: Path, session: dict[str, Any]) -> None:
+def save_session(repo_root: Path, session: Dict[str, Any]) -> None:
     session_id = session["session_id"]
     base_dir = repo_root / ".build" / "rig" / "window"
     
@@ -55,7 +56,7 @@ def save_session(repo_root: Path, session: dict[str, Any]) -> None:
     latest_md = base_dir / "latest.md"
     latest_md.write_text(f"# Rig Window Session: {session_id}\n\nStatus: {session['status']}\nURL: {session['url']}\nMode: {session['mode']}\n")
 
-def check_status(repo_root: Path) -> dict[str, Any]:
+def check_status(repo_root: Path) -> Dict[str, Any]:
     latest_json = repo_root / ".build" / "rig" / "window" / "latest.json"
     if not latest_json.exists():
         return {"status": "no_session"}
@@ -64,7 +65,7 @@ def check_status(repo_root: Path) -> dict[str, Any]:
     except Exception:
         return {"status": "invalid"}
 
-def open_window(repo_root: Path, dry_run: bool, host: str, port: int | None, browser: bool = False, allow_lan: bool = False) -> dict[str, Any]:
+def open_window(repo_root: Path, dry_run: bool, host: str, port: Optional[int], browser: bool = False, allow_lan: bool = False) -> Dict[str, Any]:
     session_id = f"win-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
     
     if host == "0.0.0.0" and not allow_lan:

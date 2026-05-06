@@ -35,7 +35,7 @@ ACTION_ORDER = [
 ]
 
 
-def expand_command(action_id: str, *, task: str, model: str, agent_plan_path: str | None = None, query: str | None = None) -> list[str]:
+def expand_command(action_id: str, *, task: str, model: str, agent_plan_path: str| Optional = None, query: str| Optional = None) -> list[str]:
     template = ACTION_COMMANDS[action_id]
     out = []
     for part in template:
@@ -43,7 +43,7 @@ def expand_command(action_id: str, *, task: str, model: str, agent_plan_path: st
     return out
 
 
-def latest_agent_plan_path(repo_root: Path) -> str | None:
+def latest_agent_plan_path(repo_root: Path) -> str| Optional:
     plans_dir = repo_root / ".build" / "rig" / "agents" / "plans"
     if not plans_dir.exists():
         return None

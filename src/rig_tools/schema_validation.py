@@ -214,7 +214,7 @@ def _simple_validate(instance: Any, schema: dict[str, Any]) -> list[ValidationEr
     return errors
 
 
-def validate_instance(instance: Any, schema: dict[str, Any], repo_root: Path | None = None) -> list[ValidationErrorInfo]:
+def validate_instance(instance: Any, schema: dict[str, Any], repo_root: Path| Optional = None) -> list[ValidationErrorInfo]:
     try:
         import jsonschema
         from referencing import Registry, Resource
@@ -249,7 +249,7 @@ def _coerce_artifact_paths(repo_root: Path, artifact: Path) -> list[Path]:
     return [artifact]
 
 
-def _family_for_path(repo_root: Path, artifact: Path) -> str | None:
+def _family_for_path(repo_root: Path, artifact: Path) -> str| Optional:
     name = artifact.name
     if name.startswith("commit-plan-") and artifact.parent.name == "git":
         return "rig.git_commit_plan.v1"
@@ -546,7 +546,7 @@ def _discover_family_paths(repo_root: Path, family: str) -> list[Path]:
     return []
 
 
-def validate_artifacts(repo_root: Path, *, artifact_path: str | None = None, family: str | None = None) -> ValidationSummary:
+def validate_artifacts(repo_root: Path, *, artifact_path: str| Optional = None, family: str| Optional = None) -> ValidationSummary:
     paths: list[Path] = []
     if artifact_path:
         path = (repo_root / artifact_path).resolve() if not Path(artifact_path).is_absolute() else Path(artifact_path)

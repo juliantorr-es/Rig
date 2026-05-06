@@ -70,7 +70,7 @@ def _write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -111,7 +111,7 @@ def _run_dir(repo_root: Path, job_id: str) -> Path:
     return out
 
 
-def _load_job(repo_root: Path, job_id: str) -> dict[str, Any] | None:
+def _load_job(repo_root: Path, job_id: str) -> dict[str, Any]| Optional:
     queue = load_queue(repo_root)
     for job in queue.get("jobs", []):
         if isinstance(job, dict) and job.get("job_id") == job_id:
@@ -128,7 +128,7 @@ def _job_index(repo_root: Path) -> dict[str, int]:
     return out
 
 
-def _checkpoint_payload(job: dict[str, Any], *, loop_run_id: str | None, step_index: int, last_action: str | None, last_result_path: str | None, next_allowed_actions: list[str], stop_reason: str | None, resume_policy: str = "resume_next_step", artifacts: list[str] | None = None, warnings: list[str] | None = None) -> dict[str, Any]:
+def _checkpoint_payload(job: dict[str, Any], *, loop_run_id: str| Optional, step_index: int, last_action: str| Optional, last_result_path: str| Optional, next_allowed_actions: list[str], stop_reason: str| Optional, resume_policy: str = "resume_next_step", artifacts: list[str]| Optional = None, warnings: list[str]| Optional = None) -> dict[str, Any]:
     return {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "job_id": job["job_id"],
@@ -146,7 +146,7 @@ def _checkpoint_payload(job: dict[str, Any], *, loop_run_id: str | None, step_in
     }
 
 
-def add_job(repo_root: Path, *, task: str, mode: str, max_steps: int, notes: str | None = None) -> dict[str, Any]:
+def add_job(repo_root: Path, *, task: str, mode: str, max_steps: int, notes: str| Optional = None) -> dict[str, Any]:
     queue = load_queue(repo_root)
     job = {
         "schema_version": QUEUE_SCHEMA_VERSION,
@@ -254,7 +254,7 @@ def _update_job(repo_root: Path, job: dict[str, Any]) -> None:
             return
 
 
-def _write_checkpoint(repo_root: Path, job: dict[str, Any], *, loop_run_id: str | None, step_index: int, last_action: str | None, last_result_path: str | None, next_allowed_actions: list[str], stop_reason: str | None, artifacts: list[str] | None = None, warnings: list[str] | None = None) -> dict[str, Any]:
+def _write_checkpoint(repo_root: Path, job: dict[str, Any], *, loop_run_id: str| Optional, step_index: int, last_action: str| Optional, last_result_path: str| Optional, next_allowed_actions: list[str], stop_reason: str| Optional, artifacts: list[str]| Optional = None, warnings: list[str]| Optional = None) -> dict[str, Any]:
     payload = _checkpoint_payload(job, loop_run_id=loop_run_id, step_index=step_index, last_action=last_action, last_result_path=last_result_path, next_allowed_actions=next_allowed_actions, stop_reason=stop_reason, artifacts=artifacts, warnings=warnings)
     _write_json(_checkpoint_path(repo_root, job["job_id"]), payload)
     job["latest_checkpoint"] = _repo_rel(repo_root, _checkpoint_path(repo_root, job["job_id"]))
@@ -262,7 +262,7 @@ def _write_checkpoint(repo_root: Path, job: dict[str, Any], *, loop_run_id: str 
     return payload
 
 
-def _loop_plan_for_job(repo_root: Path, job: dict[str, Any]) -> tuple[dict[str, Any], Path | None]:
+def _loop_plan_for_job(repo_root: Path, job: dict[str, Any]) -> tuple[dict[str, Any], Path| Optional]:
     pack = context_compression.write_context_pack(repo_root, task=job["task"], purpose="loop-planner", max_chars=16000, use_llm=False)
     plan, path = supervisor_loop.draft_plan(repo_root, task=job["task"], mode=job["mode"], backend="mlx", model="mlx-community/Qwen3-4B-Instruct-2507-4bit", max_steps=int(job.get("max_steps") or DEFAULT_MAX_STEPS))
     plan["context_pack"] = {"json_path": pack.get("json_path"), "md_path": pack.get("md_path")}
@@ -378,7 +378,7 @@ def run_jobs(repo_root: Path, *, max_jobs: int = 1) -> dict[str, Any]:
     return {"processed": processed, "run_ids": run_ids, "queue_path": _repo_rel(repo_root, queue_path(repo_root))}
 
 
-def _finalize_run(repo_root: Path, job: dict[str, Any], run_id: str, run_dir: Path, events_path: Path, summary_path: Path, emitted: list[dict[str, Any]], *, status: str, stop_reason: str, checkpoint: dict[str, Any] | None) -> dict[str, Any]:
+def _finalize_run(repo_root: Path, job: dict[str, Any], run_id: str, run_dir: Path, events_path: Path, summary_path: Path, emitted: list[dict[str, Any]], *, status: str, stop_reason: str, checkpoint: dict[str, Any]| Optional) -> dict[str, Any]:
     from rig_tools.events import write_event_stream
 
     finished = utc_now()

@@ -23,8 +23,8 @@ class TuiSnapshot:
     settings: dict[str, Any] = field(default_factory=dict)
     pressure: dict[str, Any] = field(default_factory=dict)
     prompt_summary: dict[str, Any] = field(default_factory=dict)
-    latest_agent: dict[str, Any] | None = None
-    latest_task: dict[str, Any] | None = None
+    latest_agent: dict[str, Any]| Optional = None
+    latest_task: dict[str, Any]| Optional = None
     recent_events: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -52,7 +52,7 @@ class TuiSnapshot:
 
 
 DEFAULT_TUI_MODE = "safe"
-DEFAULT_TUI_SELECTION: str | None = None
+DEFAULT_TUI_SELECTION: str| Optional = None
 
 
 def _utc_now() -> str:

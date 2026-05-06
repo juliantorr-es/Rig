@@ -23,7 +23,7 @@ class RigResult:
     status: str
     exit_code: int
     run_id: str
-    task: str | None = None
+    task: str| Optional = None
     started_at: str = field(default_factory=utc_now)
     finished_at: str = field(default_factory=utc_now)
     duration_seconds: float = 0.0
@@ -32,11 +32,11 @@ class RigResult:
     errors: list[dict] = field(default_factory=list)
     summary: dict = field(default_factory=dict)
     next_actions: list[str] = field(default_factory=list)
-    stderr_tail: str | None = None
+    stderr_tail: str| Optional = None
     notification_requested: bool = False
-    notification_backend: str | None = None
+    notification_backend: str| Optional = None
     notification_status: str = "skipped"
-    notification_error: str | None = None
+    notification_error: str| Optional = None
 
     def to_dict(self) -> dict:
         return {

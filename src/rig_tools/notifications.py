@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-def _sanitize(value: str | None) -> str:
+def _sanitize(value: str| Optional) -> str:
     text = (value or "").replace("\n", " ").replace("\r", " ").strip()
     return text[:200]
 
@@ -19,9 +19,9 @@ def _escape_applescript(text: str) -> str:
 @dataclass
 class NotificationResult:
     requested: bool
-    backend: str | None
+    backend: str| Optional
     status: str
-    error: str | None = None
+    error: str| Optional = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,7 +40,7 @@ def detect_backends() -> dict[str, Any]:
     }
 
 
-def choose_backend(preferred: str | None = None) -> str | None:
+def choose_backend(preferred: str| Optional = None) -> str| Optional:
     if preferred and preferred != "auto":
         return preferred
     if shutil.which("osascript"):
@@ -50,7 +50,7 @@ def choose_backend(preferred: str | None = None) -> str | None:
     return "none"
 
 
-def build_osascript_command(*, title: str, subtitle: str | None, message: str | None) -> list[str]:
+def build_osascript_command(*, title: str, subtitle: str| Optional, message: str| Optional) -> list[str]:
     title = _sanitize(title)
     subtitle = _sanitize(subtitle)
     message = _sanitize(message)
@@ -62,7 +62,7 @@ def build_osascript_command(*, title: str, subtitle: str | None, message: str | 
     return ["osascript", "-e", " ".join(parts)]
 
 
-def send_notification(*, title: str, message: str, subtitle: str | None = None, backend: str | None = None) -> NotificationResult:
+def send_notification(*, title: str, message: str, subtitle: str| Optional = None, backend: str| Optional = None) -> NotificationResult:
     backend = choose_backend(backend)
     if backend == "none":
         return NotificationResult(requested=True, backend=backend, status="skipped")
@@ -93,7 +93,7 @@ def send_notification(*, title: str, message: str, subtitle: str | None = None, 
     return NotificationResult(requested=True, backend=backend, status="tool_missing", error="unknown backend")
 
 
-def should_notify(trigger: str | None, result_status: str | None) -> bool:
+def should_notify(trigger: str| Optional, result_status: str| Optional) -> bool:
     if not trigger or trigger == "never":
         return False
     if trigger == "finish":

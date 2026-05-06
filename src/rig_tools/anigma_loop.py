@@ -37,10 +37,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Literal
 
 import subprocess
+from rig.paths import repo_root, resolve_repo_path
 
 # Constants
 SCHEMA_VERSION = "anigma.remediation_loop.v1"
-REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
+REPO_ROOT = repo_root()
 LOOPS_DIR = REPO_ROOT / ".build" / "anigma" / "loops"
 SENTINEL_PATH = REPO_ROOT / ".build" / "anigma" / "sentinel" / "latest.json"
 

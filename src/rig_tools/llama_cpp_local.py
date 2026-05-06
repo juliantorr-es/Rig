@@ -26,7 +26,7 @@ def _import_llama_cpp():
         return None
 
 
-def _version() -> str | None:
+def _version() -> str| Optional:
     try:
         from importlib.metadata import version
 
@@ -55,7 +55,7 @@ def detect_llama_cpp_environment() -> dict[str, Any]:
     }
 
 
-def _structured_failure(*, status: str, error: str, warnings: list[str] | None = None, **extra: Any) -> dict[str, Any]:
+def _structured_failure(*, status: str, error: str, warnings: list[str]| Optional = None, **extra: Any) -> dict[str, Any]:
     payload = {
         "status": status,
         "backend": "llama-cpp",
@@ -66,7 +66,7 @@ def _structured_failure(*, status: str, error: str, warnings: list[str] | None =
     return payload
 
 
-def resolve_params(*, preset: str | None = None, overrides: dict[str, Any] | None = None, force_large_context: bool = False) -> dict[str, Any]:
+def resolve_params(*, preset: str| Optional = None, overrides: dict[str, Any]| Optional = None, force_large_context: bool = False) -> dict[str, Any]:
     overrides = overrides or {}
     params: dict[str, Any] = {
         "preset": preset,
@@ -101,7 +101,7 @@ def resolve_params(*, preset: str | None = None, overrides: dict[str, Any] | Non
     return params
 
 
-def _load_grammar(grammar_path: Path | None, json_schema_path: Path | None) -> dict[str, Any]:
+def _load_grammar(grammar_path: Path| Optional, json_schema_path: Path| Optional) -> dict[str, Any]:
     data: dict[str, Any] = {}
     if grammar_path and grammar_path.exists():
         data["grammar_path"] = str(grammar_path)
@@ -115,21 +115,21 @@ def _load_grammar(grammar_path: Path | None, json_schema_path: Path | None) -> d
 def generate_llama_cpp(
     prompt: str,
     *,
-    model_path: str | Path | None,
-    preset: str | None = None,
-    n_batch: int | None = None,
+    model_path: str | Path| Optional,
+    preset: str| Optional = None,
+    n_batch: int| Optional = None,
     max_tokens: int,
     temperature: float = 0.0,
     top_p: float = 1.0,
-    top_k: int | None = None,
-    min_p: float | None = None,
-    repeat_penalty: float | None = None,
+    top_k: int| Optional = None,
+    min_p: float| Optional = None,
+    repeat_penalty: float| Optional = None,
     n_ctx: int = DEFAULT_MODEL_CONTEXT,
     n_gpu_layers: int = -1,
     seed: int = 0,
-    stop: list[str] | None = None,
-    grammar_path: Path | None = None,
-    json_schema_path: Path | None = None,
+    stop: list[str]| Optional = None,
+    grammar_path: Path| Optional = None,
+    json_schema_path: Path| Optional = None,
     structured_json: bool = False,
     timeout_seconds: int = 120,
 ) -> dict[str, Any]:

@@ -40,7 +40,7 @@ PROFILE_MAX_PARALLEL = {
 }
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -130,7 +130,7 @@ def status(repo_root: Path) -> dict[str, Any]:
     return report
 
 
-def latest_swarm(repo_root: Path) -> dict[str, Any] | None:
+def latest_swarm(repo_root: Path) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "swarm" / "latest.json"
     return _load_json(path)
 
@@ -154,7 +154,7 @@ Return only the requested contract.
 No prose outside the contract.
 """
 
-def _candidate_prompt(repo_root: Path, task: str, kind: str, strategy: str, context_markdown: str, contract: str, bias_profiles: list[dict[str, Any]] | None = None) -> str:
+def _candidate_prompt(repo_root: Path, task: str, kind: str, strategy: str, context_markdown: str, contract: str, bias_profiles: list[dict[str, Any]]| Optional = None) -> str:
     template = _swarm_template(repo_root, kind)
     rendered = template.format(task=task, kind=kind, strategy=strategy, contract=contract)
     prompt = rendered + "\n## Context Pack\n" + context_markdown.strip() + "\n"
@@ -163,7 +163,7 @@ def _candidate_prompt(repo_root: Path, task: str, kind: str, strategy: str, cont
     return prompt
 
 
-def _validate_output(kind: str, output: str) -> tuple[dict[str, Any] | None, list[str], str]:
+def _validate_output(kind: str, output: str) -> tuple[dict[str, Any]| Optional, list[str], str]:
     text = (output or "").strip()
     if not text:
         return None, ["empty_output"], "malformed"
@@ -204,7 +204,7 @@ def _validate_output(kind: str, output: str) -> tuple[dict[str, Any] | None, lis
     return {"text": text}, [], "text"
 
 
-def _score_candidate(*, repo_root: Path, parsed: dict[str, Any] | list[Any] | None, validation_errors: list[str], output_text: str, bias_profiles: list[dict[str, Any]] | None = None, current_task: str | None = None) -> dict[str, Any]:
+def _score_candidate(*, repo_root: Path, parsed: dict[str, Any] | list[Any]| Optional, validation_errors: list[str], output_text: str, bias_profiles: list[dict[str, Any]]| Optional = None, current_task: str| Optional = None) -> dict[str, Any]:
     score = 0
     components = {
         "schema_parse": 20 if parsed is not None else 0,
@@ -241,7 +241,7 @@ def _score_candidate(*, repo_root: Path, parsed: dict[str, Any] | list[Any] | No
     }
 
 
-def _backend_generate(repo_root: Path, *, backend: str, model: str | None, model_path: str | None, prompt: str, prompt_kind: str, strategy: str, candidate_dir: Path, dry_run: bool) -> dict[str, Any]:
+def _backend_generate(repo_root: Path, *, backend: str, model: str| Optional, model_path: str| Optional, prompt: str, prompt_kind: str, strategy: str, candidate_dir: Path, dry_run: bool) -> dict[str, Any]:
     if dry_run:
         return {
             "status": "planned",
@@ -262,7 +262,7 @@ def _backend_generate(repo_root: Path, *, backend: str, model: str | None, model
     return result
 
 
-def _write_candidate_artifacts(candidate_dir: Path, *, prompt: str, output: str, parsed: dict[str, Any] | list[Any] | None, validation: dict[str, Any], score: dict[str, Any], dry_run: bool = False) -> None:
+def _write_candidate_artifacts(candidate_dir: Path, *, prompt: str, output: str, parsed: dict[str, Any] | list[Any]| Optional, validation: dict[str, Any], score: dict[str, Any], dry_run: bool = False) -> None:
     candidate_dir.mkdir(parents=True, exist_ok=True)
     (candidate_dir / "prompt.md").write_text(prompt, encoding="utf-8")
     (candidate_dir / "raw-output.txt").write_text(output, encoding="utf-8")
@@ -279,12 +279,12 @@ def propose_swarm(
     candidates: int,
     dry_run: bool = False,
     backend: str = "llama-cpp",
-    model: str | None = None,
-    model_path: str | None = None,
+    model: str| Optional = None,
+    model_path: str| Optional = None,
     profile: str = "balanced",
-    max_parallel: int | None = None,
+    max_parallel: int| Optional = None,
     use_llm_context: bool = False,
-    bias_profiles: list[str] | None = None,
+    bias_profiles: list[str]| Optional = None,
 ) -> dict[str, Any]:
     settings = SettingsStore(repo_root).get_effective_settings()
     pressure = sample_system_pressure(repo_root)
@@ -302,7 +302,7 @@ def propose_swarm(
     context_path.write_text(context_pack["markdown"], encoding="utf-8")
     warnings: list[str] = []
     status = "planned"
-    blocked_reason: str | None = None
+    blocked_reason: str| Optional = None
     if not can_launch_parallel_agents(settings, pressure):
         blocked_reason = "high_memory_pressure"
     elif candidates > max_parallel:
@@ -338,7 +338,7 @@ def propose_swarm(
         candidate_strategy_cycle = ["docs_schema_first", "conservative_minimal", "architecture_first", "test_first"]
     elif kind == "prompt_repair":
         candidate_strategy_cycle = ["validator_error_focused", "conservative_minimal", "test_first", "small_patch_decomposition"]
-    winner_id: str | None = None
+    winner_id: str| Optional = None
     if not blocked_reason or dry_run:
         for idx in range(candidates):
             candidate_id = f"cand-{idx+1:02d}"

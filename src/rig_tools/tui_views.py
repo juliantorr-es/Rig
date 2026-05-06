@@ -8,7 +8,7 @@ from rig_tools.tui_events import render_human_event_line
 from rig_tools.tui_state import clamp_mode
 
 
-def _read_json(path: Path) -> dict[str, Any] | None:
+def _read_json(path: Path) -> dict[str, Any]| Optional:
     try:
         if not path.exists():
             return None
@@ -18,7 +18,7 @@ def _read_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
-def latest_receipt_paths(repo_root: Path) -> dict[str, str | None]:
+def latest_receipt_paths(repo_root: Path) -> dict[str, str| Optional]:
     base = repo_root / ".build" / "rig"
     return {
         "doctor": str((base / "doctor" / "latest.json").relative_to(repo_root)) if (base / "doctor" / "latest.json").exists() else None,
@@ -45,7 +45,7 @@ def recommend_next_action(snapshot: dict[str, Any]) -> str:
 def cap_event_tail(events: list[dict[str, Any]], max_events: int = 500) -> list[dict[str, Any]]:
     tail = events[-max_events:] if max_events > 0 else []
     deduped: list[dict[str, Any]] = []
-    last_sig: tuple[Any, ...] | None = None
+    last_sig: tuple[Any, ...]| Optional = None
     for event in tail:
         sig = (
             event.get("event_type"),
@@ -60,7 +60,7 @@ def cap_event_tail(events: list[dict[str, Any]], max_events: int = 500) -> list[
     return deduped
 
 
-def human_event_lines(events: list[dict[str, Any]], *, max_events: int = 500, focus_task_id: str | None = None) -> list[str]:
+def human_event_lines(events: list[dict[str, Any]], *, max_events: int = 500, focus_task_id: str| Optional = None) -> list[str]:
     lines: list[str] = []
     for event in cap_event_tail(events, max_events=max_events):
         line = render_human_event_line(event, focus_task_id=focus_task_id)
@@ -88,7 +88,7 @@ def semantic_status_class(status: str, *, disabled: bool = False, selected: bool
     return "semantic-info"
 
 
-def _task_inspector(card: dict[str, Any] | None, *, selected_task_id: str | None) -> dict[str, Any]:
+def _task_inspector(card: dict[str, Any]| Optional, *, selected_task_id: str| Optional) -> dict[str, Any]:
     if not card:
         return {
             "selected_task_id": selected_task_id,
@@ -116,7 +116,7 @@ def _task_inspector(card: dict[str, Any] | None, *, selected_task_id: str | None
     }
 
 
-def action_affordances(snapshot: dict[str, Any], *, selected_task_id: str | None, mode: str) -> dict[str, dict[str, str | bool]]:
+def action_affordances(snapshot: dict[str, Any], *, selected_task_id: str| Optional, mode: str) -> dict[str, dict[str, str | bool]]:
     board = snapshot.get("board") or {}
     cards = board.get("cards") or []
     task_exists = bool(selected_task_id and any(card.get("task_id") == selected_task_id for card in cards))
@@ -158,7 +158,7 @@ def action_affordances(snapshot: dict[str, Any], *, selected_task_id: str | None
     }
 
 
-def render_task_card_summary(card: dict[str, Any], *, selected_task_id: str | None) -> dict[str, Any]:
+def render_task_card_summary(card: dict[str, Any], *, selected_task_id: str| Optional) -> dict[str, Any]:
     selected = card.get("task_id") == selected_task_id
     status = str(card.get("status") or "ready")
     risk = str(card.get("risk") or "low")
@@ -188,7 +188,7 @@ def render_command_center_snapshot(
     snapshot: dict[str, Any],
     *,
     repo_root: Path,
-    selected_task_id: str | None,
+    selected_task_id: str| Optional,
     max_events: int = 500,
 ) -> dict[str, Any]:
     latest_receipts = latest_receipt_paths(repo_root)
@@ -255,7 +255,7 @@ def render_command_center_snapshot(
     }
 
 
-def render_board_snapshot(snapshot: dict[str, Any], *, selected_task_id: str | None, width: int) -> dict[str, Any]:
+def render_board_snapshot(snapshot: dict[str, Any], *, selected_task_id: str| Optional, width: int) -> dict[str, Any]:
     board = snapshot.get("board") or {}
     cards = board.get("cards") or []
     card = next((item for item in cards if item.get("task_id") == selected_task_id), None)
@@ -270,7 +270,7 @@ def render_board_snapshot(snapshot: dict[str, Any], *, selected_task_id: str | N
     }
 
 
-def render_workspace_snapshot(snapshot: dict[str, Any], *, selected_task_id: str | None, mode: str, repo_root: Path) -> dict[str, Any]:
+def render_workspace_snapshot(snapshot: dict[str, Any], *, selected_task_id: str| Optional, mode: str, repo_root: Path) -> dict[str, Any]:
     board = snapshot.get("board") or {}
     card = next((item for item in board.get("cards") or [] if item.get("task_id") == selected_task_id), None)
     loop = snapshot.get("loop") or {}
@@ -330,7 +330,7 @@ def render_swarm_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def render_swarm_candidate_detail(snapshot: dict[str, Any], candidate_id: str | None) -> dict[str, Any]:
+def render_swarm_candidate_detail(snapshot: dict[str, Any], candidate_id: str| Optional) -> dict[str, Any]:
     swarm = snapshot.get("swarm") or {}
     candidate = next((item for item in swarm.get("candidates") or [] if item.get("candidate_id") == candidate_id), None)
     if not candidate:
@@ -412,7 +412,7 @@ def help_keybindings() -> list[tuple[str, str]]:
     ]
 
 
-def render_health_detail(snapshot: dict[str, Any], subsystem: str, issue: str | None) -> dict[str, Any]:
+def render_health_detail(snapshot: dict[str, Any], subsystem: str, issue: str| Optional) -> dict[str, Any]:
     payload = snapshot.get(subsystem) or {}
     issues = []
     for key in ("warnings", "failures"):

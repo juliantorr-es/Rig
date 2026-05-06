@@ -10,7 +10,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def make_event(event_type: str, *, run_id: str, command_group: str, command: str, task: str | None = None, attributes: dict | None = None) -> dict:
+def make_event(event_type: str, *, run_id: str, command_group: str, command: str, task: str| Optional = None, attributes: dict| Optional = None) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
         "event_type": event_type,

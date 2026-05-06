@@ -15,7 +15,7 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def sha256_path(path: Path) -> str | None:
+def sha256_path(path: Path) -> str| Optional:
     if not path.exists() or not path.is_file():
         return None
     try:
@@ -24,7 +24,7 @@ def sha256_path(path: Path) -> str | None:
         return None
 
 
-def sha256_tree(path: Path) -> str | None:
+def sha256_tree(path: Path) -> str| Optional:
     if not path.exists():
         return None
     if path.is_file():
@@ -39,7 +39,7 @@ def sha256_tree(path: Path) -> str | None:
         return None
 
 
-def tool_version(cmd: list[str]) -> str | None:
+def tool_version(cmd: list[str]) -> str| Optional:
     try:
         proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
         out = (proc.stdout or proc.stderr or "").strip()
@@ -65,7 +65,7 @@ class CacheMetadata:
     cache_key: str
     status: str
     environment_fingerprint: dict
-    duration_seconds: float | None = None
+    duration_seconds: float| Optional = None
     schema_version: str = SCHEMA_VERSION
 
     def to_dict(self) -> dict:
@@ -81,7 +81,7 @@ def build_cache_key(command: str, input_files: list[dict], environment_fingerpri
     return sha256_bytes(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"))
 
 
-def record_metadata(repo_root: Path, *, artifact_id: str, producer: str, command: str, input_paths: list[Path], output_paths: list[Path], duration_seconds: float | None = None) -> Path:
+def record_metadata(repo_root: Path, *, artifact_id: str, producer: str, command: str, input_paths: list[Path], output_paths: list[Path], duration_seconds: float| Optional = None) -> Path:
     out_dir = repo_root / ".build" / "rig" / "cache-metadata"
     out_dir.mkdir(parents=True, exist_ok=True)
     inputs = [{"path": str(p.relative_to(repo_root)), "sha256": sha256_tree(p)} for p in input_paths]

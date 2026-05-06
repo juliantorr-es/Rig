@@ -25,13 +25,13 @@ class BackendStatus:
     backend: str
     python_executable: str
     mlx: bool
-    mlx_version: str | None
+    mlx_version: str| Optional
     mlx_lm: bool
-    mlx_lm_version: str | None
+    mlx_lm_version: str| Optional
     mlx_embeddings: bool
-    mlx_embeddings_version: str | None
+    mlx_embeddings_version: str| Optional
     mlx_embedding_models: bool
-    mlx_embedding_models_version: str | None
+    mlx_embedding_models_version: str| Optional
     selected_generation_backend: str
     selected_embedding_backend: str
     summary_model: str
@@ -71,7 +71,7 @@ def _importable(name: str) -> bool:
     return True
 
 
-def _module_version(name: str) -> str | None:
+def _module_version(name: str) -> str| Optional:
     try:
         from importlib.metadata import version
         return version(name)
@@ -179,7 +179,7 @@ def _repo_relative(repo_root: Path, path: Path) -> str:
         return path.as_posix()
 
 
-def build_prompt(*, task: str | None, kind: str, source_artifacts: list[str], context: str) -> str:
+def build_prompt(*, task: str| Optional, kind: str, source_artifacts: list[str], context: str) -> str:
     lines = [
         "You are assisting Rig, the repo-local Anigma development harness.",
         "Use only the provided Rig artifacts as evidence.",
@@ -206,7 +206,7 @@ def _load_generation_backend():
         return None, None
 
 
-def _dispatch_llama_cpp(prompt: str, *, model_path: str | None, max_tokens: int, temperature: float, top_p: float, n_ctx: int, n_gpu_layers: int, seed: int, grammar_path: Path | None = None, json_schema_path: Path | None = None, timeout_seconds: int = 120) -> dict[str, Any]:
+def _dispatch_llama_cpp(prompt: str, *, model_path: str| Optional, max_tokens: int, temperature: float, top_p: float, n_ctx: int, n_gpu_layers: int, seed: int, grammar_path: Path| Optional = None, json_schema_path: Path| Optional = None, timeout_seconds: int = 120) -> dict[str, Any]:
     return llama_cpp_local.generate_llama_cpp(
         prompt,
         model_path=model_path,
@@ -292,12 +292,12 @@ def _run_mlx_lm_subprocess(model: str, prompt: str, max_tokens: int, timeout_sec
 def generate_summary(
     *,
     prompt: str,
-    model: str | None = None,
-    fallback_model: str | None = None,
+    model: str| Optional = None,
+    fallback_model: str| Optional = None,
     backend: str = "mlx",
-    model_path: str | None = None,
-    grammar_path: Path | None = None,
-    json_schema_path: Path | None = None,
+    model_path: str| Optional = None,
+    grammar_path: Path| Optional = None,
+    json_schema_path: Path| Optional = None,
     n_ctx: int = 8192,
     n_gpu_layers: int = -1,
     temperature: float = 0.0,
@@ -305,10 +305,10 @@ def generate_summary(
     seed: int = 0,
     max_tokens: int = 80,
     timeout_seconds: int = 300,
-    task: str | None = None,
+    task: str| Optional = None,
     prompt_kind: str = "summary",
     prompt_template_id: str = "rig.local_llm_summary.v1",
-    context_pack_path: Path | None = None,
+    context_pack_path: Path| Optional = None,
 ) -> dict[str, Any]:
     if backend == "llama-cpp":
         result = _dispatch_llama_cpp(
@@ -341,7 +341,7 @@ def generate_summary(
     warnings: list[str] = []
     raw_output = ""
     status = "failed"
-    error: str | None = None
+    error: str| Optional = None
     if load and generate:
         try:
             model_obj, tokenizer = load(model)
@@ -409,7 +409,7 @@ def generate_summary(
     return _record_summary_trace(REPO_ROOT, prompt=prompt, result=result, task=task, prompt_kind=prompt_kind, prompt_template_id=prompt_template_id, context_pack_path=context_pack_path, max_tokens=max_tokens, timeout_seconds=timeout_seconds)
 
 
-def _record_summary_trace(repo_root: Path, *, prompt: str, result: dict[str, Any], task: str | None, prompt_kind: str, prompt_template_id: str, context_pack_path: Path | None, max_tokens: int, timeout_seconds: int) -> dict[str, Any]:
+def _record_summary_trace(repo_root: Path, *, prompt: str, result: dict[str, Any], task: str| Optional, prompt_kind: str, prompt_template_id: str, context_pack_path: Path| Optional, max_tokens: int, timeout_seconds: int) -> dict[str, Any]:
     status = str(result.get("status") or "failed")
     output = str(result.get("output") or "")
     failure_type = prompt_telemetry.classify_failure(
@@ -458,7 +458,7 @@ def _record_summary_trace(repo_root: Path, *, prompt: str, result: dict[str, Any
     return result
 
 
-def _probe_mlx_embeddings_backend() -> dict[str, Any] | None:
+def _probe_mlx_embeddings_backend() -> dict[str, Any]| Optional:
     try:
         import mlx_embeddings  # type: ignore
     except Exception as exc:
@@ -468,7 +468,7 @@ def _probe_mlx_embeddings_backend() -> dict[str, Any] | None:
     return None
 
 
-def _probe_mlx_embedding_models_backend() -> dict[str, Any] | None:
+def _probe_mlx_embedding_models_backend() -> dict[str, Any]| Optional:
     try:
         from mlx_embedding_models.embedding import EmbeddingModel  # type: ignore
     except Exception:
@@ -621,7 +621,7 @@ def _build_embeddings_backend(texts: list[str], model: str) -> tuple[list[list[f
     return vectors, meta
 
 
-def collect_summary_context(repo_root: Path, *, task: str | None = None, artifact_path: Path | None = None, limit: int = 6000) -> dict[str, Any]:
+def collect_summary_context(repo_root: Path, *, task: str| Optional = None, artifact_path: Path| Optional = None, limit: int = 6000) -> dict[str, Any]:
     source_artifacts: list[str] = []
     parts: list[str] = []
     if artifact_path and artifact_path.exists():
@@ -646,7 +646,7 @@ def collect_summary_context(repo_root: Path, *, task: str | None = None, artifac
     return {"source_artifacts": sorted(set(source_artifacts)), "context": context[:limit]}
 
 
-def write_summary_artifact(repo_root: Path, *, task: str | None, prompt_kind: str, model: str, source_artifacts: list[str], summary: str, status_text: str, warnings: list[str], input_char_count: int, output_char_count: int) -> dict[str, Any]:
+def write_summary_artifact(repo_root: Path, *, task: str| Optional, prompt_kind: str, model: str, source_artifacts: list[str], summary: str, status_text: str, warnings: list[str], input_char_count: int, output_char_count: int) -> dict[str, Any]:
     out_dir = repo_root / ".build" / "rig" / "llm"
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -675,7 +675,7 @@ def write_summary_artifact(repo_root: Path, *, task: str | None, prompt_kind: st
     return payload
 
 
-def summarize_artifact(repo_root: Path, *, artifact: Path, task: str | None = None, model: str | None = None, backend: str = "mlx", model_path: str | None = None, grammar_path: Path | None = None, json_schema_path: Path | None = None, n_ctx: int = 8192, n_gpu_layers: int = -1, temperature: float = 0.0, top_p: float = 1.0, seed: int = 0) -> dict[str, Any]:
+def summarize_artifact(repo_root: Path, *, artifact: Path, task: str| Optional = None, model: str| Optional = None, backend: str = "mlx", model_path: str| Optional = None, grammar_path: Path| Optional = None, json_schema_path: Path| Optional = None, n_ctx: int = 8192, n_gpu_layers: int = -1, temperature: float = 0.0, top_p: float = 1.0, seed: int = 0) -> dict[str, Any]:
     ctx = collect_summary_context(repo_root, task=task, artifact_path=artifact)
     prompt = build_prompt(task=task, kind="artifact", source_artifacts=ctx["source_artifacts"], context=ctx["context"])
     result = generate_summary(prompt=prompt, model=model, task=task, prompt_kind="artifact_summary", prompt_template_id="rig.local_llm_summary.v1", context_pack_path=artifact, backend=backend, model_path=model_path, grammar_path=grammar_path, json_schema_path=json_schema_path, n_ctx=n_ctx, n_gpu_layers=n_gpu_layers, temperature=temperature, top_p=top_p, seed=seed)
@@ -696,7 +696,7 @@ def summarize_artifact(repo_root: Path, *, artifact: Path, task: str | None = No
     return payload
 
 
-def summarize_session(repo_root: Path, *, task: str, model: str | None = None, backend: str = "mlx", model_path: str | None = None, grammar_path: Path | None = None, json_schema_path: Path | None = None, n_ctx: int = 8192, n_gpu_layers: int = -1, temperature: float = 0.0, top_p: float = 1.0, seed: int = 0) -> dict[str, Any]:
+def summarize_session(repo_root: Path, *, task: str, model: str| Optional = None, backend: str = "mlx", model_path: str| Optional = None, grammar_path: Path| Optional = None, json_schema_path: Path| Optional = None, n_ctx: int = 8192, n_gpu_layers: int = -1, temperature: float = 0.0, top_p: float = 1.0, seed: int = 0) -> dict[str, Any]:
     ctx = collect_summary_context(repo_root, task=task)
     prompt = build_prompt(task=task, kind="session", source_artifacts=ctx["source_artifacts"], context=ctx["context"])
     result = generate_summary(prompt=prompt, model=model, task=task, prompt_kind="session_summary", prompt_template_id="rig.local_llm_summary.v1", context_pack_path=repo_root / ".build" / "rig" / "llm" / f"{task}-session-summary.md", backend=backend, model_path=model_path, grammar_path=grammar_path, json_schema_path=json_schema_path, n_ctx=n_ctx, n_gpu_layers=n_gpu_layers, temperature=temperature, top_p=top_p, seed=seed)
@@ -717,15 +717,15 @@ def summarize_session(repo_root: Path, *, task: str, model: str | None = None, b
     return payload
 
 
-def compress_proof(repo_root: Path, *, proof: Path, model: str | None = None, backend: str = "mlx", model_path: str | None = None) -> dict[str, Any]:
+def compress_proof(repo_root: Path, *, proof: Path, model: str| Optional = None, backend: str = "mlx", model_path: str| Optional = None) -> dict[str, Any]:
     return summarize_artifact(repo_root, artifact=proof, model=model, backend=backend, model_path=model_path)
 
 
-def draft_commit_summary(repo_root: Path, *, task: str, model: str | None = None, backend: str = "mlx", model_path: str | None = None) -> dict[str, Any]:
+def draft_commit_summary(repo_root: Path, *, task: str, model: str| Optional = None, backend: str = "mlx", model_path: str| Optional = None) -> dict[str, Any]:
     return summarize_session(repo_root, task=task, model=model, backend=backend, model_path=model_path)
 
 
-def collect_embedding_documents(repo_root: Path, *, task: str | None = None, max_bytes: int = 200000, limit: int | None = None) -> list[dict[str, Any]]:
+def collect_embedding_documents(repo_root: Path, *, task: str| Optional = None, max_bytes: int = 200000, limit: int| Optional = None) -> list[dict[str, Any]]:
     docs: list[dict[str, Any]] = []
     roots = [
         repo_root / "Docs" / "indexes",
@@ -803,7 +803,7 @@ def _embed_texts(texts: list[str], model: str) -> tuple[list[list[float]], dict[
     return [], {"status": "backend_unavailable", "error": "unsupported mlx_embeddings api", "warnings": warnings}
 
 
-def build_embeddings(repo_root: Path, *, model: str | None = None, task: str | None = None, limit: int | None = None) -> dict[str, Any]:
+def build_embeddings(repo_root: Path, *, model: str| Optional = None, task: str| Optional = None, limit: int| Optional = None) -> dict[str, Any]:
     model = model or os.environ.get("RIG_MLX_EMBEDDING_MODEL", EMBEDDING_MODEL)
     docs = collect_embedding_documents(repo_root, task=task, limit=limit)
     texts = [doc["text"] for doc in docs]
@@ -839,7 +839,7 @@ def build_embeddings(repo_root: Path, *, model: str | None = None, task: str | N
     return index
 
 
-def smoke_embeddings(repo_root: Path, *, model: str | None = None) -> dict[str, Any]:
+def smoke_embeddings(repo_root: Path, *, model: str| Optional = None) -> dict[str, Any]:
     model = model or os.environ.get("RIG_MLX_EMBEDDING_MODEL", EMBEDDING_MODEL)
     smoke = smoke_embed_mlx_embeddings(model, SMOKE_TEXTS)
     out_dir = repo_root / ".build" / "rig" / "embeddings"
@@ -879,7 +879,7 @@ def smoke_embeddings(repo_root: Path, *, model: str | None = None) -> dict[str, 
     return payload
 
 
-def query_embeddings(repo_root: Path, query: str, *, model: str | None = None, top_k: int = 10) -> dict[str, Any]:
+def query_embeddings(repo_root: Path, query: str, *, model: str| Optional = None, top_k: int = 10) -> dict[str, Any]:
     out_dir = repo_root / ".build" / "rig" / "embeddings"
     index_path = out_dir / "index.json"
     vectors_path = out_dir / "vectors.jsonl"

@@ -17,7 +17,7 @@ HARD_EXCLUDES = {".git", "__MACOSX", "__pycache__", ".pytest_cache", "DerivedDat
 
 @dataclass
 class BundleResult:
-    bundle_path: Path | None
+    bundle_path: Path| Optional
     manifest_path: Path
     summary_path: Path
     manifest: dict[str, Any]
@@ -27,7 +27,7 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def sha256_path(path: Path) -> str | None:
+def sha256_path(path: Path) -> str| Optional:
     try:
         return sha256_bytes(path.read_bytes())
     except Exception:
@@ -105,7 +105,7 @@ def _git_status(repo_root: Path) -> dict[str, Any]:
     return {"changed_files": sorted(set(changed + untracked)), "untracked_files": sorted(set(untracked))}
 
 
-def _read_commit_plan(repo_root: Path, task: str) -> dict[str, Any] | None:
+def _read_commit_plan(repo_root: Path, task: str) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "git" / f"commit-plan-{task}.json"
     return _load_json(path, {}) if path.exists() else None
 
@@ -150,7 +150,7 @@ def _list_loop_runs(repo_root: Path, task: str) -> list[Path]:
     return sorted(rows, key=lambda p: p.parent.name)
 
 
-def _context_pack(repo_root: Path, task: str) -> tuple[Path | None, Path | None]:
+def _context_pack(repo_root: Path, task: str) -> tuple[Path| Optional, Path| Optional]:
     candidates = [
         (repo_root / ".build" / "rig" / "context" / f"{task}-context-pack.md", repo_root / ".build" / "rig" / "context" / f"{task}-context-pack.json"),
         (repo_root / ".build" / "rig" / "context" / "latest.md", repo_root / ".build" / "rig" / "context" / "latest.json"),
@@ -173,11 +173,11 @@ def _should_exclude(path: str) -> bool:
     return False
 
 
-def _truncate_note(path: str, size: int, sha: str | None, reason: str) -> str:
+def _truncate_note(path: str, size: int, sha: str| Optional, reason: str) -> str:
     return f"[omitted] {path} size={size} sha256={sha or 'unknown'} reason={reason}\n"
 
 
-def _safe_read(path: Path, max_bytes: int) -> tuple[bytes | None, str | None, str | None]:
+def _safe_read(path: Path, max_bytes: int) -> tuple[bytes| Optional, str| Optional, str| Optional]:
     try:
         data = path.read_bytes()
     except Exception as exc:
@@ -199,13 +199,13 @@ def _zipinfo(name: str, mode: int = 0o100644) -> zipfile.ZipInfo:
     return info
 
 
-def _rel_or_none(repo_root: Path, path: Path | None) -> str | None:
+def _rel_or_none(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     return _repo_rel(repo_root, path)
 
 
-def _resolve_output_base(repo_root: Path, *, out: Path | None, task: str, run_id: str | None, latest_run: bool, overwrite: bool) -> tuple[Path, Path, Path]:
+def _resolve_output_base(repo_root: Path, *, out: Path| Optional, task: str, run_id: str| Optional, latest_run: bool, overwrite: bool) -> tuple[Path, Path, Path]:
     if out is None:
         out_dir = _default_bundle_dir(repo_root)
         bundle_path = out_dir / f"{_task_slug(task)}-session-review.zip"
@@ -255,7 +255,7 @@ def _patch_lines(repo_root: Path, task: str) -> tuple[str, str]:
     return diff.stdout, "\n".join(task_lines) + "\n"
 
 
-def _collect_candidate_paths(repo_root: Path, task: str, selected_run_id: str | None) -> dict[str, list[Path]]:
+def _collect_candidate_paths(repo_root: Path, task: str, selected_run_id: str| Optional) -> dict[str, list[Path]]:
     task_slug = _task_slug(task)
     out = {
         "results": [],
@@ -308,7 +308,7 @@ def _collect_candidate_paths(repo_root: Path, task: str, selected_run_id: str | 
     return out
 
 
-def build_manifest(repo_root: Path, *, task: str, run_id: str | None = None, latest_run: bool = False, include_untracked: bool = False, profile: str = "forensic") -> dict[str, Any]:
+def build_manifest(repo_root: Path, *, task: str, run_id: str| Optional = None, latest_run: bool = False, include_untracked: bool = False, profile: str = "forensic") -> dict[str, Any]:
     from rig_tools import prompt_telemetry
 
     ctx = _read_task_context(repo_root, task)
@@ -379,7 +379,7 @@ def build_manifest(repo_root: Path, *, task: str, run_id: str | None = None, lat
     return manifest
 
 
-def _session_summary(manifest: dict[str, Any], task: str, run_id: str | None) -> str:
+def _session_summary(manifest: dict[str, Any], task: str, run_id: str| Optional) -> str:
     lines = [
         "# Session Review Bundle",
         "",
@@ -435,7 +435,7 @@ def _write_bundle_files(repo_root: Path, bundle_path: Path, manifest_path: Path,
     _write_text(summary_path, _session_summary(manifest, task, manifest.get("run_id")))
 
 
-def write_bundle(repo_root: Path, *, task: str, run_id: str | None = None, latest_run: bool = False, out: Path | None = None, dry_run: bool = False, include_untracked: bool = False, profile: str = "forensic", max_log_bytes: int = 200000, max_file_bytes: int = 1000000, overwrite: bool = False) -> BundleResult:
+def write_bundle(repo_root: Path, *, task: str, run_id: str| Optional = None, latest_run: bool = False, out: Path| Optional = None, dry_run: bool = False, include_untracked: bool = False, profile: str = "forensic", max_log_bytes: int = 200000, max_file_bytes: int = 1000000, overwrite: bool = False) -> BundleResult:
     out_dir, bundle_path, manifest_path, summary_path = _resolve_output_base(repo_root, out=out, task=task, run_id=run_id, latest_run=latest_run, overwrite=overwrite)
     manifest = build_manifest(repo_root, task=task, run_id=run_id, latest_run=latest_run, include_untracked=include_untracked, profile=profile)
     ctx = _read_task_context(repo_root, task)
@@ -444,7 +444,7 @@ def write_bundle(repo_root: Path, *, task: str, run_id: str | None = None, lates
     included: list[tuple[str, Path]] = []
     omitted: list[dict[str, Any]] = []
 
-    def add(src: Path | None, arcname: str | None = None) -> None:
+    def add(src: Path| Optional, arcname: str| Optional = None) -> None:
         if src is None or not src.exists() or not src.is_file():
             return
         arc = arcname or _repo_rel(repo_root, src)

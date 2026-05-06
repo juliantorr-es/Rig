@@ -74,9 +74,9 @@ def load_ui_state() -> dict[str, Any]:
 class CommandResult:
     command_id: str
     status: str
-    exit_code: int | None
+    exit_code: int| Optional
     started_at: str
-    finished_at: str | None
+    finished_at: str| Optional
     stdout: str
     stderr: str
     warnings: list[str] = field(default_factory=list)
@@ -93,7 +93,7 @@ class CommandResult:
             "warnings": self.warnings,
         }
 
-def _read_json(path: Path) -> dict[str, Any] | None:
+def _read_json(path: Path) -> dict[str, Any]| Optional:
     try:
         if not path.exists(): return None
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -101,7 +101,7 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     except Exception:
         return None
 
-def _latest_from_dir(root: Path, pattern: str) -> Path | None:
+def _latest_from_dir(root: Path, pattern: str) -> Path| Optional:
     if not root.exists(): return None
     paths = sorted(root.glob(pattern), key=lambda p: p.stat().st_mtime)
     return paths[-1] if paths else None

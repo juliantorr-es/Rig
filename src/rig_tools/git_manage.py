@@ -20,12 +20,12 @@ def inside_repo(repo_root: Path) -> bool:
     return res.returncode == 0 and res.stdout.strip() == "true"
 
 
-def current_branch(repo_root: Path) -> str | None:
+def current_branch(repo_root: Path) -> str| Optional:
     res = git(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
     return res.stdout.strip() if res.returncode == 0 else None
 
 
-def current_head(repo_root: Path) -> str | None:
+def current_head(repo_root: Path) -> str| Optional:
     res = git(repo_root, "rev-parse", "HEAD")
     return res.stdout.strip() if res.returncode == 0 else None
 
@@ -104,7 +104,7 @@ def collect_status(repo_root: Path) -> dict[str, Any]:
     }
 
 
-def latest_result(repo_root: Path) -> dict[str, Any] | None:
+def latest_result(repo_root: Path) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "results" / "latest.json"
     if not path.exists():
         return None
@@ -124,7 +124,7 @@ def latest_result(repo_root: Path) -> dict[str, Any] | None:
     }
 
 
-def latest_schema_validation(repo_root: Path) -> dict[str, Any] | None:
+def latest_schema_validation(repo_root: Path) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "schema-validation" / "latest.json"
     if not path.exists():
         return None
@@ -140,14 +140,14 @@ def latest_schema_validation(repo_root: Path) -> dict[str, Any] | None:
     }
 
 
-def latest_affected(repo_root: Path) -> dict[str, Any] | None:
+def latest_affected(repo_root: Path) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "affected" / "summary.md"
     if not path.exists():
         return None
     return {"summary_md": str(path.relative_to(repo_root))}
 
 
-def latest_swift_diagnostics(repo_root: Path) -> dict[str, Any] | None:
+def latest_swift_diagnostics(repo_root: Path) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "swift-diagnostics" / "latest.json"
     if not path.exists():
         return None
@@ -166,7 +166,7 @@ def latest_swift_diagnostics(repo_root: Path) -> dict[str, Any] | None:
     }
 
 
-def latest_registry_gate(repo_root: Path) -> dict[str, Any] | None:
+def latest_registry_gate(repo_root: Path) -> dict[str, Any]| Optional:
     root = repo_root / ".build" / "anigma-diagnostics" / "tasks"
     if not root.exists():
         return None
@@ -192,7 +192,7 @@ def latest_registry_gate(repo_root: Path) -> dict[str, Any] | None:
     }
 
 
-def latest_review_bundle(repo_root: Path) -> dict[str, Any] | None:
+def latest_review_bundle(repo_root: Path) -> dict[str, Any]| Optional:
     root = repo_root / ".build" / "review-bundles"
     if not root.exists():
         return None
@@ -202,7 +202,7 @@ def latest_review_bundle(repo_root: Path) -> dict[str, Any] | None:
     return {"path": str(bundles[-1].relative_to(repo_root))}
 
 
-def latest_proof(repo_root: Path) -> dict[str, Any] | None:
+def latest_proof(repo_root: Path) -> dict[str, Any]| Optional:
     root = repo_root / "Docs" / "proofs"
     if not root.exists():
         return None
@@ -212,7 +212,7 @@ def latest_proof(repo_root: Path) -> dict[str, Any] | None:
     return {"path": str(proofs[-1].relative_to(repo_root))}
 
 
-def generate_commit_message(task: str, changed_files: list[str], proof: dict[str, Any] | None, registry_gate: dict[str, Any] | None, rig_result: dict[str, Any] | None, schema: dict[str, Any] | None) -> str:
+def generate_commit_message(task: str, changed_files: list[str], proof: dict[str, Any]| Optional, registry_gate: dict[str, Any]| Optional, rig_result: dict[str, Any]| Optional, schema: dict[str, Any]| Optional) -> str:
     if any(Path(p).suffix == ".swift" for p in changed_files):
         prefix = "fix(daemon)"
     elif any(p.startswith("Docs/") for p in changed_files):
@@ -233,7 +233,7 @@ def generate_commit_message(task: str, changed_files: list[str], proof: dict[str
     return f"{prefix}: task {task}\n\n" + "\n".join(body) + "\n"
 
 
-def plan_commit(repo_root: Path, task: str, allowed_paths: list[str] | None = None, *, include_untracked: bool = True) -> dict[str, Any]:
+def plan_commit(repo_root: Path, task: str, allowed_paths: list[str]| Optional = None, *, include_untracked: bool = True) -> dict[str, Any]:
     status = collect_status(repo_root)
     allowed_paths = allowed_paths or []
     changed = status["changed_files"]

@@ -28,12 +28,12 @@ class PatchResult:
     status: str
     patch_path: Path
     proposal_markdown_path: Path
-    validation_path: Path | None = None
-    validation_markdown_path: Path | None = None
-    sandbox_path: Path | None = None
+    validation_path: Path| Optional = None
+    validation_markdown_path: Path| Optional = None
+    sandbox_path: Path| Optional = None
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -219,7 +219,7 @@ def status(repo_root: Path) -> dict[str, Any]:
     }
 
 
-def _latest_patch_dir(repo_root: Path) -> Path | None:
+def _latest_patch_dir(repo_root: Path) -> Path| Optional:
     root = repo_root / PATCH_ROOT
     if not root.exists():
         return None
@@ -268,7 +268,7 @@ def _attempt_dir(repo_root: Path, patch_id: str, attempt_index: int) -> Path:
     return out
 
 
-def _write_attempt_artifacts(attempt_dir: Path, *, raw_output: str, candidate_patch: str, parse: dict[str, Any], safety: dict[str, Any], git_check_stdout: str = "", git_check_stderr: str = "", repair_prompt: str | None = None) -> None:
+def _write_attempt_artifacts(attempt_dir: Path, *, raw_output: str, candidate_patch: str, parse: dict[str, Any], safety: dict[str, Any], git_check_stdout: str = "", git_check_stderr: str = "", repair_prompt: str| Optional = None) -> None:
     _write_text(attempt_dir / "raw-output.txt", raw_output)
     _write_text(attempt_dir / "candidate.patch", candidate_patch)
     _write_json(attempt_dir / "parse.json", parse)
@@ -287,7 +287,7 @@ def _candidate_status(parse: dict[str, Any], safety: dict[str, Any]) -> tuple[st
     return "raw_generated", "raw_generated"
 
 
-def _run_model(prompt: str, *, model: str | None, timeout_seconds: int) -> dict[str, Any]:
+def _run_model(prompt: str, *, model: str| Optional, timeout_seconds: int) -> dict[str, Any]:
     return mlx_local.generate_summary(
         prompt=prompt,
         model=model or mlx_local.SUMMARY_MODEL,
@@ -347,7 +347,7 @@ def _evaluate_candidate(repo_root: Path, candidate_patch: str, *, allowed_paths:
     return {"attempt_dir": attempt_dir, "parse": parse, "safety": safety, "git_status": git_status, "candidate_patch": candidate_patch}
 
 
-def propose_patch(repo_root: Path, *, task: str, backend: str, model: str | None, allowed_paths: list[str], dry_run: bool = False, max_repair_attempts: int = 3, repair_timeout_seconds: int = 120, no_repair: bool = False, keep_failed_attempts: bool = True) -> dict[str, Any]:
+def propose_patch(repo_root: Path, *, task: str, backend: str, model: str| Optional, allowed_paths: list[str], dry_run: bool = False, max_repair_attempts: int = 3, repair_timeout_seconds: int = 120, no_repair: bool = False, keep_failed_attempts: bool = True) -> dict[str, Any]:
     patch_id = _choose_patch_id(task)
     patch_dir = _patch_dir(repo_root, patch_id)
     ctx = _context(repo_root, task)
@@ -356,8 +356,8 @@ def propose_patch(repo_root: Path, *, task: str, backend: str, model: str | None
     patch_json = patch_dir / "patch.json"
     attempts: list[dict[str, Any]] = []
     chosen_patch = ""
-    successful_attempt: int | None = None
-    final_failure_reason: str | None = None
+    successful_attempt: int| Optional = None
+    final_failure_reason: str| Optional = None
     repair_loop_used = False
     current_prompt = build_patch_prompt(task=task, allowed_paths=allowed_paths, context=ctx["context"])
     current_result = _run_model(current_prompt, model=model, timeout_seconds=repair_timeout_seconds)

@@ -16,8 +16,8 @@ IGNORED_NAMES = {".DS_Store"}
 class AffectedResult:
     command: list[str]
     mode: str
-    base: str | None
-    head: str | None
+    base: str| Optional
+    head: str| Optional
     changed_files: list[str]
     unknown_files: list[str]
     directly_affected_targets: list[str]
@@ -44,7 +44,7 @@ class AffectedResult:
         }
 
 
-def _repo_root(start: Path | None = None) -> Path:
+def _repo_root(start: Path| Optional = None) -> Path:
     start = start or Path(__file__).resolve()
     return Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=start.parent if start.is_file() else start, text=True).strip())
 
@@ -58,7 +58,7 @@ def _load_json(path: Path, default):
         return default
 
 
-def _normalize(path: str) -> str | None:
+def _normalize(path: str) -> str| Optional:
     raw = path.strip().replace("\\", "/")
     if not raw:
         return None
@@ -72,7 +72,7 @@ def _normalize(path: str) -> str | None:
     return raw.lstrip("./")
 
 
-def _git_changed_files(repo_root: Path, base: str | None, head: str | None) -> list[str]:
+def _git_changed_files(repo_root: Path, base: str| Optional, head: str| Optional) -> list[str]:
     if base and head:
         cmd = ["git", "diff", "--name-only", f"{base}..{head}", "--"]
     elif base:
@@ -196,7 +196,7 @@ def _validation_commands(targets: list[str], profiles: list[str]) -> list[str]:
     return cmds
 
 
-def compute(repo_root: Path, *, mode: str, base: str | None = None, head: str | None = None, stdin_files: list[str] | None = None, task: str | None = None, command: list[str] | None = None) -> AffectedResult:
+def compute(repo_root: Path, *, mode: str, base: str| Optional = None, head: str| Optional = None, stdin_files: list[str]| Optional = None, task: str| Optional = None, command: list[str]| Optional = None) -> AffectedResult:
     repo_map = _load_json(repo_root / "Docs" / "atlas" / "repo-map.json", [])
     targets_data = _load_json(repo_root / "Docs" / "atlas" / "targets.json", {})
     risk_index = _load_json(repo_root / "Docs" / "atlas" / "risk-index.json", [])
@@ -243,7 +243,7 @@ def compute(repo_root: Path, *, mode: str, base: str | None = None, head: str | 
     )
 
 
-def render_summary(result: AffectedResult, task: str | None = None) -> str:
+def render_summary(result: AffectedResult, task: str| Optional = None) -> str:
     lines = [
         "# Rig Affected Summary",
         "",
@@ -280,7 +280,7 @@ def render_summary(result: AffectedResult, task: str | None = None) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_outputs(repo_root: Path, result: AffectedResult, task: str | None = None) -> dict[str, Path]:
+def write_outputs(repo_root: Path, result: AffectedResult, task: str| Optional = None) -> dict[str, Path]:
     out_dir = repo_root / ".build" / "rig" / "affected"
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = result.to_dict() | {

@@ -13,7 +13,7 @@ MAX_TEXT_BYTES = 120000
 MAX_CONTEXT_BYTES = 48000
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -69,7 +69,7 @@ def prompt_templates_dir(repo_root: Path) -> Path:
     return out
 
 
-def classify_failure(*, raw_output: str, parsed_output: Any, validator_errors: list[str] | None, unsafe: bool = False, timeout: bool = False, error: str | None = None) -> str:
+def classify_failure(*, raw_output: str, parsed_output: Any, validator_errors: list[str]| Optional, unsafe: bool = False, timeout: bool = False, error: str| Optional = None) -> str:
     if timeout:
         return "timeout"
     if unsafe:
@@ -96,7 +96,7 @@ def classify_failure(*, raw_output: str, parsed_output: Any, validator_errors: l
     return "unknown"
 
 
-def _manifest(repo_root: Path, *, trace_id: str, task: str | None, prompt_kind: str, prompt_template_id: str, backend: str, model: str, runtime_settings: dict[str, Any], context_pack_path: Path | None, prompt_path: Path, raw_output_path: Path, parsed_output_path: Path | None, validator_path: Path | None, status: str, failure_type: str, failure_summary: str, repair_attempted: bool, repair_success: bool, quarantined: bool, prompt_text: str, raw_output_text: str, parsed_output_text: str, validator_text: str, validator_kind: str | None = None, validator_artifact: str | None = None, expected_contract: str | None = None, repair_strategy: str | None = None, prompt_knobs: dict[str, Any] | None = None, context_char_count: int | None = None, model_runtime_settings: dict[str, Any] | None = None, section_order: list[str] | None = None, retry_count: int | None = None, related_patch_id: str | None = None, related_loop_run_id: str | None = None, related_agent_run_id: str | None = None, model_path: str | None = None, model_filename: str | None = None, preset: str | None = None, n_batch: int | None = None, n_ctx: int | None = None, n_gpu_layers: int | None = None, temperature: float | None = None, top_p: float | None = None, top_k: int | None = None, min_p: float | None = None, repeat_penalty: float | None = None, seed: int | None = None, max_tokens: int | None = None, stop: list[str] | None = None, structured_json_enabled: bool | None = None, grammar_path: str | None = None, json_schema_path: str | None = None, constrained_decoding_status: str | None = None, intent_status: str | None = None) -> dict[str, Any]:
+def _manifest(repo_root: Path, *, trace_id: str, task: str| Optional, prompt_kind: str, prompt_template_id: str, backend: str, model: str, runtime_settings: dict[str, Any], context_pack_path: Path| Optional, prompt_path: Path, raw_output_path: Path, parsed_output_path: Path| Optional, validator_path: Path| Optional, status: str, failure_type: str, failure_summary: str, repair_attempted: bool, repair_success: bool, quarantined: bool, prompt_text: str, raw_output_text: str, parsed_output_text: str, validator_text: str, validator_kind: str| Optional = None, validator_artifact: str| Optional = None, expected_contract: str| Optional = None, repair_strategy: str| Optional = None, prompt_knobs: dict[str, Any]| Optional = None, context_char_count: int| Optional = None, model_runtime_settings: dict[str, Any]| Optional = None, section_order: list[str]| Optional = None, retry_count: int| Optional = None, related_patch_id: str| Optional = None, related_loop_run_id: str| Optional = None, related_agent_run_id: str| Optional = None, model_path: str| Optional = None, model_filename: str| Optional = None, preset: str| Optional = None, n_batch: int| Optional = None, n_ctx: int| Optional = None, n_gpu_layers: int| Optional = None, temperature: float| Optional = None, top_p: float| Optional = None, top_k: int| Optional = None, min_p: float| Optional = None, repeat_penalty: float| Optional = None, seed: int| Optional = None, max_tokens: int| Optional = None, stop: list[str]| Optional = None, structured_json_enabled: bool| Optional = None, grammar_path: str| Optional = None, json_schema_path: str| Optional = None, constrained_decoding_status: str| Optional = None, intent_status: str| Optional = None) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "trace_id": trace_id,
@@ -160,7 +160,7 @@ def _manifest(repo_root: Path, *, trace_id: str, task: str | None, prompt_kind: 
     }
 
 
-def write_trace(repo_root: Path, *, task: str | None, prompt_kind: str, prompt_template_id: str, backend: str, model: str, runtime_settings: dict[str, Any], context_pack_path: Path | None, prompt_text: str, raw_output_text: str, parsed_output_text: str = "", validator_text: str = "", status: str = "valid", failure_type: str = "unknown", failure_summary: str = "", repair_attempted: bool = False, repair_success: bool = False, quarantined: bool = False, prompt_path: Path | None = None, raw_output_path: Path | None = None, parsed_output_path: Path | None = None, validator_path: Path | None = None, validator_kind: str | None = None, validator_artifact: str | None = None, expected_contract: str | None = None, repair_strategy: str | None = None, prompt_knobs: dict[str, Any] | None = None, context_char_count: int | None = None, model_runtime_settings: dict[str, Any] | None = None, section_order: list[str] | None = None, retry_count: int | None = None, related_patch_id: str | None = None, related_loop_run_id: str | None = None, related_agent_run_id: str | None = None, model_path: str | None = None, model_filename: str | None = None, preset: str | None = None, n_batch: int | None = None, n_ctx: int | None = None, n_gpu_layers: int | None = None, temperature: float | None = None, top_p: float | None = None, top_k: int | None = None, min_p: float | None = None, repeat_penalty: float | None = None, seed: int | None = None, max_tokens: int | None = None, stop: list[str] | None = None, structured_json_enabled: bool | None = None, grammar_path: str | None = None, json_schema_path: str | None = None, constrained_decoding_status: str | None = None, intent_status: str | None = None) -> dict[str, Any]:
+def write_trace(repo_root: Path, *, task: str| Optional, prompt_kind: str, prompt_template_id: str, backend: str, model: str, runtime_settings: dict[str, Any], context_pack_path: Path| Optional, prompt_text: str, raw_output_text: str, parsed_output_text: str = "", validator_text: str = "", status: str = "valid", failure_type: str = "unknown", failure_summary: str = "", repair_attempted: bool = False, repair_success: bool = False, quarantined: bool = False, prompt_path: Path| Optional = None, raw_output_path: Path| Optional = None, parsed_output_path: Path| Optional = None, validator_path: Path| Optional = None, validator_kind: str| Optional = None, validator_artifact: str| Optional = None, expected_contract: str| Optional = None, repair_strategy: str| Optional = None, prompt_knobs: dict[str, Any]| Optional = None, context_char_count: int| Optional = None, model_runtime_settings: dict[str, Any]| Optional = None, section_order: list[str]| Optional = None, retry_count: int| Optional = None, related_patch_id: str| Optional = None, related_loop_run_id: str| Optional = None, related_agent_run_id: str| Optional = None, model_path: str| Optional = None, model_filename: str| Optional = None, preset: str| Optional = None, n_batch: int| Optional = None, n_ctx: int| Optional = None, n_gpu_layers: int| Optional = None, temperature: float| Optional = None, top_p: float| Optional = None, top_k: int| Optional = None, min_p: float| Optional = None, repeat_penalty: float| Optional = None, seed: int| Optional = None, max_tokens: int| Optional = None, stop: list[str]| Optional = None, structured_json_enabled: bool| Optional = None, grammar_path: str| Optional = None, json_schema_path: str| Optional = None, constrained_decoding_status: str| Optional = None, intent_status: str| Optional = None) -> dict[str, Any]:
     trace_id = f"trace-{uuid.uuid4().hex[:10]}"
     tdir = trace_dir(repo_root, trace_id)
     prompt_path = prompt_path or (tdir / "prompt.txt")
@@ -232,7 +232,7 @@ def write_trace(repo_root: Path, *, task: str | None, prompt_kind: str, prompt_t
     return payload
 
 
-def quarantine_trace(repo_root: Path, trace: dict[str, Any], *, validator_errors: list[str] | None = None) -> dict[str, Any]:
+def quarantine_trace(repo_root: Path, trace: dict[str, Any], *, validator_errors: list[str]| Optional = None) -> dict[str, Any]:
     qdir = quarantine_dir(repo_root, str(trace["trace_id"]))
     payload = dict(trace)
     payload["quarantined"] = True
@@ -260,7 +260,7 @@ def quarantine_trace(repo_root: Path, trace: dict[str, Any], *, validator_errors
     return payload
 
 
-def load_trace(repo_root: Path, trace_id: str) -> dict[str, Any] | None:
+def load_trace(repo_root: Path, trace_id: str) -> dict[str, Any]| Optional:
     path = telemetry_dir(repo_root) / "traces" / trace_id / "trace.json"
     if not path.exists():
         return None
@@ -283,7 +283,7 @@ def list_traces(repo_root: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def latest_trace(repo_root: Path) -> dict[str, Any] | None:
+def latest_trace(repo_root: Path) -> dict[str, Any]| Optional:
     path = telemetry_dir(repo_root) / "latest.json"
     if not path.exists():
         return None
@@ -319,13 +319,13 @@ def top_failure_types(repo_root: Path, limit: int = 5) -> list[dict[str, Any]]:
 def record_trace(
     repo_root: Path,
     *,
-    task: str | None,
+    task: str| Optional,
     prompt_kind: str,
     prompt_template_id: str,
     backend: str,
     model: str,
     runtime_settings: dict[str, Any],
-    context_pack_path: Path | None,
+    context_pack_path: Path| Optional,
     prompt_text: str,
     raw_output_text: str,
     parsed_output_text: str = "",
@@ -336,41 +336,41 @@ def record_trace(
     repair_attempted: bool = False,
     repair_success: bool = False,
     quarantined: bool = False,
-    validator_errors: list[str] | None = None,
-    prompt_path: Path | None = None,
-    raw_output_path: Path | None = None,
-    parsed_output_path: Path | None = None,
-    validator_path: Path | None = None,
-    validator_kind: str | None = None,
-    validator_artifact: str | None = None,
-    expected_contract: str | None = None,
-    repair_strategy: str | None = None,
-    prompt_knobs: dict[str, Any] | None = None,
-    context_char_count: int | None = None,
-    model_runtime_settings: dict[str, Any] | None = None,
-    section_order: list[str] | None = None,
-    retry_count: int | None = None,
-    related_patch_id: str | None = None,
-    related_loop_run_id: str | None = None,
-    related_agent_run_id: str | None = None,
-    model_path: str | None = None,
-    model_filename: str | None = None,
-    preset: str | None = None,
-    n_batch: int | None = None,
-    n_ctx: int | None = None,
-    n_gpu_layers: int | None = None,
-    temperature: float | None = None,
-    top_p: float | None = None,
-    top_k: int | None = None,
-    min_p: float | None = None,
-    repeat_penalty: float | None = None,
-    seed: int | None = None,
-    max_tokens: int | None = None,
-    stop: list[str] | None = None,
-    structured_json_enabled: bool | None = None,
-    grammar_path: str | None = None,
-    json_schema_path: str | None = None,
-    constrained_decoding_status: str | None = None,
+    validator_errors: list[str]| Optional = None,
+    prompt_path: Path| Optional = None,
+    raw_output_path: Path| Optional = None,
+    parsed_output_path: Path| Optional = None,
+    validator_path: Path| Optional = None,
+    validator_kind: str| Optional = None,
+    validator_artifact: str| Optional = None,
+    expected_contract: str| Optional = None,
+    repair_strategy: str| Optional = None,
+    prompt_knobs: dict[str, Any]| Optional = None,
+    context_char_count: int| Optional = None,
+    model_runtime_settings: dict[str, Any]| Optional = None,
+    section_order: list[str]| Optional = None,
+    retry_count: int| Optional = None,
+    related_patch_id: str| Optional = None,
+    related_loop_run_id: str| Optional = None,
+    related_agent_run_id: str| Optional = None,
+    model_path: str| Optional = None,
+    model_filename: str| Optional = None,
+    preset: str| Optional = None,
+    n_batch: int| Optional = None,
+    n_ctx: int| Optional = None,
+    n_gpu_layers: int| Optional = None,
+    temperature: float| Optional = None,
+    top_p: float| Optional = None,
+    top_k: int| Optional = None,
+    min_p: float| Optional = None,
+    repeat_penalty: float| Optional = None,
+    seed: int| Optional = None,
+    max_tokens: int| Optional = None,
+    stop: list[str]| Optional = None,
+    structured_json_enabled: bool| Optional = None,
+    grammar_path: str| Optional = None,
+    json_schema_path: str| Optional = None,
+    constrained_decoding_status: str| Optional = None,
 ) -> dict[str, Any]:
     trace = write_trace(
         repo_root,

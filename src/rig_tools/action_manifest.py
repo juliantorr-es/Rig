@@ -28,7 +28,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -37,15 +37,15 @@ def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
         return str(path).replace("\\", "/")
 
 
-def _sha256(path: Path) -> str | None:
+def _sha256(path: Path) -> str| Optional:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except Exception:
         return None
 
 
-def _tool_versions() -> dict[str, str | None]:
-    versions: dict[str, str | None] = {"python": None, "git": None, "mlx": None, "mlx_lm": None}
+def _tool_versions() -> dict[str, str| Optional]:
+    versions: dict[str, str| Optional] = {"python": None, "git": None, "mlx": None, "mlx_lm": None}
     versions["python"] = sys.executable
     try:
         out = subprocess.run(["python3", "--version"], capture_output=True, text=True, check=False)
@@ -110,15 +110,15 @@ def write_action_manifest(
     action_kind: str,
     command_group: str,
     command: list[str] | str,
-    inputs: list[dict[str, Any]] | None = None,
-    outputs: list[dict[str, Any]] | None = None,
+    inputs: list[dict[str, Any]]| Optional = None,
+    outputs: list[dict[str, Any]]| Optional = None,
     status: str = "passed",
     exit_code: int = 0,
-    result_path: Path | None = None,
-    event_path: Path | None = None,
-    started_at: str | None = None,
-    finished_at: str | None = None,
-    warnings: list[str] | None = None,
+    result_path: Path| Optional = None,
+    event_path: Path| Optional = None,
+    started_at: str| Optional = None,
+    finished_at: str| Optional = None,
+    warnings: list[str]| Optional = None,
 ) -> ActionManifestResult:
     action_id = f"{task}-{action_kind}-{uuid.uuid4().hex[:10]}"
     started = started_at or utc_now()
@@ -176,7 +176,7 @@ def list_actions(repo_root: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def load_action(repo_root: Path, action_id: str) -> dict[str, Any] | None:
+def load_action(repo_root: Path, action_id: str) -> dict[str, Any]| Optional:
     path = repo_root / ".build" / "rig" / "actions" / f"{action_id}.json"
     if not path.exists():
         return None

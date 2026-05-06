@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-def check_auto_policy(repo_root: Path, *, action: str, policy_path: Path, budgets: dict[str, Any], target_path: Path | None = None) -> dict[str, Any]:
+def check_auto_policy(repo_root: Path, *, action: str, policy_path: Path, budgets: dict[str, Any], target_path: Path| Optional = None) -> dict[str, Any]:
     try:
         policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
     except Exception as exc:
@@ -91,7 +91,7 @@ SCHEMA_VERSION = "rig.policy_decision.v1"
 @dataclass
 class PolicyDecision:
     decision_id: str
-    task: str | None
+    task: str| Optional
     action_kind: str
     risk_level: str
     decision: str
@@ -119,7 +119,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:

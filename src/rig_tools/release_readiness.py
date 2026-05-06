@@ -76,7 +76,7 @@ def _excerpt(text: str, limit: int = 1200) -> str:
     return text[:limit]
 
 
-def _run(repo_root: Path, cmd: list[str], *, cwd: Path | None = None, timeout: int | None = None) -> subprocess.CompletedProcess[str]:
+def _run(repo_root: Path, cmd: list[str], *, cwd: Path| Optional = None, timeout: int| Optional = None) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(cmd, cwd=cwd or repo_root, text=True, capture_output=True, check=False, timeout=timeout)
     except FileNotFoundError as exc:

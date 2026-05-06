@@ -39,10 +39,10 @@ class SwiftDiagnostic:
     line: int
     column: int
     message: str
-    symbol: str | None = None
-    target: str | None = None
-    known_blocker_id: str | None = None
-    suggested_review: str | None = None
+    symbol: str| Optional = None
+    target: str| Optional = None
+    known_blocker_id: str| Optional = None
+    suggested_review: str| Optional = None
     raw_line: str = ""
 
     def to_dict(self) -> dict:
@@ -51,8 +51,8 @@ class SwiftDiagnostic:
 
 def load_known_blockers(path: Path) -> list[dict]:
     blockers: list[dict] = []
-    current: dict | None = None
-    current_list_key: str | None = None
+    current: dict| Optional = None
+    current_list_key: str| Optional = None
 
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.rstrip()
@@ -89,7 +89,7 @@ def load_known_blockers(path: Path) -> list[dict]:
     return blockers
 
 
-def match_known_blocker(command_text: str, text: str, blockers: list[dict]) -> dict | None:
+def match_known_blocker(command_text: str, text: str, blockers: list[dict]) -> dict| Optional:
     command_lower = command_text.lower()
     text_lower = text.lower()
     command_tokens = shlex.split(command_lower)
@@ -122,7 +122,7 @@ def _is_subsequence(needle: list[str], haystack: list[str]) -> bool:
     return True
 
 
-def infer_symbol(message: str) -> str | None:
+def infer_symbol(message: str) -> str| Optional:
     for match in FILE_HINT_RE.finditer(message):
         value = match.group(1)
         if value and value[0].isupper() or value in {"init", "self", "actor", "MainActor"}:
@@ -173,7 +173,7 @@ def suggestion_for(category: str) -> str:
     return SUGGESTIONS.get(category, SUGGESTIONS["unknown"])
 
 
-def parse_diagnostic_line(line: str, target: str | None = None) -> SwiftDiagnostic | None:
+def parse_diagnostic_line(line: str, target: str| Optional = None) -> SwiftDiagnostic| Optional:
     stripped = line.rstrip()
     if not stripped:
         return None
@@ -264,9 +264,9 @@ def parse_diagnostic_line(line: str, target: str | None = None) -> SwiftDiagnost
 def parse_swift_log_text(
     text: str,
     *,
-    command: str | None = None,
-    target: str | None = None,
-    known_blockers: list[dict] | None = None,
+    command: str| Optional = None,
+    target: str| Optional = None,
+    known_blockers: list[dict]| Optional = None,
 ) -> list[dict]:
     diagnostics: list[SwiftDiagnostic] = []
     blockers = known_blockers or []

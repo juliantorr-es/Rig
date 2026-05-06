@@ -19,7 +19,7 @@ DEFAULT_MAX_STEPS = 5
 DEFAULT_TIMEOUT_SECONDS = 1800
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -116,7 +116,7 @@ def build_plan_prompt(*, task: str, mode: str, allowed_actions: list[str], sourc
     ]) + "\n"
 
 
-def _extract_json(text: str) -> dict[str, Any] | None:
+def _extract_json(text: str) -> dict[str, Any]| Optional:
     try:
         data = json.loads(text)
         if isinstance(data, dict):
@@ -173,7 +173,7 @@ def _normalize_arguments(action_id: str, arguments: Any, *, repo_root: Path, tas
     return normalized
 
 
-def draft_plan(repo_root: Path, *, task: str, mode: str, backend: str, model: str, max_steps: int = DEFAULT_MAX_STEPS, allow_local_patches: bool = False) -> tuple[dict[str, Any], Path | None]:
+def draft_plan(repo_root: Path, *, task: str, mode: str, backend: str, model: str, max_steps: int = DEFAULT_MAX_STEPS, allow_local_patches: bool = False) -> tuple[dict[str, Any], Path| Optional]:
     ctx = _collect_context(repo_root, task)
     allowed_actions = _allowed_actions(repo_root, allow_local_patches=allow_local_patches)
     prompt = build_plan_prompt(task=task, mode=mode, allowed_actions=allowed_actions, source_artifacts=ctx["source_artifacts"], context=ctx["context"], max_steps=max_steps, model=model)

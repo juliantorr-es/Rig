@@ -47,7 +47,7 @@ class CheckResult:
     subsystem: str
     command: str
     status: str
-    exit_code: int | None
+    exit_code: int| Optional
     stdout_excerpt: str
     stderr_excerpt: str
     artifact_path: str
@@ -76,7 +76,7 @@ class RigDoctor:
         self.warnings: list[str] = []
         self.recommendations: list[str] = []
 
-    def _run(self, check_id: str, subsystem: str, argv: list[str], *, cwd: Path | None = None, timeout: int = 30) -> CheckResult:
+    def _run(self, check_id: str, subsystem: str, argv: list[str], *, cwd: Path| Optional = None, timeout: int = 30) -> CheckResult:
         try:
             proc = subprocess.run(argv, cwd=cwd or self.repo_root, text=True, capture_output=True, timeout=timeout, check=False)
             status = "pass" if proc.returncode == 0 else "fail"

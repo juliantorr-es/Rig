@@ -27,7 +27,7 @@ def _load_json(path: Path, default: Any = None) -> Any:
         return default
 
 
-def _repo_rel(repo_root: Path, path: Path | str | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path | str| Optional) -> str| Optional:
     if path is None:
         return None
     p = Path(str(path))
@@ -267,7 +267,7 @@ def _overlap_records(repo_root: Path, target: str) -> list[dict[str, Any]]:
     return records
 
 
-def build_projection_bundle(repo_root: Path, target: str | None = None, mode: str = "advisory", risk: str | None = None) -> dict[str, Any]:
+def build_projection_bundle(repo_root: Path, target: str| Optional = None, mode: str = "advisory", risk: str| Optional = None) -> dict[str, Any]:
     duck = _duckdb_read(repo_root)
     targets = [target] if target else []
     if not targets:

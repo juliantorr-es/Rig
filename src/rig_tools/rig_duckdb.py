@@ -24,7 +24,7 @@ def duckdb_available() -> bool:
     return True
 
 
-def duckdb_version() -> str | None:
+def duckdb_version() -> str| Optional:
     if not duckdb_available():
         return None
     import duckdb
@@ -74,7 +74,7 @@ def json_root_kind(value: Any) -> str:
     return "invalid"
 
 
-def extract_schema_version(value: Any) -> str | None:
+def extract_schema_version(value: Any) -> str| Optional:
     if isinstance(value, dict):
         schema_version = value.get("schema_version")
         return schema_version if isinstance(schema_version, str) else None
@@ -91,7 +91,7 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _sha256_path(path: Path) -> str | None:
+def _sha256_path(path: Path) -> str| Optional:
     try:
         return _sha256_bytes(path.read_bytes())
     except Exception:
@@ -117,7 +117,7 @@ def _lock_is_fresh(repo_root: Path, max_age_seconds: int = 900) -> bool:
         return False
 
 
-def _acquire_lock(repo_root: Path) -> tuple[bool, str | None]:
+def _acquire_lock(repo_root: Path) -> tuple[bool, str| Optional]:
     path = lock_path(repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     if _lock_is_fresh(repo_root):

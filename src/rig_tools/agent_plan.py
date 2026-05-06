@@ -22,7 +22,7 @@ def _load_json(path: Path, default: Any = None) -> Any:
         return default
 
 
-def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
+def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
     if path is None:
         return None
     try:
@@ -112,7 +112,7 @@ def build_prompt(repo_root: Path, *, task: str, mode: str, agent_id: str, source
     ]) + "\n"
 
 
-def _extract_json(text: str) -> dict[str, Any] | None:
+def _extract_json(text: str) -> dict[str, Any]| Optional:
     candidates = []
     stripped = text.strip()
     if stripped.startswith("{") and stripped.endswith("}"):
@@ -155,7 +155,7 @@ def _fallback_plan(*, repo_root: Path, task: str, agent_id: str, mode: str, prom
     }
 
 
-def draft_agent_plan(repo_root: Path, *, task: str, model: str | None = None, agent_id: str = "codex", mode: str = "review") -> dict[str, Any]:
+def draft_agent_plan(repo_root: Path, *, task: str, model: str| Optional = None, agent_id: str = "codex", mode: str = "review") -> dict[str, Any]:
     context = collect_context(repo_root, task)
     prompt = build_prompt(repo_root, task=task, mode=mode, agent_id=agent_id, source_artifacts=context["source_artifacts"], context=context["context"])
     model = model or mlx_local.SUMMARY_MODEL

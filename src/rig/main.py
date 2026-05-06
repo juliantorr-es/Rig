@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import commands_window, commands_bias, commands_action, commands_affected, commands_agent, commands_anigma, commands_atlas, commands_audit, commands_bench, commands_board, commands_bootstrap, commands_brief, commands_bundle, commands_context, commands_db, commands_diff, commands_docs, commands_doctor, commands_embeddings, commands_git, commands_graph, commands_intent, commands_llm, commands_loop_engine as commands_loop, commands_models, commands_monitor, commands_notify, commands_patch, commands_pipeline, commands_policy, commands_product, commands_project, commands_prompt, commands_queue, commands_release, commands_schema, commands_structural, commands_swarm, commands_swift, commands_textual, commands_tui, commands_vault, commands_workspace
+from .paths import repo_root
 from rig_tools.notifications import choose_backend, send_notification, should_notify
 
 
@@ -417,8 +418,7 @@ def build_parser(helpers: RigHelpers) -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    repo_root = Path(__file__).resolve().parents[2]
-    helpers = RigHelpers(repo_root=repo_root)
+    helpers = RigHelpers(repo_root=repo_root())
     parser = build_parser(helpers)
     args = parser.parse_args(argv)
     if args.json and args.jsonl:
