@@ -109,6 +109,9 @@ def compose_chat():
 
 
 class GridlineApp(App):
+    TITLE = "Rig"
+    SUB_TITLE = "control"
+
     BINDINGS = [
         Binding("/", "focus_chat", "Chat"),
         Binding("ctrl+p", "command_palette", "Palette", show=False),

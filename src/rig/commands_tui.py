@@ -32,7 +32,7 @@ def _run(helpers, args) -> int:
 
     if args.window:
         from rig_tools import window_launcher
-        result = window_launcher.open_window(helpers.repo_root, dry_run=args.dry_run, host="127.0.0.1", port=None, browser=True, allow_lan=False, chat_enabled=getattr(args, "chat", False))
+        result = window_launcher.open_window(helpers.repo_root, dry_run=args.dry_run, host="127.0.0.1", port=None, browser=False, allow_lan=False, chat_enabled=getattr(args, "chat", False))
         payload = result
         if payload.get("status") == "dry_run":
             print(json.dumps(payload, indent=2, sort_keys=True))

@@ -73,11 +73,11 @@ RIG_GLOBAL_CSS = f"""
     background: {SEMANTIC_COLORS["surface"]};
 }}
 
-.rig-topbar {{ grid-column: 1 / span 3; }}
+.rig-topbar {{ grid-column: 1; column-span: 3; }}
 .rig-sidebar {{ grid-column: 1; }}
 .rig-main {{ grid-column: 2; }}
 .rig-evidence-rail {{ grid-column: 3; }}
-.rig-chat {{ grid-column: 1 / span 3; }}
+.rig-chat {{ grid-column: 1; column-span: 3; }}
 
 .rig-panel-title {{
     text-style: bold;

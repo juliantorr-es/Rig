@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 from rig_tools import tui_theme, tui_layout, tui_grid
-from rig_tools import debug_bundle, tui_command_registry, tui_chat_rendering
+from rig_tools import debug_bundle, tui_command_registry, tui_chat_rendering, window_launcher
 from rig import commands_tui
 from rig import commands_debug
 
@@ -206,7 +206,15 @@ def test_tui_window_alias_dry_run(monkeypatch, tmp_path):
 
     assert commands_tui._run(Helpers(), Args()) == 0
     assert captured["dry_run"] is True
-    assert captured["browser"] is True
+    assert captured["browser"] is False
+
+
+def test_window_launcher_dry_run_uses_textual_cli(tmp_path):
+    payload = window_launcher.open_window(tmp_path, dry_run=True, host="127.0.0.1", port=None, browser=False, allow_lan=False, chat_enabled=True)
+    command = " ".join(payload["command_argv"])
+    assert "textual_serve" not in command
+    assert "-m textual serve" in command or "textual serve" in command
+    assert payload["status"] == "dry_run"
 
 
 def test_debug_bundle_dry_run(tmp_path):
