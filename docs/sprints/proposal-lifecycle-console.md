@@ -1,5 +1,9 @@
 # Proposal Lifecycle Console Sprint
 
+## Sprint Status
+
+First vertical slice implemented: the workspace projection now includes a backend-authored `ProposalLifecycleConsole` region with Gate A, transient progress, and auditability notes.
+
 ## Sprint Name
 
 Proposal Lifecycle Console
@@ -127,4 +131,3 @@ The sprint is done when:
 ## Recommended First Implementation Task
 
 Define `ProposalLifecycleProjection` and wire the projection builder to emit a minimal proposal lifecycle console region with a validation summary placeholder and Gate A note.
-

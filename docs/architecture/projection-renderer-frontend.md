@@ -80,6 +80,7 @@ Current workspace-oriented widget types:
 - `WorkspaceHeader`
 - `WorkspaceGitState`
 - `WorkspaceLaneSummary`
+- `ProposalLifecycleConsole`
 
 Existing UI widget types remain supported:
 
@@ -112,6 +113,7 @@ The frontend keeps the existing WebSocket-based projection/intent loop.
 - `CommandProgressCard` renders backend-authored progress payloads only
 - `workspace.command_progress` is the projection-declared lane for transient command telemetry
 - progress cards remain transient UI and must not imply evidence, proof, or receipt authority
+- `ProposalLifecycleConsole` is a backend-declared region for the proposal lifecycle skeleton, including Gate A, transient progress, recommendation state, and validation state
 
 Future progress events can be added without changing the doctrine.
 

@@ -45,3 +45,16 @@ def test_command_progress_card_renderer_is_dumb():
     assert "status" in content
     assert "history" in content
     assert "receipt_candidate" not in content.lower() or "status" in content.lower()
+
+
+def test_proposal_lifecycle_console_renderer_is_dumb():
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "proposal-lifecycle-console.js"
+    content = path.read_text(encoding="utf-8")
+    assert "renderProposalLifecycleConsole" in content
+    assert "current_gate" in content
+    assert "next_safe_action" in content
+    assert "allowed_actions" in content
+    assert "blocked_actions" in content
+    assert "Unknown" in content
+    assert "No allowed actions listed." in content
+    assert "No blocked actions listed." in content

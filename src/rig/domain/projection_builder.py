@@ -8,6 +8,7 @@ from rig.domain.projections import (
     UIProjection, WidgetProjection, IntentProjection, ProjectionLayout,
     ChatProjection, ChatMessage, ValidatorItem
 )
+from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
 from rig.domain.receipts import get_receipt_store
 
 def utc_now() -> str:
@@ -102,6 +103,15 @@ def _workspace_command_progress_widget() -> WidgetProjection:
             "metadata": {},
         },
     )
+
+
+def _workspace_proposal_lifecycle_widget(repo_root: Path, active_ws: Optional[dict]) -> WidgetProjection:
+    lifecycle = build_proposal_lifecycle_projection(
+        repo_root,
+        workspace_path=str(active_ws.get("worktree_path")) if active_ws and active_ws.get("worktree_path") else None,
+        active_workspace=bool(active_ws),
+    )
+    return WidgetProjection("ProposalLifecycleConsole", "workspace.proposal_lifecycle", lifecycle.to_dict())
 
 def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[List[ChatMessage]] = None) -> UIProjection:
     from rig.domain.workspace import WorkspaceDomain
@@ -232,6 +242,7 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         "workspace.header": _workspace_header_widget(repo_root, active_ws),
         "workspace.git_state": _workspace_git_state_widget(repo_root),
         "workspace.lane_summary": _workspace_lane_summary_widget(len(workspaces)),
+        "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(repo_root, active_ws),
         "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
             "title": "Queue",
             "items": [
@@ -339,6 +350,7 @@ def _build_empty_projection(
             "workspace.header": _workspace_header_widget(repo_root, None),
             "workspace.git_state": _workspace_git_state_widget(repo_root),
             "workspace.lane_summary": _workspace_lane_summary_widget(workspaces),
+            "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(repo_root, None),
             "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
                 "title": "Queue",
                 "items": [

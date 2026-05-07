@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from rig.domain.workspace import WORKSPACE_STATUSES, WorkspaceDomain
+from rig.domain.agent_workflow_gates import GATE_A_POLICY
 
 
 def _git_capture(repo_root: Path, *args: str) -> str:
@@ -35,6 +36,26 @@ def _recent_receipt_files(repo_root: Path, limit: int = 10) -> list[Path]:
         return []
     files = sorted(receipt_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     return files[:limit]
+
+
+def _gate_a_note() -> dict:
+    return {
+        "current_dogfood_gate": GATE_A_POLICY.gate,
+        "allowed": [
+            "read-only workspace status/projection/progress",
+            "review/recommend",
+            "isolated proposal-shaped workflows",
+        ],
+        "blocked": [
+            "direct main writes",
+            "autonomous apply",
+            "progress-as-proof",
+            "progress persistence",
+            "receipt creation from progress",
+        ],
+        "progress_is_transient": True,
+        "receipts_created_from_progress": False,
+    }
 
 
 def register(subparsers, helpers):
@@ -74,6 +95,7 @@ def status(helpers):
         "current_branch": _git_capture(helpers.repo_root, "branch", "--show-current") or "HEAD",
         "current_head": _git_capture(helpers.repo_root, "rev-parse", "--short", "HEAD"),
         "next_action": "Use scripts/rig_agent_worktree.py review/recommend for governed agent lanes.",
+        "dogfood_gate": _gate_a_note(),
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
@@ -118,6 +140,10 @@ def projection(helpers):
                 "type": "WorkspaceLaneSummary",
                 "actions": ["intent.refresh_projection"],
             },
+            "workspace.proposal_lifecycle": {
+                "type": "ProposalLifecycleConsole",
+                "actions": ["intent.refresh_projection"],
+            },
             "workspace.command_progress": {
                 "type": "CommandProgressCard",
                 "actions": ["intent.refresh_projection"],
@@ -156,6 +182,7 @@ def recommend(helpers):
         "rationale": "Workspace lane integration is not connected yet. Use scripts/rig_agent_worktree.py review/recommend for governed agent lanes.",
         "next_safe_action": "Review governed agent lane docs and use the agent worktree helper for lane operations.",
         "workspace_records": len(_legacy_workspace_records(helpers.repo_root)),
+        "dogfood_gate": _gate_a_note(),
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0

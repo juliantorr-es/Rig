@@ -34,6 +34,7 @@ def test_build_projection_includes_workspace_placeholder_widgets():
         assert "workspace.header" in projection.widgets
         assert "workspace.git_state" in projection.widgets
         assert "workspace.lane_summary" in projection.widgets
+        assert "workspace.proposal_lifecycle" in projection.widgets
         assert "workspace.command_progress" in projection.widgets
 
         header = projection.widgets["workspace.header"].data
@@ -49,6 +50,14 @@ def test_build_projection_includes_workspace_placeholder_widgets():
         assert lane_summary["status"] == "not_connected"
         assert "not connected" in lane_summary["message"].lower()
         assert "rig_agent_worktree.py" in lane_summary["next_action"]
+
+        lifecycle = projection.widgets["workspace.proposal_lifecycle"].data
+        assert lifecycle["lifecycle_id"] == "workspace.proposal_lifecycle"
+        assert lifecycle["current_gate"] == "A"
+        assert lifecycle["stage"] == "workspace_unselected"
+        assert lifecycle["progress_state"]["transient"] is True
+        assert lifecycle["auditability_state"]["progress_receipt_plan"] == "advisory_only"
+        assert "rig.intent.workspace_status" in [item["id"] for item in lifecycle["allowed_actions"]]
 
         progress = projection.widgets["workspace.command_progress"].data
         assert progress["command"] == ""
@@ -84,6 +93,10 @@ def test_workspace_status_and_lanes_are_planned_placeholders(capsys):
         assert status_payload["control_plane"] == "planned"
         assert status_payload["agent_lane_registry"] == "not_connected"
         assert status_payload["current_branch"] == "main"
+        assert status_payload["dogfood_gate"]["current_dogfood_gate"] == "A"
+        assert "read-only workspace status/projection/progress" in status_payload["dogfood_gate"]["allowed"]
+        assert status_payload["dogfood_gate"]["progress_is_transient"] is True
+        assert status_payload["dogfood_gate"]["receipts_created_from_progress"] is False
 
         commands_workspace.lanes(helpers)
         lanes_payload = json.loads(capsys.readouterr().out)
@@ -104,6 +117,7 @@ def test_workspace_projection_command_mentions_placeholder_widget_types(capsys):
         assert payload["message"].startswith("Workspace projection is currently")
         assert "workspace.header" in payload["widgets"]
         assert payload["widgets"]["workspace.lane_summary"]["type"] == "WorkspaceLaneSummary"
+        assert payload["widgets"]["workspace.proposal_lifecycle"]["type"] == "ProposalLifecycleConsole"
         assert payload["widgets"]["workspace.command_progress"]["type"] == "CommandProgressCard"
 
 
@@ -121,6 +135,9 @@ def test_workspace_recommend_is_read_only(capsys):
         assert payload["ready"] is False
         assert "not connected" in payload["rationale"].lower()
         assert payload["next_safe_action"].startswith("Review governed agent lane docs")
+        assert payload["dogfood_gate"]["current_dogfood_gate"] == "A"
+        assert "progress persistence" in payload["dogfood_gate"]["blocked"]
+        assert payload["dogfood_gate"]["progress_is_transient"] is True
 
 
 def test_progress_event_builder_has_required_fields():
@@ -359,6 +376,7 @@ def test_static_module_paths_exist():
         "src/rig_tools/static/js/widgets/workspace-header.js",
         "src/rig_tools/static/js/widgets/workspace-git-state.js",
         "src/rig_tools/static/js/widgets/workspace-lane-summary.js",
+        "src/rig_tools/static/js/widgets/proposal-lifecycle-console.js",
         "src/rig_tools/static/css/main.css",
         "src/rig_tools/static/css/layers.css",
         "src/rig_tools/static/css/tokens.css",
@@ -386,8 +404,26 @@ def test_widget_registry_includes_workspace_renderers():
     assert "WorkspaceHeader" in content
     assert "WorkspaceGitState" in content
     assert "WorkspaceLaneSummary" in content
+    assert "ProposalLifecycleConsole" in content
     assert "CommandProgressCard" in content
     assert "_fallback" in content
+
+
+def test_proposal_lifecycle_projection_is_gate_a_shaped():
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+
+    projection = build_proposal_lifecycle_projection(Path("/tmp/repo"), workspace_path="/tmp/repo", active_workspace=True)
+
+    assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+    assert projection.stage == "gate_a_active"
+    assert projection.current_gate == "A"
+    assert any(action.id == "rig.intent.workspace_status" for action in projection.allowed_actions)
+    assert any(action.id == "rig.intent.refresh_projection" for action in projection.allowed_actions)
+    assert any(action.id == "rig.intent.apply_patch" for action in projection.blocked_actions)
+    assert projection.progress_state["transient"] is True
+    assert projection.auditability_state["progress_receipt_plan"] == "advisory_only"
+    assert projection.auditability_state["receipt_candidate"] == "inert"
+    assert projection.auditability_state["evidence_refs"] == "inert"
 
 
 def test_gate_a_policy_exposes_allowed_and_blocked_operations():
