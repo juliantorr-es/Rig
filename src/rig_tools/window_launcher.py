@@ -97,6 +97,184 @@ def _wait_for_http(url: str, timeout_seconds: float = 20.0) -> bool:
     return False
 
 
+def _escape_html(text: Any) -> str:
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _render_html_list(items: list[Any]) -> str:
+    if not items:
+        return "<p class='muted'>None.</p>"
+    return "<ul>" + "".join(f"<li>{_escape_html(item)}</li>" for item in items) + "</ul>"
+
+
+def _render_window_html(repo_root: Path, *, chat_enabled: bool) -> str:
+    from rig_tools.tui_snapshot import load_snapshot
+
+    snapshot = load_snapshot(repo_root)
+    jobs = snapshot.get("jobs", [])
+    workspaces = snapshot.get("workspaces", [])
+    providers = snapshot.get("providers", [])
+    queue = snapshot.get("queue", {})
+    recent_logs = snapshot.get("recent_logs", [])
+    next_gate = queue.get("next_gate") or queue.get("status") or "unknown"
+
+    chat_block = ""
+    if chat_enabled:
+        chat_block = """
+        <section class="panel chat">
+          <h2>CHAT / SLASH CONSOLE</h2>
+          <div class="chatbox">
+            <p class="muted">Type / for commands or describe an intent…</p>
+            <p class="muted">Chat is available in the terminal Gridline shell; this embedded window is a read-only dashboard.</p>
+          </div>
+        </section>
+        """
+
+    return f"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rig</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f7f7f2;
+      --surface: #ffffff;
+      --text: #111111;
+      --border: #1a1a1a;
+      --muted: #5f6368;
+      --success: #1e8e3e;
+      --warning: #f9ab00;
+      --info: #1a73e8;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }}
+    .shell {{
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 12px;
+    }}
+    .topbar, .footer, .panel {{
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }}
+    .topbar, .footer {{
+      padding: 12px 14px;
+    }}
+    .topbar {{
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+    }}
+    .title {{
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }}
+    .body {{
+      display: grid;
+      grid-template-columns: 28fr minmax(0, 1fr) 38fr;
+      gap: 12px;
+      min-height: 0;
+    }}
+    .col {{
+      display: grid;
+      gap: 12px;
+      min-height: 0;
+      align-content: start;
+    }}
+    .panel {{
+      padding: 12px;
+      min-height: 0;
+    }}
+    .panel h2 {{
+      margin: 0 0 12px 0;
+      text-transform: uppercase;
+      letter-spacing: .10em;
+      font-size: .82rem;
+    }}
+    .metric {{
+      display: grid;
+      gap: 4px;
+      padding: 10px 0;
+      border-top: 1px solid rgba(26,26,26,.12);
+    }}
+    .metric:first-of-type {{ border-top: 0; padding-top: 0; }}
+    .metric .label {{ color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }}
+    .metric .value {{ font-size: 1.6rem; font-weight: 700; }}
+    .metric .note, .muted {{ color: var(--muted); }}
+    ul {{ margin: 0; padding-left: 18px; }}
+    .footer {{ color: var(--muted); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }}
+    .badge {{ border: 1px solid var(--border); padding: 2px 6px; text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }}
+    .status-success {{ color: var(--success); }}
+    .status-warning {{ color: var(--warning); }}
+    .status-info {{ color: var(--info); }}
+    .status-muted {{ color: var(--muted); }}
+    .chatbox {{ min-height: 180px; }}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="title">Rig</div>
+        <div class="muted">Gridline embedded native window</div>
+      </div>
+      <div>
+        <span class="badge">Next gate: {_escape_html(next_gate)}</span>
+      </div>
+    </header>
+    <main class="body">
+      <section class="col">
+        <section class="panel">
+          <h2>Sidebar</h2>
+          <div class="metric"><div class="label">Jobs</div><div class="value status-info">{len(jobs)}</div></div>
+          <div class="metric"><div class="label">Workspaces</div><div class="value status-success">{len(workspaces)}</div></div>
+          <div class="metric"><div class="label">Providers</div><div class="value status-warning">{len(providers)}</div></div>
+        </section>
+      </section>
+      <section class="col">
+        <section class="panel">
+          <h2>Main</h2>
+          <p class="muted">This window is the embedded native Rig dashboard. It mirrors the governed product shell without going through the Textual web bridge.</p>
+          <div class="metric"><div class="label">Queue</div><div class="value">{_escape_html(queue.get('status', 'unknown'))}</div><div class="note">Read-only snapshot from the repo state.</div></div>
+          <div class="metric"><div class="label">Recent logs</div>{_render_html_list(recent_logs[:5])}</div>
+        </section>
+      </section>
+      <section class="col">
+        <section class="panel">
+          <h2>Evidence</h2>
+          <div class="metric"><div class="label">Next gate</div><div class="value status-warning">{_escape_html(next_gate)}</div></div>
+          <div class="metric"><div class="label">Recent activity</div>{_render_html_list(snapshot.get('recent_activity', []))}</div>
+        </section>
+        {chat_block}
+      </section>
+    </main>
+    <footer class="footer">
+      <span>Native window: pywebview</span>
+      <span>Terminal Gridline shell remains available via <code>rig tui --gridline</code></span>
+    </footer>
+  </div>
+</body>
+</html>
+"""
+
+
 def save_session(repo_root: Path, session: Dict[str, Any]) -> None:
     base_dir = repo_root / ".build" / "rig" / "window"
     sessions_dir = base_dir / "sessions"
@@ -197,8 +375,8 @@ def open_window(
             "mode": "dry_run",
             "host": host,
             "port": port,
-            "url": f"http://{host}:{port}",
-            "command_argv": _serve_command(repo_root, host, port),
+            "url": "embedded-native-window",
+            "command_argv": [sys.executable, "-m", "rig", "tui", "--gridline", "--window"],
             "server_pid": None,
             "token_enabled": False,
             "status": "dry_run",
@@ -209,9 +387,9 @@ def open_window(
     if not get_textual_available():
         return {"status": "failed", "error": "Textual is not installed.", "warnings": warnings}
 
-    url = f"http://{host}:{port}"
     use_webview = get_pywebview() and not browser
     _set_macos_app_name("Rig")
+    html = _render_window_html(repo_root, chat_enabled=chat_enabled)
     session = {
         "schema_version": WINDOW_SESSION_SCHEMA_VERSION,
         "session_id": session_id,
@@ -219,8 +397,8 @@ def open_window(
         "mode": "webview" if use_webview else "browser",
         "host": host,
         "port": port,
-        "url": url,
-        "command_argv": _serve_command(repo_root, host, port),
+        "url": "embedded-native-window",
+        "command_argv": [sys.executable, "-m", "rig", "tui", "--gridline", "--window"],
         "server_pid": None,
         "token_enabled": False,
         "status": "planned",
@@ -229,76 +407,26 @@ def open_window(
     }
     save_session(repo_root, session)
 
-    server_proc = subprocess.Popen(
-        session["command_argv"],
-        cwd=str(repo_root),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    session["server_pid"] = server_proc.pid
-    session["status"] = "running"
-    save_session(repo_root, session)
-    ready = _wait_for_http(url, timeout_seconds=30.0)
-    if not ready:
-        warnings.append("Window server did not become ready before the window opened.")
-
     try:
         if use_webview:
             import webview
 
-            window = webview.create_window(
-                "Rig",
-                html=(
-                    "<!doctype html><html><head><meta charset='utf-8'>"
-                    "<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;"
-                    "display:grid;place-items:center;height:100vh;margin:0;background:#f7f7f2;color:#111;}"
-                    ".card{border:1px solid #1a1a1a;padding:1rem 1.25rem;max-width:36rem;}"
-                    "h1{margin:0 0 .5rem 0;font-size:1.1rem;letter-spacing:.08em;text-transform:uppercase;}"
-                    "p{margin:0;line-height:1.5;}</style></head>"
-                    "<body><div class='card'><h1>Rig loading</h1>"
-                    "<p>The Gridline window is starting. If this message remains, the Textual web server did not respond.</p>"
-                    "</div></body></html>"
-                ),
-                width=1200,
-                height=800,
-            )
-
-            def _load_ready_window() -> None:
-                if _wait_for_http(url, timeout_seconds=10.0):
-                    window.load_url(url)
-                else:
-                    warnings.append("Textual web endpoint did not respond in time.")
-
-            webview.start(_load_ready_window)
+            webview.create_window("Rig", html=html, width=1200, height=800)
+            webview.start()
         else:
-            if get_pywebview() and threading.current_thread() is not threading.main_thread():
-                warnings.append("pywebview requires main thread; falling back to browser")
             import webbrowser
 
-            webbrowser.open(url)
-            server_proc.wait()
+            temp_html = repo_root / ".build" / "rig" / "window" / f"{session_id}.html"
+            temp_html.parent.mkdir(parents=True, exist_ok=True)
+            temp_html.write_text(html, encoding="utf-8")
+            webbrowser.open(temp_html.as_uri())
     except Exception as exc:
-        warnings.append(f"Browser launch failed: {exc}")
+        warnings.append(f"Window launch failed: {exc}")
         session["warnings"] = warnings
         session["status"] = "failed"
         session["error"] = str(exc)
         save_session(repo_root, session)
-        if server_proc.poll() is None:
-            server_proc.terminate()
         return {"status": "failed", "error": str(exc), "warnings": warnings}
-    finally:
-        try:
-            if server_proc.poll() is None:
-                server_proc.terminate()
-                try:
-                    server_proc.wait(timeout=5)
-                except Exception:
-                    server_proc.kill()
-                    server_proc.wait()
-        except Exception:
-            pass
-
     session["status"] = "stopped"
     session["warnings"] = warnings
     save_session(repo_root, session)
