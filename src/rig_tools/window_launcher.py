@@ -44,6 +44,30 @@ def get_pywebview() -> bool:
         return False
 
 
+def _set_macos_app_name(name: str) -> bool:
+    if sys.platform != "darwin":
+        return False
+    try:
+        from Foundation import NSProcessInfo
+
+        process_info = NSProcessInfo.processInfo()
+        if hasattr(process_info, "setProcessName_"):
+            process_info.setProcessName_(name)
+            return True
+    except Exception:
+        pass
+    try:
+        from AppKit import NSApplication
+
+        app = NSApplication.sharedApplication()
+        if hasattr(app, "setApplicationName_"):
+            app.setApplicationName_(name)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def save_session(repo_root: Path, session: Dict[str, Any]) -> None:
     base_dir = repo_root / ".build" / "rig" / "window"
     sessions_dir = base_dir / "sessions"
@@ -158,6 +182,7 @@ def open_window(
 
     url = f"http://{host}:{port}"
     use_webview = get_pywebview() and not browser
+    _set_macos_app_name("Rig")
     session = {
         "schema_version": WINDOW_SESSION_SCHEMA_VERSION,
         "session_id": session_id,
