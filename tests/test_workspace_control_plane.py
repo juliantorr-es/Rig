@@ -112,3 +112,30 @@ def test_workspace_recommend_is_read_only(capsys):
         assert payload["ready"] is False
         assert "not connected" in payload["rationale"].lower()
         assert payload["next_safe_action"].startswith("Review governed agent lane docs")
+
+
+def test_static_index_loads_module_entrypoint_and_css():
+    index_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "index.html"
+    content = index_path.read_text(encoding="utf-8")
+    assert 'type="module"' in content
+    assert '/static/js/main.js' in content
+    assert '/static/css/main.css' in content
+    assert 'boot-fallback' in content
+    assert 'boot-status' in content
+
+
+def test_static_module_paths_exist():
+    repo_root = Path(__file__).parent.parent
+    for rel in [
+        "src/rig_tools/static/js/main.js",
+        "src/rig_tools/static/js/app/runtime.js",
+        "src/rig_tools/static/css/main.css",
+        "src/rig_tools/static/css/layers.css",
+        "src/rig_tools/static/css/tokens.css",
+        "src/rig_tools/static/css/base.css",
+        "src/rig_tools/static/css/layout.css",
+        "src/rig_tools/static/css/widgets.css",
+        "src/rig_tools/static/css/states.css",
+        "src/rig_tools/static/css/utilities.css",
+    ]:
+        assert (repo_root / rel).exists(), rel

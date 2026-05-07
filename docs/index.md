@@ -15,6 +15,7 @@ Phase 6 adds governed orchestration jobs that stop at human gates instead of mut
 - [Workspace Control Plane](architecture/workspace-control-plane.md) — Workspace as the authority boundary for governed lanes.
 - [Workspace UI Projection Contract](architecture/workspace-ui-projection-contract.md) — Backend-authored workspace and lane widgets.
 - [Workspace Progress Stream](architecture/workspace-progress-stream.md) — Live telemetry for workspace and lane operations.
+- [Projection Renderer Frontend](architecture/projection-renderer-frontend.md) — Browser-native ES-module renderer for backend projections.
 - [Proposal Lifecycle](architecture/proposal-lifecycle.md) — Future plan for proposal state management.
 - [PublicOps Architecture](architecture/public-ops.md) — Future public collaboration surface architecture.
 - [Execution Sandbox](architecture/execution-sandbox.md) — Managed execution and isolation.

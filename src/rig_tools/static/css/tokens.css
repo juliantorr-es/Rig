@@ -1,0 +1,16 @@
+@layer tokens {
+:root {
+  color-scheme: light;
+  --bg: #f7f7f2;
+  --surface: #ffffff;
+  --text: #111111;
+  --border: #1a1a1a;
+  --muted: #5f6368;
+  --success: #1e8e3e;
+  --warning: #f9ab00;
+  --danger: #d93025;
+  --info: #1a73e8;
+  --idle: #9aa0a6;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+}

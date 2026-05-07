@@ -146,7 +146,7 @@ class TestFrontendStaticAssets:
     def test_rig_ui_js_has_EmptyStateCard_renderer(self):
         """Verify rig-ui.js has EmptyStateCard renderer."""
         js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
         )
         content = js_path.read_text()
         assert "EmptyStateCard:" in content
@@ -157,7 +157,7 @@ class TestFrontendStaticAssets:
     def test_rig_ui_js_EmptyStateCard_shows_disabled_reasons(self):
         """Verify EmptyStateCard renderer displays disabled reasons prominently."""
         js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
         )
         content = js_path.read_text()
         # Should have code that checks for disabled reasons and displays them
@@ -167,7 +167,7 @@ class TestFrontendStaticAssets:
     def test_rig_ui_js_EmptyStateCard_has_manual_input(self):
         """Verify EmptyStateCard renderer has manual repo path input for empty workspace."""
         js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
         )
         content = js_path.read_text()
         # Should have manual input field for repo path
@@ -177,7 +177,7 @@ class TestFrontendStaticAssets:
     def test_rig_ui_js_sendIntent_sends_target(self):
         """Verify sendIntent function can send target parameter."""
         js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
         )
         content = js_path.read_text()
         # sendIntent should support target parameter
@@ -187,7 +187,7 @@ class TestFrontendStaticAssets:
     def test_rig_ui_css_has_manual_input_styles(self):
         """Verify CSS has styles for manual repo input."""
         css_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.css"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "css" / "widgets.css"
         )
         content = css_path.read_text()
         # Should have styles for manual input
@@ -196,7 +196,7 @@ class TestFrontendStaticAssets:
     def test_rig_ui_css_has_actions_styles(self):
         """Verify CSS has styles for actions container."""
         css_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.css"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "css" / "widgets.css"
         )
         content = css_path.read_text()
         assert ".actions" in content

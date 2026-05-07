@@ -1,0 +1,9 @@
+@layer states {
+.severity-info { color: var(--info); border-color: var(--info); }
+.severity-success { color: var(--success); border-color: var(--success); }
+.severity-attention { color: var(--warning); border-color: var(--warning); }
+.severity-danger { color: var(--danger); border-color: var(--danger); }
+.severity-idle { color: var(--idle); border-color: var(--idle); }
+.state-passed { color: var(--success); }
+.state-failed { color: var(--danger); }
+}
