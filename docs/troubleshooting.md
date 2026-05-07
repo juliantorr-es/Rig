@@ -24,3 +24,5 @@ If provider connect fails, confirm the provider is supported and then retry with
 If the TUI looks unstyled or the footer bindings are missing, verify you are running the Gridline Interface path from `rig tui` and that Textual is installed in the active Python 3.14 environment.
 
 If you need to share a report, use `rig debug bundle --dry-run` first to confirm which secrets and weights are excluded by default.
+
+Before a tag or release candidate, run `rig release check` and fix any blocking findings first.

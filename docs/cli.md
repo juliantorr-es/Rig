@@ -25,3 +25,4 @@ Common commands:
 - `rig log show <run_id>`
 - `rig benchmark run --dry-run`
 - `rig model recommend --dry-run`
+- `rig release check`

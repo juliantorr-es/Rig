@@ -1,0 +1,54 @@
+{
+  "public_stable": [
+    {"command": "rig init", "release_blocking": true, "smoke": "rig init --dry-run"},
+    {"command": "rig status", "release_blocking": true, "smoke": "rig status"},
+    {"command": "rig config inspect", "release_blocking": true, "smoke": "rig config inspect"},
+    {"command": "rig doctor", "release_blocking": true, "smoke": "rig doctor"},
+    {"command": "rig doctor queue", "release_blocking": true, "smoke": "rig doctor queue"},
+    {"command": "rig doctor deps", "release_blocking": true, "smoke": "rig doctor deps"},
+    {"command": "rig job create", "release_blocking": true, "smoke": "rig job create --task smoke --provider custom-command --dry-run"},
+    {"command": "rig job list", "release_blocking": true, "smoke": "rig job list"},
+    {"command": "rig job inspect", "release_blocking": true, "smoke": "rig job inspect <job_id>"},
+    {"command": "rig job run", "release_blocking": true, "smoke": "rig job run <job_id>"},
+    {"command": "rig job cancel", "release_blocking": true, "smoke": "rig job cancel <job_id>"},
+    {"command": "rig job retry", "release_blocking": true, "smoke": "rig job retry <job_id>"},
+    {"command": "rig run", "release_blocking": true, "smoke": "rig run --task smoke --provider custom-command --dry-run"},
+    {"command": "rig debug bundle", "release_blocking": true, "smoke": "rig debug bundle --dry-run"},
+    {"command": "rig log list", "release_blocking": false, "smoke": "rig log list"},
+    {"command": "rig log show", "release_blocking": false, "smoke": "rig log show <run_id>"},
+    {"command": "rig log tail", "release_blocking": false, "smoke": "rig log tail <run_id>"},
+    {"command": "rig workspace list", "release_blocking": true, "smoke": "rig workspace list"},
+    {"command": "rig workspace inspect", "release_blocking": true, "smoke": "rig workspace inspect <workspace_id>"},
+    {"command": "rig workspace review", "release_blocking": true, "smoke": "rig workspace review <workspace_id>"},
+    {"command": "rig workspace apply", "release_blocking": true, "smoke": "rig workspace apply <workspace_id>"}
+  ],
+  "public_preview": [
+    {"command": "rig tui --gridline", "release_blocking": false, "smoke": "rig tui --gridline --dry-run"},
+    {"command": "rig tui --chat", "release_blocking": false, "smoke": "rig tui --chat --dry-run"},
+    {"command": "rig provider connect", "release_blocking": false, "smoke": "rig provider connect openai --dry-run"},
+    {"command": "rig provider test", "release_blocking": false, "smoke": "rig provider test openai"},
+    {"command": "rig model recommend", "release_blocking": false, "smoke": "rig model recommend --dry-run"},
+    {"command": "rig benchmark run", "release_blocking": false, "smoke": "rig benchmark run --dry-run"}
+  ],
+  "advanced": [
+    {"command": "rig release check", "release_blocking": true, "smoke": "rig release check"},
+    {"command": "rig context build", "release_blocking": false, "smoke": "rig context build --workspace demo --provider custom-command --model demo"},
+    {"command": "rig context inspect", "release_blocking": false, "smoke": "rig context inspect <packet_id>"},
+    {"command": "rig context explain", "release_blocking": false, "smoke": "rig context explain <packet_id>"},
+    {"command": "rig system inspect", "release_blocking": false, "smoke": "rig system inspect"},
+    {"command": "rig runtime list", "release_blocking": false, "smoke": "rig runtime list"},
+    {"command": "rig runtime inspect", "release_blocking": false, "smoke": "rig runtime inspect mlx"},
+    {"command": "rig model list", "release_blocking": false, "smoke": "rig model list"},
+    {"command": "rig model register", "release_blocking": false, "smoke": "rig model register demo"},
+    {"command": "rig model verify", "release_blocking": false, "smoke": "rig model verify demo"}
+  ],
+  "deprecated_aliases": [
+    {"command": "rig window open", "replacement": "rig tui --window", "expected_help_visibility": false, "release_blocking": false, "smoke": "rig tui --window --dry-run"}
+  ],
+  "blocked_from_public_help": [
+    "direct shell execution",
+    "direct provider mutation",
+    "auto-apply",
+    "legacy migration repair by default"
+  ]
+}

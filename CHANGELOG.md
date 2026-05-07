@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+All notable changes to this project will be documented in this file.
 
-- Migrated the Rig Python control surface into a standalone repository.
-- Added package metadata, local validation, and GitHub scaffolding.
-- Kept legacy `scripts/rig.py` compatibility for existing command references.
+## [Unreleased]
+
+- Gridline TUI scaffolding
+- Release gate scaffolding
+- Debug bundle support
