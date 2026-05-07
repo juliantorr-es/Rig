@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Set
 from aiohttp import web
 
 from rig.domain.intent_defs import Intent, IntentHandler
+from rig.domain.progress_events import build_progress_event
 from rig.domain.projection_builder import build_projection
 from rig.domain.projections import ChatMessage
 
@@ -127,6 +128,49 @@ class UIServer:
         }
 
     def handle_refresh(self, intent: Intent) -> Dict[str, Any]:
+        operation_id = intent.intent_id or f"refresh-{self.revision}"
+        self._schedule_send({
+            "kind": "progress_event",
+            "event": build_progress_event(
+                operation_id=operation_id,
+                kind="operation.started",
+                status="running",
+                message="Refreshing workspace projection.",
+                workspace_id=str(self.repo_root),
+            ).to_dict(),
+        })
+        self._schedule_send({
+            "kind": "progress_event",
+            "event": build_progress_event(
+                operation_id=operation_id,
+                kind="operation.progress",
+                status="running",
+                message="Building backend-authored projection.",
+                workspace_id=str(self.repo_root),
+            ).to_dict(),
+        })
+        self._schedule_send({
+            "kind": "progress_event",
+            "event": build_progress_event(
+                operation_id=operation_id,
+                kind="operation.completed",
+                status="completed",
+                message="Workspace projection refreshed.",
+                workspace_id=str(self.repo_root),
+                payload={"revision": self.revision + 1},
+            ).to_dict(),
+        })
+        self._schedule_send({
+            "kind": "progress_event",
+            "event": build_progress_event(
+                operation_id=operation_id,
+                kind="workspace.projection.refreshed",
+                status="completed",
+                message="Projection broadcast refreshed.",
+                workspace_id=str(self.repo_root),
+                payload={"revision": self.revision + 1},
+            ).to_dict(),
+        })
         return {"accepted": True}
 
     def handle_run_validators(self, intent: Intent) -> Dict[str, Any]:

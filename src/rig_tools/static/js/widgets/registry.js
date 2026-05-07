@@ -6,6 +6,7 @@ import { renderWorkspaceHeader } from './workspace-header.js';
 import { renderWorkspaceGitState } from './workspace-git-state.js';
 import { renderWorkspaceLaneSummary } from './workspace-lane-summary.js';
 import { renderLogStream } from './log-stream.js';
+import { renderCommandProgressCard } from './command-progress-card.js';
 
 export function buildWidgetRegistry(context) {
   const registry = {
@@ -74,6 +75,7 @@ export function buildWidgetRegistry(context) {
     WorkspaceGitState: (id, data) => renderWorkspaceGitState(id, data),
     WorkspaceLaneSummary: (id, data) => renderWorkspaceLaneSummary(id, data),
     LogStream: (id, data) => renderLogStream(id, data, context.globalLogs(), context.truncateText),
+    CommandProgressCard: (id, data) => renderCommandProgressCard(id, data),
   };
 
   registry._fallback = (widget) => {

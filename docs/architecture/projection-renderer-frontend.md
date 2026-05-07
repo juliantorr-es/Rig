@@ -30,6 +30,7 @@ src/rig_tools/static/
       runtime.js  # compatibility/orchestration shim only
       websocket.js
       projection-store.js
+      progress-store.js
       intent-dispatch.js
       render-root.js
       logging.js
@@ -40,6 +41,7 @@ src/rig_tools/static/
       receipt-list.js
       backend-status.js
       log-stream.js
+      command-progress-card.js
       workspace-header.js
       workspace-git-state.js
       workspace-lane-summary.js
@@ -88,6 +90,7 @@ Existing UI widget types remain supported:
 - `MetricStack`
 - `GateBadge`
 - `AppTitle`
+- `CommandProgressCard`
 
 Widget renderers must:
 
@@ -101,8 +104,10 @@ Widget renderers must:
 The frontend keeps the existing WebSocket-based projection/intent loop.
 
 - projections are backend-authored snapshots
-- stream events are live telemetry
+- `progress_event` messages are live telemetry
 - receipts and refreshed projections are durable authority
+- the frontend retains a bounded in-memory progress buffer
+- `CommandProgressCard` renders backend-authored progress payloads only
 
 Future progress events can be added without changing the doctrine.
 

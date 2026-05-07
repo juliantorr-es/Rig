@@ -114,6 +114,48 @@ def test_workspace_recommend_is_read_only(capsys):
         assert payload["next_safe_action"].startswith("Review governed agent lane docs")
 
 
+def test_progress_event_builder_has_required_fields():
+    from rig.domain.progress_events import ALLOWED_PROGRESS_EVENT_KINDS, build_progress_event
+
+    event = build_progress_event(
+        operation_id="op-123",
+        kind="operation.started",
+        status="running",
+        message="Refreshing workspace projection.",
+        workspace_id="ws-1",
+    )
+
+    payload = event.to_dict()
+    assert payload["event_id"]
+    assert payload["operation_id"] == "op-123"
+    assert payload["workspace_id"] == "ws-1"
+    assert payload["kind"] == "operation.started"
+    assert payload["status"] == "running"
+    assert payload["message"] == "Refreshing workspace projection."
+    assert payload["timestamp"]
+    assert "operation.completed" in ALLOWED_PROGRESS_EVENT_KINDS
+
+
+def test_ui_server_refresh_emits_progress_events():
+    from rig_tools.ui_server import UIServer
+    from rig.domain.intent_defs import Intent
+
+    server = UIServer(Path(__file__).parent.parent, "test-token")
+    emitted = []
+    server._schedule_send = lambda msg: emitted.append(msg)  # type: ignore[method-assign]
+
+    result = server.handle_refresh(Intent(kind="rig.intent.refresh_projection", intent_id="refresh-1", observed_projection_revision=1, client={"kind": "pywebview"}))
+
+    assert result == {"accepted": True}
+    kinds = [msg["kind"] for msg in emitted]
+    assert kinds.count("progress_event") >= 3
+    event_kinds = [msg["event"]["kind"] for msg in emitted if msg["kind"] == "progress_event"]
+    assert "operation.started" in event_kinds
+    assert "operation.progress" in event_kinds
+    assert "operation.completed" in event_kinds
+    assert "workspace.projection.refreshed" in event_kinds
+
+
 def test_static_index_loads_module_entrypoint_and_css():
     index_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "index.html"
     content = index_path.read_text(encoding="utf-8")
@@ -167,4 +209,5 @@ def test_widget_registry_includes_workspace_renderers():
     assert "WorkspaceHeader" in content
     assert "WorkspaceGitState" in content
     assert "WorkspaceLaneSummary" in content
+    assert "CommandProgressCard" in content
     assert "_fallback" in content

@@ -1,4 +1,6 @@
-export function renderRoot({ projection, widgetRegistry, pendingIntents, renderChat }) {
+import { getProgressEvents } from './progress-store.js';
+
+export function renderRoot({ projection, widgetRegistry, pendingIntents, renderChat, renderProgress }) {
   if (!projection()) return;
 
   Object.keys(projection().layout.regions).forEach(regionId => {
@@ -16,4 +18,5 @@ export function renderRoot({ projection, widgetRegistry, pendingIntents, renderC
   });
 
   renderChat();
+  if (renderProgress) renderProgress(getProgressEvents());
 }

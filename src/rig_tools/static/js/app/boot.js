@@ -2,6 +2,7 @@ import { RigLog } from './logging.js';
 import { clearProjection, getProjection, setProjection } from './projection-store.js';
 import { createIntentDispatcher } from './intent-dispatch.js';
 import { connectWebSocket } from './websocket.js';
+import { appendProgressEvent, clearProgress } from './progress-store.js';
 import { buildWidgetRegistry } from '../widgets/registry.js';
 import { renderRoot } from './render-root.js';
 
@@ -33,6 +34,8 @@ export function bootRigUI() {
     render,
     logger: RigLog,
   });
+
+  clearProgress();
 
   function truncateText(text, maxLen = 500) {
     if (!text) return '';
@@ -176,7 +179,26 @@ export function bootRigUI() {
   }
 
   function render() {
-    renderRoot({ projection: getProjection, widgetRegistry, pendingIntents, renderChat });
+    renderRoot({ projection: getProjection, widgetRegistry, pendingIntents, renderChat, renderProgress });
+  }
+
+  function renderProgress(events) {
+    const footer = document.getElementById('footer');
+    if (!footer) return;
+    let progressContainer = document.getElementById('progress');
+    if (!progressContainer) {
+      progressContainer = document.createElement('div');
+      progressContainer.id = 'progress';
+      footer.appendChild(progressContainer);
+    }
+    progressContainer.innerHTML = '';
+    if (!events || events.length === 0) return;
+    const latest = events.slice(-3);
+    latest.forEach(event => {
+      const renderer = widgetRegistry.CommandProgressCard || widgetRegistry._fallback;
+      const widgetEl = renderer(`progress.${event.operation_id}`, event, []);
+      if (widgetEl) progressContainer.appendChild(widgetEl);
+    });
   }
 
   function onMessage(msg) {
@@ -186,6 +208,9 @@ export function bootRigUI() {
       render();
     } else if (msg.kind === 'intent_result') {
       dispatcher.handleIntentResult(msg.data);
+    } else if (msg.kind === 'progress_event') {
+      appendProgressEvent(msg.event || msg.data || {});
+      render();
     } else if (msg.kind === 'stream_chunk') {
       handleStreamChunk(msg.data);
     } else if (msg.kind === 'error') {
@@ -198,12 +223,16 @@ export function bootRigUI() {
   function connect() {
     socket = connectWebSocket({
       sessionToken,
-      socketRef,
-      logger: RigLog,
-      onMessage,
-      onClose: () => {
-        console.log('WebSocket closed, reconnecting in 2s...');
-        setTimeout(connect, 2000);
+    socketRef,
+    logger: RigLog,
+    onMessage,
+    onProgress: progress => {
+      appendProgressEvent(progress);
+      render();
+    },
+    onClose: () => {
+      console.log('WebSocket closed, reconnecting in 2s...');
+      setTimeout(connect, 2000);
       },
     });
     return socket;
