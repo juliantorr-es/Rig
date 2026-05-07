@@ -28,6 +28,9 @@ This directory contains scripts for the OpenCode agent workflow system for the A
 - **`td_agent_memory_sync.sh`** - Post curated Gemini/Copilot/Codex task memory summaries into TD without dumping raw memory stores.
 - **`td_finish_or_block.sh`** - Enforce that completed tasks go straight to review and failed tasks are linked to a blocker before the agent stops.
 
+### 7. Governed Agent Lanes
+- **`rig_agent_worktree.py`** - Safe per-agent Git worktree helper for creating, attaching, prompting, checkpointing, and removing isolated lanes.
+
 ## Usage
 
 ### Starting a New Plan
@@ -110,6 +113,29 @@ stale tasks. See `AGENTS.md` for the full protocol.
 # Or create the blocker while blocking the task
 ./scripts/td_finish_or_block.sh block --issue td-abc123 --create-blocker-title "Fix missing API" --reason "Task cannot proceed because API is missing."
 ```
+
+### Governing Agent Lanes
+```bash
+# Create a new isolated lane
+python scripts/rig_agent_worktree.py start gemini ui-entrypoint --dry-run
+python scripts/rig_agent_worktree.py start gemini ui-entrypoint
+
+# Attach to an existing linked worktree
+python scripts/rig_agent_worktree.py attach gemini ui-cockpit --path .rig/worktrees/ui-cockpit
+
+# Print the guarded handoff prompt
+python scripts/rig_agent_worktree.py prompt gemini ui-entrypoint
+
+# Preview a selective checkpoint
+python scripts/rig_agent_worktree.py checkpoint gemini ui-cockpit --path .rig/worktrees/ui-cockpit --message "Add UI cockpit projection widgets" --dry-run
+python scripts/rig_agent_worktree.py checkpoint gemini ui-cockpit --path .rig/worktrees/ui-cockpit --message "Add UI cockpit projection widgets" --exclude src/rig/domain/_git_helper.py
+
+# List or remove a lane
+python scripts/rig_agent_worktree.py list
+python scripts/rig_agent_worktree.py remove gemini ui-entrypoint
+```
+
+`start` creates an isolated lane, `attach` recognizes an existing lane without mutation, `prompt` prints guarded handoff text, `checkpoint` commits only selected files on non-main branches, and `remove` refuses dirty worktrees. Do not use `push`, `merge`, `rebase`, `reset`, `clean`, or `stash` in this workflow.
 
 ### Syncing Agent Memory Into TD
 ```bash
