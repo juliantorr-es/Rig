@@ -16,11 +16,15 @@ python3.14 -m pip install -e ".[dev]"
 
 ```bash
 rig init
-rig tui
+rig ui
 rig run --task fix-imports --provider custom-command
 ```
 
-The TUI's canonical shell is the Gridline Interface: a CSS grid dashboard with semantic regions, a slash-command console, and a native footer.
+## User Interfaces
+
+- **CLI**: Use the terminal for scriptable, deterministic workflows and repository management.
+- **Windowed UI (`rig ui`)**: Use the rich, windowed control plane for interactive work, streaming logs, agent chat, and governance gates.
+- **Textual TUI**: Retired. Use `rig ui` for a rich interface or CLI commands for terminal workflows.
 
 ## Core Concepts
 
@@ -58,7 +62,7 @@ The TUI's canonical shell is the Gridline Interface: a CSS grid dashboard with s
 - `rig log list`
 - `rig log show`
 - `rig debug bundle`
-- `rig tui`
+- `rig ui`
 
 ## Maturity
 

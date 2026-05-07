@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, Mock, patch, MagicMock
 import pytest
 
 from rig.domain.projections import ChatMessage, UIProjection, ChatProjection
-from rig.domain.intents import Intent, IntentHandler
+from rig.domain.intent_defs import Intent, IntentHandler
 
 
 class TestUIImports:

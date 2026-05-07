@@ -11,19 +11,30 @@ def utc_now() -> str:
 
 def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[List[ChatMessage]] = None) -> UIProjection:
     from rig.domain.workspace import WorkspaceDomain
-    from rig_tools.tui_snapshot import load_snapshot
     from rig_tools.core.io import read_json
 
+    # Try to load snapshot from gridline if available, otherwise use empty dict
+    # tui_snapshot was retired with Textual TUI
+    try:
+        from rig_tools.tui_snapshot import load_snapshot
+        snapshot = load_snapshot(repo_root)
+    except (ImportError, ModuleNotFoundError):
+        snapshot = {}
+
     domain = WorkspaceDomain(repo_root)
-    snapshot = load_snapshot(repo_root)
     workspaces = domain.list_workspaces()
     
-    # Simple heuristic for active workspace: the one most recently modified that isn't 'applied'
+    # Simple heuristic for active workspace: the one most recently modified
+    # Use any non-applied workspace first, fall back to applied if that's all we have
     active_ws = None
     for ws in sorted(workspaces, key=lambda x: x.get("status_history", [{"at": "" }])[-1]["at"], reverse=True):
         if ws.get("status") != "applied":
             active_ws = ws
             break
+    
+    # If no non-applied workspace, use the most recent applied one
+    if active_ws is None and workspaces:
+        active_ws = workspaces[0]
 
     jobs_count = len(snapshot.get("jobs", []))
     workspaces_count = len([w for w in workspaces if w.get("status") != "applied"])
@@ -43,6 +54,34 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     val_items = []
     val_status = {"label": "Missing", "severity": "idle"}
     val_summary = "No validation performed yet."
+    
+    # Check receipt store for recent validator runs to determine running state
+    run_in_progress = False
+    running_validator_id: Optional[str] = None
+    recent_receipts: List = []
+    
+    try:
+        from datetime import datetime as dt, timezone
+        store = get_receipt_store(repo_root)
+        recent_receipts = store.list(
+            workspace_id=ws_id,
+            kind="validator_run",
+            limit=5
+        )
+        now = dt.now(timezone.utc)
+        for receipt in recent_receipts:
+            if hasattr(receipt, "timestamp"):
+                try:
+                    receipt_time = dt.fromisoformat(receipt.timestamp.replace("Z", "+00:00"))
+                    if (now - receipt_time).total_seconds() < 5:
+                        run_in_progress = True
+                        if hasattr(receipt, "validator_id") and receipt.validator_id:
+                            running_validator_id = receipt.validator_id
+                        break
+                except (ValueError, TypeError):
+                    continue
+    except Exception:
+        pass
     
     val_path = active_ws.get("validation_result_path")
     if val_path and Path(val_path).exists():
@@ -65,11 +104,16 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             ))
     else:
         # Show what validators are configured even if not run
-        for v_cfg in domain.read_validator_config():
+        for i, v_cfg in enumerate(domain.read_validator_config()):
+            state = "missing"
+            # If validation is in progress, mark first validator as running
+            if run_in_progress and running_validator_id is None:
+                state = "running"
+                running_validator_id = v_cfg.get("id") or v_cfg["argv"][0]
             val_items.append(ValidatorItem(
                 id=v_cfg.get("id") or v_cfg["argv"][0],
                 label=v_cfg.get("id") or v_cfg["argv"][0],
-                state="missing"
+                state=state
             ))
 
     widgets = {
@@ -87,7 +131,9 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "title": "Validators",
             "state": val_status,
             "summary": val_summary,
-            "items": [asdict(i) for i in val_items]
+            "items": [asdict(i) for i in val_items],
+            "run_in_progress": run_in_progress,
+            "running_validator_id": running_validator_id
         }, actions=["intent.run_validators"]),
         "workspace.info": WidgetProjection("EmptyStateCard", "workspace.info", {
             "title": f"Workspace {ws_id}",
@@ -98,6 +144,10 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "state": {"label": "Available" if val_path else "None", "severity": "info" if val_path else "idle"},
             "body": f"Evidence for {ws_id}."
         }),
+        "evidence.receipts": WidgetProjection("ReceiptList", "evidence.receipts", {
+            "title": "Receipts",
+            "receipts": [r.to_projection() for r in recent_receipts] if recent_receipts else []
+        }),
         "backend.status": WidgetProjection("BackendStatus", "backend.status", {
             "title": "Native bridge",
             "body": "pywebview · WebSocket streaming",
@@ -105,6 +155,19 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         })
     }
 
+    # Determine run_validators enable/disable based on workspace state
+    run_validators_enabled = status in ("planned", "active", "executed", "blocked")
+    run_validators_disabled_reason: Optional[str] = None
+    if not run_validators_enabled:
+        if status == "validated":
+            run_validators_disabled_reason = "Already validated. Re-run to refresh."
+        elif status == "review_ready":
+            run_validators_disabled_reason = "Review ready. Apply or re-run from workspace."
+        elif status == "applied":
+            run_validators_disabled_reason = "Workspace already applied."
+        else:
+            run_validators_disabled_reason = f"Cannot run in state: {status}"
+    
     return UIProjection(
         revision=revision,
         generated_at=utc_now(),
@@ -115,13 +178,19 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "header": ["app.title", "next.gate"],
             "sidebar": ["queue.summary"],
             "main": ["workspace.info", "validator.stack"],
-            "inspector": ["evidence.current"],
+            "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["backend.status"]
         }),
         widgets=widgets,
         intents={
             "intent.refresh_projection": IntentProjection("rig.intent.refresh_projection", "Refresh", True),
-            "intent.run_validators": IntentProjection("rig.intent.run_validators", "Run Validators", True, target={"workspace_id": ws_id}),
+            "intent.run_validators": IntentProjection(
+                "rig.intent.run_validators",
+                "Run Validators",
+                run_validators_enabled,
+                target={"workspace_id": ws_id},
+                disabled_reason=run_validators_disabled_reason
+            ),
             "intent.chat.submit": IntentProjection("rig.intent.chat.submit", "Send", True),
             "intent.apply_patch": IntentProjection("rig.intent.apply_patch", "Apply Patch", False, disabled_reason="Requires validation and approval.")
         }
@@ -138,7 +207,7 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
             "header": ["app.title", "next.gate"],
             "sidebar": ["queue.summary"],
             "main": ["workspace.empty"],
-            "inspector": ["evidence.current"],
+            "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["backend.status"]
         }),
         widgets={
@@ -161,6 +230,10 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
                 "title": "Evidence",
                 "state": {"label": "No active workspace", "severity": "idle"},
                 "body": "Evidence appears after Rig opens a governed workspace."
+            }),
+            "evidence.receipts": WidgetProjection("ReceiptList", "evidence.receipts", {
+                "title": "Receipts",
+                "receipts": []
             }),
             "backend.status": WidgetProjection("BackendStatus", "backend.status", {
                 "title": "Native bridge",

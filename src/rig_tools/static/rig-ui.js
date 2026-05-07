@@ -19,16 +19,30 @@
             const msg = JSON.parse(event.data);
             if (msg.kind === 'projection') {
                 projection = msg.data;
+                // Clear pending intents - projection is authoritative state
+                pendingIntents.clear();
                 render();
             } else if (msg.kind === 'intent_result') {
                 console.log('Intent result:', msg.data);
-                if (!msg.data.accepted) {
-                    showError(`Action rejected: ${msg.data.reason}`);
+                const data = msg.data;
+                if (!data.accepted) {
+                    showError(`Action rejected: ${data.reason || 'Unknown reason'}`);
+                }
+                // Clear pending intent for this intent kind
+                for (const [actionId, pending] of pendingIntents.entries()) {
+                    if (projection.intents && projection.intents[actionId] && 
+                        projection.intents[actionId].kind === msg.data.intent_kind) {
+                        pendingIntents.delete(actionId);
+                        break;
+                    }
                 }
             } else if (msg.kind === 'stream_chunk') {
                 handleStreamChunk(msg.data);
             } else if (msg.kind === 'error') {
                 showError(`Server error: ${msg.message}`);
+                pendingIntents.clear();
+            } else if (msg.kind === 'event') {
+                handleEvent(msg.data);
             }
         };
 
@@ -47,10 +61,45 @@
         setTimeout(() => errEl.remove(), 5000);
     }
 
+    function handleEvent(data) {
+        const type = data.type;
+        if (type === 'validator_started') {
+            // Validator started - will be reflected in projection
+            console.log('Validator started:', data.validator_id);
+        } else if (type === 'validator_finished') {
+            console.log('Validator finished:', data.validator_id, 'status:', data.status);
+        } else if (type === 'validator_run_complete') {
+            console.log('Validator run complete:', data.status, 'receipt:', data.receipt_id);
+        } else if (type === 'validator_config_empty') {
+            showError('No validators configured for this workspace');
+        } else if (type === 'validator_error') {
+            showError(`Validator ${data.validator_id} error: ${data.error || 'Unknown error'}`);
+        }
+        // Always re-render to show stream output
+        render();
+    }
+
     let globalLogs = [];
+    const lastSequenceNumbers = {}; // Track last sequence per stream for monotonic validation
 
     function handleStreamChunk(data) {
-        const streamId = data.stream_id || 'unknown';
+        // Validate required fields - must have stream_id, sequence, content, channel
+        if (!data.stream_id || data.sequence === undefined || !data.content || !data.channel) {
+            console.warn('Invalid stream chunk: missing required fields');
+            return;
+        }
+        
+        // Validate sequence is monotonic per stream
+        const streamId = data.stream_id;
+        const sequence = data.sequence;
+        const prevSeq = lastSequenceNumbers[streamId] || 0;
+        
+        if (sequence <= prevSeq) {
+            console.warn(`Out of order sequence for stream ${streamId}: ${sequence} <= ${prevSeq}`);
+            return;
+        }
+        lastSequenceNumbers[streamId] = sequence;
+        
         const content = data.content || '';
         
         if (data.channel === 'assistant') {
@@ -83,22 +132,33 @@
         return div.innerHTML;
     }
 
+    const pendingIntents = new Map(); // Track pending intent actionIds
+
     function sendIntent(actionId, target = null) {
         const intentRef = projection.intents[actionId];
-        if (!intentRef || !intentRef.enabled) return;
+        if (!intentRef || !intentRef.enabled || pendingIntents.has(actionId)) return;
+
+        const idempotencyKey = Math.random().toString(36).substring(7);
+        pendingIntents.set(actionId, { status: 'pending', idempotency_key: idempotencyKey });
+        
+        // Disable the button and show running state
+        const btn = document.querySelector(`button[onclick=\"window.sendRigIntent('${actionId}')\"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+        }
 
         // New protocol: rig.ui.message.v1 envelope with nested intent
         const msg = {
             schema_version: 'rig.ui.message.v1',
             kind: 'intent',
-            message_id: Math.random().toString(36).substring(7),
             intent: {
                 schema_version: 'rig.ui.intent.v1',
-                intent_id: Math.random().toString(36).substring(7),
+                intent_id: idempotencyKey,
                 kind: intentRef.kind,
                 target: target || intentRef.target,
                 observed_projection_revision: projection.revision,
-                idempotency_key: Math.random().toString(36).substring(7),
+                idempotency_key: idempotencyKey,
                 submitted_at: new Date().toISOString(),
                 client: { kind: 'pywebview' }
             }
@@ -258,6 +318,25 @@
             badge.textContent = data.state ? (data.state.label || '') : '';
             headerDiv.appendChild(badge);
             el.appendChild(headerDiv);
+            
+            // Show running indicator if validation is in progress
+            if (data.run_in_progress) {
+                const runningDiv = document.createElement('div');
+                runningDiv.className = 'validator-running';
+                runningDiv.style.color = 'var(--attention)';
+                runningDiv.style.fontSize = '0.85rem';
+                runningDiv.style.marginBottom = '8px';
+                const spinner = document.createElement('span');
+                spinner.textContent = '● ';
+                const runningText = document.createElement('span');
+                runningText.textContent = data.running_validator_id 
+                    ? `Running: ${data.running_validator_id}` 
+                    : 'Validating...';
+                runningDiv.appendChild(spinner);
+                runningDiv.appendChild(runningText);
+                el.appendChild(runningDiv);
+            }
+            
             if (data.summary) {
                 const summaryDiv = document.createElement('div');
                 summaryDiv.className = 'muted';
@@ -273,7 +352,11 @@
                 const itemHeader = document.createElement('div');
                 itemHeader.style.display = 'flex';
                 itemHeader.style.justifyContent = 'space-between';
-                const symbol = item.state === 'passed' ? '✓ ' : item.state === 'failed' ? '✗ ' : '○ ';
+                // Updated symbols to include running state
+                const symbol = item.state === 'passed' ? '✓ ' : 
+                              item.state === 'failed' ? '✗ ' :
+                              item.state === 'running' ? '→ ' :
+                              '○ ';
                 const labelSpan = document.createElement('span');
                 labelSpan.textContent = symbol + (item.label || '');
                 const stateSpan = document.createElement('span');
@@ -299,13 +382,77 @@
                 if (!intent) return;
                 const btn = document.createElement('button');
                 btn.onclick = () => window.sendRigIntent(actionId);
-                if (!intent.enabled) {
+                // Also disable if validation is running
+                if (!intent.enabled || data.run_in_progress) {
                     btn.disabled = true;
                 }
-                btn.textContent = intent.label || actionId;
+                // Show running text if validation is in progress
+                if (data.run_in_progress && intent.kind === 'rig.intent.run_validators') {
+                    btn.textContent = 'Running...';
+                } else {
+                    btn.textContent = intent.label || actionId;
+                }
                 actionsDiv.appendChild(btn);
             });
             el.appendChild(actionsDiv);
+            return el;
+        },
+        ReceiptList: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            const h2 = document.createElement('h2');
+            h2.textContent = data.title || 'Receipts';
+            el.appendChild(h2);
+
+            const listDiv = document.createElement('div');
+            listDiv.className = 'receipt-list';
+            listDiv.style.fontSize = '0.8rem';
+            listDiv.style.maxHeight = '200px';
+            listDiv.style.overflowY = 'auto';
+
+            const receipts = data.receipts || [];
+            if (receipts.length === 0) {
+                const p = document.createElement('p');
+                p.className = 'muted';
+                p.textContent = 'No receipts yet.';
+                listDiv.appendChild(p);
+            } else {
+                receipts.forEach(receipt => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'receipt-item';
+                    itemDiv.style.padding = '4px 0';
+                    itemDiv.style.borderBottom = '1px solid var(--border)';
+
+                    const headerDiv = document.createElement('div');
+                    headerDiv.style.display = 'flex';
+                    headerDiv.style.justifyContent = 'space-between';
+
+                    const labelSpan = document.createElement('span');
+                    labelSpan.style.fontWeight = '500';
+                    labelSpan.textContent = receipt.id || receipt.receipt_id || 'Unknown';
+
+                    const kindSpan = document.createElement('span');
+                    kindSpan.className = 'muted';
+                    kindSpan.style.fontSize = '0.7rem';
+                    kindSpan.textContent = receipt.kind || '';
+
+                    headerDiv.appendChild(labelSpan);
+                    headerDiv.appendChild(kindSpan);
+                    itemDiv.appendChild(headerDiv);
+
+                    if (receipt.summary) {
+                        const summaryDiv = document.createElement('div');
+                        summaryDiv.style.fontSize = '0.75rem';
+                        summaryDiv.style.color = 'var(--muted)';
+                        summaryDiv.style.marginTop = '2px';
+                        summaryDiv.textContent = truncateText(receipt.summary, 100);
+                        itemDiv.appendChild(summaryDiv);
+                    }
+
+                    listDiv.appendChild(itemDiv);
+                });
+            }
+            el.appendChild(listDiv);
             return el;
         },
         BackendStatus: (id, data) => {

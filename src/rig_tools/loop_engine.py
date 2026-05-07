@@ -11,7 +11,10 @@ from typing import Any, Dict, List, Optional, Literal
 from rig_tools.contracts import CommandPlan, ActionResult, CommandSafety
 from rig_tools.runtime_executor import RuntimeExecutor
 from rig_tools.state_store import StateStore
-from rig_tools.tui_actions import ActionRegistry
+try:
+    from rig_tools.tui_actions import ActionRegistry
+except ImportError:
+    ActionRegistry = None
 
 @dataclass
 class LoopPolicy:

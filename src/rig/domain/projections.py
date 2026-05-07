@@ -34,6 +34,18 @@ class ValidatorStackProjection:
     state: Dict[str, str] # {label, severity}
     summary: str
     items: List[ValidatorItem]
+    running_validator_id: Optional[str] = None  # ID of currently running validator, or None
+    run_in_progress: bool = False  # True if validation run is currently in progress
+
+@dataclass
+class ReceiptProjection:
+    id: str
+    kind: str
+    label: str
+    timestamp: str
+    verified: bool
+    summary: str
+    raw_reference: Optional[str] = None
 
 @dataclass
 class ChatMessage:

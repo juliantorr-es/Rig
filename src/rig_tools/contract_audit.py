@@ -10,7 +10,10 @@ from rig_tools import proposal_swarm
 from rig_tools.memory_contracts import can_launch_parallel_agents, evaluate_memory_contracts
 from rig_tools.loop_engine import LoopEngine
 from rig_tools.scheduler import Scheduler
-from rig_tools.tui_actions import ActionRegistry
+try:
+    from rig_tools.tui_actions import ActionRegistry
+except ImportError:
+    ActionRegistry = None
 from rig_tools.vault_export import VaultExporter
 from rig_tools.settings_store import SettingsStore
 from rig_tools.system_pressure import sample_system_pressure

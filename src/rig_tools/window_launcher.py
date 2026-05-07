@@ -49,6 +49,25 @@ def get_pywebview() -> bool:
         return False
 
 
+def get_aiohttp_available() -> bool:
+    """Check if aiohttp is available."""
+    try:
+        import aiohttp  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def check_ui_dependencies() -> tuple[bool, list[str]]:
+    """Check all UI dependencies and return (all_available, missing_list)."""
+    missing = []
+    if not get_aiohttp_available():
+        missing.append("aiohttp")
+    if not get_pywebview():
+        missing.append("pywebview")
+    return (len(missing) == 0, missing)
+
+
 def _set_macos_app_name(name: str) -> bool:
     if sys.platform != "darwin":
         return False
@@ -354,6 +373,12 @@ def _serve_command(repo_root: Path, host: str, port: int) -> list[str]:
     ]
 
 
+# WebSocket UI Architecture Doctrine:
+# 1. Frontend (pywebview shell) is a "dumb" renderer of backend-authored UIProjections.
+# 2. Communication occurs over WebSocket via UIServer.
+# 3. Backend owns all state transitions, governance, and action legality.
+# 4. Projections are truth; live streams are progress narration only.
+# 5. Intentions are requested by the UI and validated/dispatched by the backend.
 def open_window(
     repo_root: Path,
     dry_run: bool,
@@ -363,6 +388,15 @@ def open_window(
     allow_lan: bool = False,
     chat_enabled: bool = False,
 ) -> Dict[str, Any]:
+    # Check UI dependencies before proceeding
+    deps_ok, missing_deps = check_ui_dependencies()
+    if not deps_ok:
+        return {
+            "status": "failed",
+            "error": f"Missing UI dependencies: {', '.join(missing_deps)}",
+            "hint": "pip install -e \".[ui]\""
+        }
+    
     session_id = f"win-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
     session_token = uuid.uuid4().hex
     
@@ -384,7 +418,7 @@ def open_window(
             "host": host,
             "port": port,
             "url": f"http://{host}:{port}/?rig_session={session_token}",
-            "command_argv": [sys.executable, "-m", "rig", "tui", "--gridline", "--window"],
+            "command_argv": [sys.executable, "-m", "rig", "ui"],
             "server_pid": None,
             "token_enabled": True,
             "status": "dry_run",

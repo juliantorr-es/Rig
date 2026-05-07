@@ -21,7 +21,10 @@ from rig_tools.scheduler import Scheduler
 from rig_tools.settings_store import SettingsStore
 from rig_tools.state_store import StateStore
 from rig_tools.vault_export import VaultExporter
-from rig_tools.tui_actions import ActionRegistry
+try:
+    from rig_tools.tui_actions import ActionRegistry
+except ImportError:
+    ActionRegistry = None
 
 
 SCHEMA_VERSION = "rig.doctor_report.v1"

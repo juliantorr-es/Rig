@@ -15,12 +15,6 @@ dependencies = [
   "duckdb>=1.0.0",
   "PyYAML>=6.0",
   "rich>=13.7",
-  "textual>=0.76",
-  "textual-serve>=1.1.0",
-  "pywebview>=5.3",
-  "aiohttp>=3.9",
-  "mlx>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
-  "llama-cpp-python>=0.3.0",
   "psutil>=5.9",
   "tomli-w>=1.0.0",
 ]
@@ -28,10 +22,30 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "pytest-asyncio>=0.23",
 ]
 docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
+]
+# UI dependencies for the windowed WebSocket UI
+ui = [
+  "aiohttp>=3.9",
+  "pywebview>=5.3",
+]
+# Legacy Textual TUI (deprecated)
+legacy_tui = [
+  "textual>=0.76",
+  "textual-serve>=1.1.0",
+]
+# ML dependencies for macOS
+ml = [
+  "mlx>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "llama-cpp-python>=0.3.0",
+]
+# Full Rig with all features
+all = [
+  "rig[ui,legacy_tui,ml]",
 ]
 
 [project.scripts]

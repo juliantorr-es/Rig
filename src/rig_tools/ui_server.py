@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from aiohttp import web
 
-from rig.domain.intents import Intent, IntentHandler
+from rig.domain.intent_defs import Intent, IntentHandler
 from rig.domain.projection_builder import build_projection
 from rig.domain.projections import ChatMessage, UIProjection
 
@@ -76,39 +76,223 @@ class UIServer:
         if not ws_id:
             return {"accepted": False, "reason": "Missing workspace_id"}
         
-        asyncio.create_task(self._run_validators_task(ws_id))
+        # Dispatch through IntentDispatcher for governed execution
+        from rig.domain.intents.dispatcher import get_intent_dispatcher
+        from rig.domain.receipts import get_receipt_store, ValidatorReceipt
+        from rig.domain.execution.models import ExecutionRequest
+        from datetime import datetime, timezone
+        
+        dispatcher = get_intent_dispatcher(self.repo_root)
+        receipt_store = get_receipt_store(self.repo_root)
+        executor = dispatcher.executor
+        
+        # Generate a stream ID for this validation run
+        run_stream_id = f"val-run-{ws_id}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
+        
+        # Get validator configs from domain
+        from rig.domain.workspace import WorkspaceDomain
+        domain = WorkspaceDomain(self.repo_root)
+        validator_configs = domain.read_validator_config()
+        
+        if not validator_configs:
+            # No validators configured - emit event and broadcast
+            self._schedule_send({
+                "kind": "event",
+                "data": {"type": "validator_config_empty", "workspace_id": ws_id}
+            })
+            self.revision += 1
+            asyncio.create_task(self.broadcast_projection())
+            return {"accepted": False, "reason": "No validators configured for workspace"}
+        
+        total_validators = len(validator_configs)
+        passed_count = 0
+        failed_count = 0
+        overall_status = "passed"
+        validator_receipt_ids = []
+        
+        # Create a ValidatorStreamSink that bridges to WebSocket
+        from rig.domain.execution.models import ExecutionStreamEvent, CollectingStreamSink
+        
+        class WSSStreamSink(CollectingStreamSink):
+            """Stream sink that forwards ExecutionStreamEvents to WebSocket clients."""
+            def __init__(self, outer_server, validator_stream_id):
+                super().__init__()
+                self.outer = outer_server
+                self.validator_stream_id = validator_stream_id
+            
+            def on_stream_event(self, event: ExecutionStreamEvent):
+                super().on_stream_event(event)
+                seq = self.outer._get_next_sequence(self.validator_stream_id)
+                chunk_data = {
+                    "stream_id": self.validator_stream_id,
+                    "sequence": seq,
+                    "content": event.content,
+                    "channel": event.channel,
+                    "timestamp": event.timestamp,
+                }
+                self.outer._schedule_send({
+                    "kind": "stream_chunk",
+                    "data": chunk_data
+                })
+        
+        # Process each validator sequentially
+        for v_idx, v_conf in enumerate(validator_configs):
+            v_id = v_conf.get("id", v_conf.get("argv", [""])[0])
+            argv = [str(part) for part in v_conf.get("argv", [])]
+            timeout = v_conf.get("timeout", 60)
+            required = v_conf.get("required", False)
+            validator_stream_id = f"{run_stream_id}-v{v_idx}-{v_id}"
+            
+            # Send validator started event
+            self._schedule_send({
+                "kind": "event",
+                "data": {
+                    "type": "validator_started",
+                    "validator_id": v_id,
+                    "validator_index": v_idx,
+                    "total_validators": total_validators,
+                    "workspace_id": ws_id,
+                    "stream_id": validator_stream_id
+                }
+            })
+            
+            # Create execution request
+            request = ExecutionRequest(
+                argv=argv,
+                cwd=self.repo_root,
+                timeout_seconds=min(timeout, 300),  # Cap at 5 minutes
+                workspace_id=ws_id,
+                purpose=f"validator:{v_id}",
+                client_id="ui_server",
+                actor_id="intent_dispatcher",
+                stream_id=validator_stream_id
+            )
+            
+            # Acquire lease and execute
+            lease = executor.acquire_lease(request)
+            stream_sink = WSSStreamSink(self, validator_stream_id)
+            
+            try:
+                result_or_failure = executor.execute(lease, stream_sink=stream_sink)
+                
+                # Check result
+                if hasattr(result_or_failure, 'succeeded') and result_or_failure.succeeded:
+                    passed_count += 1
+                    v_status = "passed"
+                    exit_code = 0
+                else:
+                    failed_count += 1
+                    v_status = "failed"
+                    overall_status = "failed"
+                    exit_code = getattr(result_or_failure, 'exit_code', 1) or 1
+                
+                # Create validator receipt
+                receipt = ValidatorReceipt(
+                    receipt_id=f"val-{v_id}-{ws_id}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+                    kind="validator_run",
+                    workspace_id=ws_id,
+                    actor_id="ui_server",
+                    status=v_status,
+                    summary=f"Validator {v_id} exited with code {exit_code}",
+                    validator_id=v_id,
+                    validated_path=str(self.repo_root),
+                    exit_code=exit_code,
+                )
+                receipt_id = receipt_store.append(receipt)
+                validator_receipt_ids.append(receipt_id)
+                
+                # Send validator finished event (with receipt_id for correlation)
+                self._schedule_send({
+                    "kind": "event",
+                    "data": {
+                        "type": "validator_finished",
+                        "validator_id": v_id,
+                        "validator_index": v_idx,
+                        "exit_code": exit_code,
+                        "status": v_status,
+                        "receipt_id": receipt_id,
+                        "workspace_id": ws_id,
+                        "stream_id": validator_stream_id
+                    }
+                })
+                
+            except Exception as ex:
+                failed_count += 1
+                overall_status = "failed"
+                error_summary = str(ex)[:200]
+                
+                receipt = ValidatorReceipt(
+                    receipt_id=f"val-{v_id}-err-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+                    kind="validator_run",
+                    workspace_id=ws_id,
+                    actor_id="ui_server",
+                    status="error",
+                    summary=f"Validator {v_id} error: {error_summary}",
+                    validator_id=v_id,
+                    exit_code=None,
+                )
+                receipt_id = receipt_store.append(receipt)
+                validator_receipt_ids.append(receipt_id)
+                
+                self._schedule_send({
+                    "kind": "event",
+                    "data": {
+                        "type": "validator_error",
+                        "validator_id": v_id,
+                        "validator_index": v_idx,
+                        "error": error_summary,
+                        "receipt_id": receipt_id,
+                        "workspace_id": ws_id,
+                        "stream_id": validator_stream_id
+                    }
+                })
+            finally:
+                executor.release_lease(lease)
+        
+        # Create summary receipt for the entire validation run
+        summary_receipt = ValidatorReceipt(
+            receipt_id=f"val_run_{ws_id}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+            kind="validator_run",
+            workspace_id=ws_id,
+            actor_id="ui_server",
+            status=overall_status,
+            summary=f"Validators: {passed_count} passed, {failed_count} failed out of {total_validators}",
+            validator_id=f"validation_run_{ws_id}",
+            exit_code=0 if overall_status == "passed" else 1,
+        )
+        summary_receipt_id = receipt_store.append(summary_receipt)
+        logger.info(f"Validator run receipt created: {summary_receipt_id}")
+        
+        # Send final summary event
+        self._schedule_send({
+            "kind": "event",
+            "data": {
+                "type": "validator_run_complete",
+                "workspace_id": ws_id,
+                "receipt_id": summary_receipt_id,
+                "validator_receipt_ids": validator_receipt_ids,
+                "status": overall_status,
+                "passed": passed_count,
+                "failed": failed_count,
+                "total": total_validators
+            }
+        })
+        
+        # Update workspace domain validation result
+        try:
+            domain.generate_validation_result(ws_id)
+        except Exception:
+            pass
+        
+        # Update projection
+        self.revision += 1
+        asyncio.create_task(self.broadcast_projection())
+        
         return {"accepted": True}
 
     def _get_next_sequence(self, stream_id: str) -> int:
         self._next_stream_sequence[stream_id] = self._next_stream_sequence.get(stream_id, 0) + 1
         return self._next_stream_sequence[stream_id]
-
-    async def _run_validators_task(self, ws_id: str):
-        from rig.domain.workspace import WorkspaceDomain
-        domain = WorkspaceDomain(self.repo_root)
-        
-        def progress(p):
-            # Map domain progress to UI messages
-            # Use thread-safe scheduling
-            if p["kind"] == "validator_start":
-                self._schedule_send({"kind": "event", "data": {"type": "validator_started", "id": p["validator_id"]}})
-            elif p["kind"] == "validator_output":
-                stream_id = f"val-{p['validator_id']}"
-                self._schedule_send({"kind": "stream_chunk", "data": {
-                    "stream_id": stream_id,
-                    "sequence": self._get_next_sequence(stream_id),
-                    "content": p["content"],
-                    "channel": p["channel"]
-                }})
-            elif p["kind"] == "validator_end":
-                self._schedule_send({"kind": "event", "data": {"type": "validator_finished", "id": p["validator_id"], "exit_code": p["exit_code"]}})
-        
-        # Run in thread pool to avoid blocking event loop
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: domain.generate_validation_result(ws_id, progress_callback=progress))
-        
-        self.revision += 1
-        await self.broadcast_projection()
 
     def _schedule_send(self, msg: Dict[str, Any]):
         """Thread-safe method to schedule sending a message to all clients."""

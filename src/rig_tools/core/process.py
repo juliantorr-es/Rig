@@ -1,7 +1,21 @@
 """
 Process Execution Utilities for rig_tools
 
-Provides subprocess execution with logging, retry logic, and timeout handling.
+Provides low-level subprocess execution with logging, retry logic, and timeout handling.
+
+NOTE: This module provides low-level process utilities. For governed execution with
+leases, receipts, and evidence capture, use rig.domain.execution.WorktreeExecutor instead.
+
+The WorktreeExecutor is the domain-level execution authority and should be preferred
+for all new code that needs:
+- Lease-based authorization
+- Receipt creation
+- Output streaming
+- Timeout enforcement
+- Evidence capture
+
+These utilities remain for compatibility with existing callers and should not be
+used for new governed execution paths.
 """
 
 from __future__ import annotations
