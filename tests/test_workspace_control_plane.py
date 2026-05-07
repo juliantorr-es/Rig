@@ -388,3 +388,33 @@ def test_widget_registry_includes_workspace_renderers():
     assert "WorkspaceLaneSummary" in content
     assert "CommandProgressCard" in content
     assert "_fallback" in content
+
+
+def test_gate_a_policy_exposes_allowed_and_blocked_operations():
+    from rig.domain.agent_workflow_gates import GATE_A_POLICY
+
+    assert GATE_A_POLICY.gate == "A"
+    assert "rig.intent.workspace_status" in GATE_A_POLICY.allowed_operations
+    assert "rig.intent.refresh_projection" in GATE_A_POLICY.allowed_operations
+    assert "rig.intent.apply_patch" in GATE_A_POLICY.blocked_operations
+    assert "rig.intent.approve_gate" in GATE_A_POLICY.blocked_operations
+    assert "claiming transient progress as proof" in GATE_A_POLICY.blocked_practices
+    assert GATE_A_POLICY.advisory_only is True
+
+
+def test_gate_a_policy_prompt_mentions_workspace_control_plane_and_stopping_on_gates():
+    from rig.domain.agent_workflow_gates import GATE_A_POLICY
+
+    prompt = GATE_A_POLICY.workflow_prompt.lower()
+    assert "workflow control plane" in prompt
+    assert "workspace status" in prompt
+    assert "stop" in prompt
+
+
+def test_dogfood_doc_mentions_inert_progress_markers():
+    doc_path = Path(__file__).parent.parent / "docs" / "dogfood" / "agent-workflow-gates.md"
+    content = doc_path.read_text(encoding="utf-8").lower()
+    assert "receipt_candidate" in content
+    assert "evidence_refs" in content
+    assert "inert" in content
+    assert "transient" in content
