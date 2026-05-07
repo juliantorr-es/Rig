@@ -45,6 +45,7 @@ class CheckpointPlan:
     dirty_files: tuple[str, ...]
     message: str
     files_to_stage: tuple[str, ...]
+    has_conflict: bool
 
 
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -168,22 +169,33 @@ def inspect_attached_worktree(agent: str, task: str, path: Path, *, repo_root: P
     )
 
 
-def parse_porcelain_status(status: str) -> tuple[list[str], bool]:
+def parse_porcelain_v1_z(status: bytes | str) -> tuple[tuple[str, ...], bool]:
+    if isinstance(status, str):
+        status = status.encode("utf-8")
     files: list[str] = []
     has_conflict = False
-    for line in status.splitlines():
-        if not line or line.startswith("##"):
+    records = status.split(b"\0")
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
+        if not record:
             continue
-        if len(line) < 4:
+        if record.startswith(b"?? "):
+            files.append(record[3:].decode("utf-8"))
             continue
-        xy = line[:2]
-        path = line[3:]
-        if "U" in xy or xy == "DD" or xy == "AA" or xy == "AU" or xy == "UA" or xy == "DU" or xy == "UD":
+        if len(record) < 3:
+            continue
+        xy = record[:2].decode("utf-8")
+        path = record[3:].decode("utf-8")
+        if "U" in xy or xy in {"DD", "AA", "AU", "UA", "DU", "UD"}:
             has_conflict = True
-        if "->" in path:
-            path = path.split("->", 1)[1].strip()
+        if xy.startswith("R") or xy.startswith("C"):
+            if index < len(records) and records[index]:
+                path = records[index].decode("utf-8")
+                index += 1
         files.append(path)
-    return files, has_conflict
+    return tuple(files), has_conflict
 
 
 def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, repo_root: Path | None = None) -> CheckpointPlan:
@@ -192,8 +204,11 @@ def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, re
         raise ValueError("Refusing to checkpoint on main branch.")
     if not message.strip():
         raise ValueError("Commit message must be non-empty.")
-    status = _git_output(["status", "--porcelain"], cwd=attachment.path)
-    files_to_stage, has_conflict = parse_porcelain_status(status)
+    result = _run_git(["status", "--porcelain=v1", "-z"], cwd=attachment.path)
+    if result.returncode != 0:
+        message_text = result.stderr.strip() or result.stdout.strip() or "git status failed"
+        raise RuntimeError(message_text)
+    files_to_stage, has_conflict = parse_porcelain_v1_z(result.stdout)
     if has_conflict:
         raise ValueError("Refusing to checkpoint unresolved merge/conflict states.")
     if not files_to_stage:
@@ -206,7 +221,8 @@ def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, re
         head=attachment.head,
         dirty_files=tuple(attachment.dirty_files),
         message=message.strip(),
-        files_to_stage=tuple(files_to_stage),
+        files_to_stage=files_to_stage,
+        has_conflict=has_conflict,
     )
 
 
@@ -391,6 +407,7 @@ def build_parser() -> argparse.ArgumentParser:
     checkpoint_parser.add_argument("task")
     checkpoint_parser.add_argument("--path", required=True)
     checkpoint_parser.add_argument("--message", required=True)
+    checkpoint_parser.add_argument("--dry-run", action="store_true")
 
     subparsers.add_parser("list")
     subparsers.add_parser("status")
