@@ -1,0 +1,17 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.execution_receipt.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Execution Receipt Schema",
+  "description": "Schema for immutable evidence of execution within an isolated worktree.",
+  "type": "object",
+  "properties": {
+    "receipt_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "worktree_hash_before": { "type": "string" },
+    "worktree_hash_after": { "type": "string" },
+    "commands_executed": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string", "enum": ["success", "failed", "blocked"] },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["receipt_id", "workspace_id", "worktree_hash_before", "worktree_hash_after", "commands_executed", "status", "authoritative"]
+}

@@ -1,0 +1,16 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.worktree.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Worktree Metadata Schema",
+  "description": "Schema for Rig external Git worktree metadata.",
+  "type": "object",
+  "properties": {
+    "worktree_id": { "type": "string" },
+    "repo_root": { "type": "string" },
+    "worktree_path": { "type": "string" },
+    "branch": { "type": "string" },
+    "status": { "type": "string", "enum": ["active", "archived", "blocked"] },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["worktree_id", "repo_root", "worktree_path", "branch", "status", "authoritative"]
+}
