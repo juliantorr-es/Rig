@@ -530,6 +530,9 @@ def build_promote_report(
     if strategy == "manual":
         future_commands = future_commands + ("review diff",)
 
+    blockers_tuple = tuple(dict.fromkeys(blockers))
+    warnings_tuple = tuple(dict.fromkeys(warnings))
+
     return PromoteReport(
         agent=attachment.agent,
         task=attachment.task,
@@ -550,8 +553,8 @@ def build_promote_report(
         required_validations=required_validations,
         planned_operations=planned_operations,
         future_commands=future_commands,
-        blockers=tuple(blockers),
-        warnings=tuple(warnings),
+        blockers=blockers_tuple,
+        warnings=warnings_tuple,
         dry_run=True,
         would_mutate=False,
         ready_to_promote=ready_to_promote,
