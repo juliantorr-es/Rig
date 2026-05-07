@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rig_tools.workspace_governance import WorkspaceGovernance
+from rig.domain.workspace import WorkspaceDomain
 
 
 def register(subparsers, helpers):
@@ -12,8 +12,8 @@ def register(subparsers, helpers):
 
 
 def validate_workspace(helpers, workspace_id: str) -> int:
-    mgr = WorkspaceGovernance(helpers.repo_root)
-    payload = mgr.generate_validation_result(workspace_id)
+    domain = WorkspaceDomain(helpers.repo_root)
+    payload = domain.generate_validation_result(workspace_id)
     print(payload["workspace_id"], payload["status"])
     return 0
 

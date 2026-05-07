@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from rig_tools.workspace_governance import WorkspaceGovernance
+from rig.domain.workspace import WorkspaceDomain
 
 
 SCHEMA_VERSION = "rig.context_packet.v1"
@@ -38,7 +38,7 @@ def _estimate_tokens(text: str) -> int:
 
 
 def build_context_packet(repo_root: Path, *, workspace_id: str, provider_id: str, model_id: str, force_repack: bool = False) -> dict[str, Any]:
-    ws = WorkspaceGovernance(repo_root)
+    ws = WorkspaceDomain(repo_root)
     record = ws.load_workspace(workspace_id)
     if not record:
         raise FileNotFoundError(workspace_id)

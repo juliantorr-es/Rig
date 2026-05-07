@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from rig_tools.workspace_governance import WorkspaceGovernance
+from rig.domain.workspace import WorkspaceDomain
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -27,8 +27,8 @@ def init_repo(path: Path) -> Path:
     return path
 
 
-def make_workspace(repo: Path) -> tuple[WorkspaceGovernance, str]:
-    mgr = WorkspaceGovernance(repo)
+def make_workspace(repo: Path) -> tuple[WorkspaceDomain, str]:
+    mgr = WorkspaceDomain(repo)
     record = mgr.create_workspace("task")
     ws = record.payload["workspace_id"]
     worktree = Path(record.payload["worktree_path"])
@@ -62,7 +62,7 @@ def test_apply_refuses_when_main_worktree_dirty(tmp_path: Path) -> None:
 
 def test_apply_refuses_without_execution_receipt(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    mgr = WorkspaceGovernance(repo)
+    mgr = WorkspaceDomain(repo)
     record = mgr.create_workspace("task")
     try:
         mgr.apply_workspace(record.payload["workspace_id"])
@@ -96,7 +96,7 @@ def test_validator_failure_blocks_apply(tmp_path: Path) -> None:
 
 def test_status_transition_rejects_skips(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    mgr = WorkspaceGovernance(repo)
+    mgr = WorkspaceDomain(repo)
     record = mgr.create_workspace("task")
     try:
         mgr.transition_workspace(record.payload["workspace_id"], "applied")

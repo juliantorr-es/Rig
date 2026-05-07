@@ -8,7 +8,7 @@ from rig_tools.agent_proposals import create_proposal, decode_raw_output, propos
 from rig_tools.runtime_registry import CustomCommandProvider
 from rig_tools.model_registry import register_model, verify_model
 from rig_tools.system_probe import inspect_system
-from rig_tools.workspace_governance import WorkspaceGovernance
+from rig.domain.workspace import WorkspaceDomain
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -59,7 +59,7 @@ def test_custom_provider_end_to_end_propose_and_decode(tmp_path: Path) -> None:
 
 def test_accept_creates_planned_plan_without_execution(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    mgr = WorkspaceGovernance(repo)
+    mgr = WorkspaceDomain(repo)
     ws = mgr.create_workspace("task").payload["workspace_id"]
     provider = CustomCommandProvider(repo)
     proposal = create_proposal(repo, workspace_id=ws, provider_id=provider.id(), model_id="static", raw_output="{\"intent\": {\"kind\": \"plan\"}, \"decoded_actions\": [{\"type\": \"command\", \"argv\": [\"python\", \"-m\", \"pytest\", \"-q\"]}], \"files_referenced\": [], \"confidence\": 0.7, \"risk_level\": \"low\"}", provider_manifest=provider.manifest())

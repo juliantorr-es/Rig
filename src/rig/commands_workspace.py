@@ -1,4 +1,4 @@
-from rig_tools.workspace_governance import WorkspaceGovernance, WORKSPACE_STATUSES
+from rig.domain.workspace import WorkspaceDomain, WORKSPACE_STATUSES
 
 def register(subparsers, helpers):
     parser = subparsers.add_parser("workspace", help="Manage Rig workspaces")
@@ -27,31 +27,31 @@ def status(helpers):
     return 0
 
 def create_workspace(helpers, task):
-    mgr = WorkspaceGovernance(helpers.repo_root)
-    record = mgr.create_workspace(task)
+    domain = WorkspaceDomain(helpers.repo_root)
+    record = domain.create_workspace(task)
     print(f"Created workspace: {record.path}")
     return 0
 
 def list_workspaces(helpers):
-    mgr = WorkspaceGovernance(helpers.repo_root)
-    for ws in mgr.list_workspaces():
+    domain = WorkspaceDomain(helpers.repo_root)
+    for ws in domain.list_workspaces():
         print(f"{ws['workspace_id']} - {ws['task']} ({ws['status']}) {ws.get('branch', '')}")
     return 0
 
 def review_workspace(helpers, workspace_id):
-    mgr = WorkspaceGovernance(helpers.repo_root)
-    bundle = mgr.build_review_bundle(workspace_id)
+    domain = WorkspaceDomain(helpers.repo_root)
+    bundle = domain.build_review_bundle(workspace_id)
     print(bundle["workspace_id"], bundle["apply_eligibility"])
     return 0
 
 def apply_workspace(helpers, workspace_id):
-    mgr = WorkspaceGovernance(helpers.repo_root)
-    payload = mgr.apply_workspace(workspace_id)
+    domain = WorkspaceDomain(helpers.repo_root)
+    payload = domain.apply_workspace(workspace_id)
     print(payload["receipt_id"], payload["status"])
     return 0
 
 def transition_workspace(helpers, workspace_id, status):
-    mgr = WorkspaceGovernance(helpers.repo_root)
-    payload = mgr.transition_workspace(workspace_id, status)
+    domain = WorkspaceDomain(helpers.repo_root)
+    payload = domain.transition_workspace(workspace_id, status)
     print(payload["workspace_id"], payload["status"])
     return 0

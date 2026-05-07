@@ -15,7 +15,7 @@ from rig_tools.atomic_io import write_json_atomic
 from rig_tools.file_lock import job_store_lock
 from rig_tools.provider_registry import provider_for_id
 from rig_tools.context_budget import build_context_packet
-from rig_tools.workspace_governance import WorkspaceGovernance
+from rig.domain.workspace import WorkspaceDomain
 
 
 JOB_SCHEMA_VERSION = "rig.orchestration_job.v1"
@@ -292,7 +292,7 @@ def run_job(repo_root: Path, job_id: str, *, until: str | None = None, dry_run: 
         return preview
 
     policy = merge_config(repo_root).get("policy") or {}
-    ws = WorkspaceGovernance(repo_root)
+    ws = WorkspaceDomain(repo_root)
     provider = provider_for_id(repo_root, str(job["provider_id"]))
 
     job["status"] = "running"

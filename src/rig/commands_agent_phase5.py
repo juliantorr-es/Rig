@@ -5,7 +5,6 @@ from pathlib import Path
 
 from rig_tools.agent_proposals import create_proposal, decode_raw_output, proposal_to_command_plan
 from rig_tools.runtime_registry import provider_for_id
-from rig_tools.workspace_governance import WorkspaceGovernance
 
 
 def register(subparsers, helpers):
