@@ -1,16 +1,31 @@
+"""
+Agent Discovery for Rig
+
+Discovers available AI agents (codex, gemini, claude, etc.) on the system.
+
+Uses rig_tools.core.process for subprocess execution.
+Uses rig_tools.core.io for JSON I/O.
+"""
+
 from __future__ import annotations
 
 import json
 import os
 import shutil
-import subprocess
 import time
 from pathlib import Path
 from typing import Any
 
+# Use core utilities
+from rig_tools.core import run_capture
+from rig_tools.core.io import write_json
+
+
 SCHEMA_VERSION = "rig.agent_discovery.v1"
 
+
 def discover_agents(repo_root: Path) -> dict[str, Any]:
+    """Discover available agents on the system."""
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     
     candidates = ["codex", "gemini", "claude", "vibe", "opencode"]
@@ -29,11 +44,13 @@ def discover_agents(repo_root: Path) -> dict[str, Any]:
     
     out_dir = repo_root / ".build" / "rig" / "agents" / "discovery"
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "latest.json").write_text(json.dumps(discovery, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(out_dir / "latest.json", discovery)
     
     return discovery
 
+
 def _probe_agent(agent_id: str) -> dict[str, Any]:
+    """Probe a single agent for capabilities."""
     executable = shutil.which(agent_id)
     found = executable is not None
     version = "unknown"
@@ -48,11 +65,11 @@ def _probe_agent(agent_id: str) -> dict[str, Any]:
     if found:
         # Try version
         try:
-            res = subprocess.run([agent_id, "--version"], capture_output=True, text=True, timeout=5)
+            res = run_capture([agent_id, "--version"], timeout=5)
             if res.returncode == 0:
                 version = res.stdout.strip()
             else:
-                res = subprocess.run([agent_id, "version"], capture_output=True, text=True, timeout=5)
+                res = run_capture([agent_id, "version"], timeout=5)
                 if res.returncode == 0:
                     version = res.stdout.strip()
         except Exception:
@@ -60,7 +77,7 @@ def _probe_agent(agent_id: str) -> dict[str, Any]:
             
         # Try help
         try:
-            res = subprocess.run([agent_id, "--help"], capture_output=True, text=True, timeout=5)
+            res = run_capture([agent_id, "--help"], timeout=5)
             help_text = res.stdout.lower()
             if res.returncode == 0:
                 help_status = "available"

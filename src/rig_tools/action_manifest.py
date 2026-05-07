@@ -1,16 +1,26 @@
+"""
+Action Manifest for Rig
+
+Tracks action execution with manifests stored in .build/rig/actions/.
+
+Uses rig_tools.core.process for subprocess execution.
+Uses rig_tools.core.io for JSON I/O.
+"""
+
 from __future__ import annotations
 
 import hashlib
-import json
-import os
-import subprocess
 import sys
 import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+
+# Use core utilities
+from rig_tools.core import run_capture
+from rig_tools.core.io import read_json, write_json
 
 
 SCHEMA_VERSION = "rig.action.v1"
@@ -28,7 +38,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
+def _repo_rel(repo_root: Path, path: Path | None) -> str | None:
     if path is None:
         return None
     try:
@@ -37,55 +47,78 @@ def _repo_rel(repo_root: Path, path: Path| Optional) -> str| Optional:
         return str(path).replace("\\", "/")
 
 
-def _sha256(path: Path) -> str| Optional:
+def _sha256(path: Path) -> str | None:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except Exception:
         return None
 
 
-def _tool_versions() -> dict[str, str| Optional]:
-    versions: dict[str, str| Optional] = {"python": None, "git": None, "mlx": None, "mlx_lm": None}
+def _tool_versions() -> dict[str, str | None]:
+    """Get version information for tools used by Rig."""
+    versions: dict[str, str | None] = {"python": None, "git": None, "mlx": None, "mlx_lm": None}
     versions["python"] = sys.executable
+    
+    # Use core process utilities
     try:
-        out = subprocess.run(["python3", "--version"], capture_output=True, text=True, check=False)
-        versions["python"] = (out.stdout or out.stderr).strip() or versions["python"]
+        result = run_capture(["python3", "--version"], timeout=5)
+        versions["python"] = (result.stdout or result.stderr).strip() or versions["python"]
     except Exception:
         pass
+    
     try:
-        out = subprocess.run(["git", "--version"], capture_output=True, text=True, check=False)
-        versions["git"] = (out.stdout or out.stderr).strip() or None
+        result = run_capture(["git", "--version"], timeout=5)
+        versions["git"] = (result.stdout or result.stderr).strip() or None
     except Exception:
         pass
+    
     try:
         import mlx  # type: ignore
-
         versions["mlx"] = getattr(mlx, "__version__", None)
     except Exception:
         pass
+    
     try:
         import mlx_lm  # type: ignore
-
         versions["mlx_lm"] = getattr(mlx_lm, "__version__", None)
     except Exception:
         pass
+    
     return versions
 
 
 def _environment_fingerprint(repo_root: Path) -> dict[str, Any]:
-    git = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=False)
-    branch = subprocess.run(["git", "branch", "--show-current"], cwd=repo_root, capture_output=True, text=True, check=False)
-    status = subprocess.run(["git", "status", "--porcelain=v1"], cwd=repo_root, capture_output=True, text=True, check=False)
+    """Get environment fingerprint including git status."""
+    # Use core process utilities for git commands
+    try:
+        git = run_capture(["git", "rev-parse", "HEAD"], cwd=repo_root, timeout=5)
+        git_head = (git.stdout or git.stderr).strip() or None
+    except Exception:
+        git_head = None
+    
+    try:
+        branch = run_capture(["git", "branch", "--show-current"], cwd=repo_root, timeout=5)
+        git_branch = (branch.stdout or branch.stderr).strip() or None
+    except Exception:
+        git_branch = None
+    
+    try:
+        status = run_capture(["git", "status", "--porcelain=v1"], cwd=repo_root, timeout=5)
+        git_dirty = bool((status.stdout or "").strip())
+    except Exception:
+        git_dirty = False
+    
     return {
         "repo_root": str(repo_root),
-        "git_head": (git.stdout or git.stderr).strip() or None,
-        "git_branch": (branch.stdout or branch.stderr).strip() or None,
-        "git_dirty": bool((status.stdout or "").strip()),
+        "git_head": git_head,
+        "git_branch": git_branch,
+        "git_dirty": git_dirty,
         "python_executable": sys.executable,
     }
 
 
 def _normalize_io(repo_root: Path, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize I/O items with relative paths and SHA256 hashes."""
     out: list[dict[str, Any]] = []
     for item in items:
         path = item.get("path")
@@ -110,16 +143,17 @@ def write_action_manifest(
     action_kind: str,
     command_group: str,
     command: list[str] | str,
-    inputs: list[dict[str, Any]]| Optional = None,
-    outputs: list[dict[str, Any]]| Optional = None,
+    inputs: list[dict[str, Any]] | None = None,
+    outputs: list[dict[str, Any]] | None = None,
     status: str = "passed",
     exit_code: int = 0,
-    result_path: Path| Optional = None,
-    event_path: Path| Optional = None,
-    started_at: str| Optional = None,
-    finished_at: str| Optional = None,
-    warnings: list[str]| Optional = None,
+    result_path: Path | None = None,
+    event_path: Path | None = None,
+    started_at: str | None = None,
+    finished_at: str | None = None,
+    warnings: list[str] | None = None,
 ) -> ActionManifestResult:
+    """Write an action manifest to disk."""
     action_id = f"{task}-{action_kind}-{uuid.uuid4().hex[:10]}"
     started = started_at or utc_now()
     finished = finished_at or started
@@ -129,6 +163,7 @@ def write_action_manifest(
         duration = round((finished_dt - started_dt).total_seconds(), 3)
     except Exception:
         duration = 0.0
+    
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "action_id": action_id,
@@ -150,25 +185,36 @@ def write_action_manifest(
         "warnings": sorted(set(warnings or [])),
         "authoritative": False,
     }
+    
     out_dir = repo_root / ".build" / "rig" / "actions"
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / f"{action_id}.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     latest_path = out_dir / "latest.json"
-    latest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return ActionManifestResult(action_id=action_id, manifest_path=manifest_path, latest_path=latest_path, manifest=manifest)
+    
+    # Use core JSON writing
+    write_json(manifest_path, manifest)
+    write_json(latest_path, manifest)
+    
+    return ActionManifestResult(
+        action_id=action_id,
+        manifest_path=manifest_path,
+        latest_path=latest_path,
+        manifest=manifest
+    )
 
 
 def list_actions(repo_root: Path) -> list[dict[str, Any]]:
+    """List all actions from the actions directory."""
     out_dir = repo_root / ".build" / "rig" / "actions"
     if not out_dir.exists():
         return []
+    
     rows = []
     for path in sorted(out_dir.glob("*.json"), key=lambda p: p.name):
         if path.name == "latest.json":
             continue
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = read_json(path)
         except Exception:
             continue
         if isinstance(data, dict):
@@ -176,12 +222,13 @@ def list_actions(repo_root: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def load_action(repo_root: Path, action_id: str) -> dict[str, Any]| Optional:
+def load_action(repo_root: Path, action_id: str) -> dict[str, Any] | None:
+    """Load a specific action by ID."""
     path = repo_root / ".build" / "rig" / "actions" / f"{action_id}.json"
     if not path.exists():
         return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = read_json(path)
     except Exception:
         return None
     return data if isinstance(data, dict) else None

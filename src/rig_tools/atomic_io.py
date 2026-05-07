@@ -1,65 +1,63 @@
+"""
+Atomic I/O operations for rig_tools.
+
+DEPRECATED: This module is deprecated. Use rig_tools.core.io and rig_tools.core.filesystem instead.
+
+The functions in this module are now thin wrappers around the core utilities.
+They are kept for backward compatibility but new code should use:
+    - rig_tools.core.io.write_json() for atomic JSON writing
+    - rig_tools.core.filesystem.atomic_write() for atomic file writing
+    - rig_tools.core.filesystem FileLock for locking
+
+This module will be removed in a future version.
+"""
+
 from __future__ import annotations
 
-import json
-import os
-from contextlib import contextmanager
+import warnings
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
+# Import from core utilities
+from rig_tools.core.io import write_json
+from rig_tools.core.filesystem import atomic_write
 
-def _fsync_dir(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    except OSError:
-        pass
-    finally:
-        os.close(fd)
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "rig_tools.atomic_io is deprecated. Use rig_tools.core.io and rig_tools.core.filesystem instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def write_json_atomic(path: Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(path.name + ".tmp")
-    payload = json.dumps(data, indent=2, sort_keys=True) + "\n"
-    try:
-        with tmp_path.open("w", encoding="utf-8") as fh:
-            fh.write(payload)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_path, path)
-        _fsync_dir(path.parent)
-    finally:
-        if tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except OSError:
-                pass
+    """
+    Write JSON to a file atomically.
+    
+    DEPRECATED: Use rig_tools.core.io.write_json() instead.
+    
+    Arguments:
+        path: Path to write to
+        data: Data to serialize as JSON
+    """
+    warnings.warn(
+        "write_json_atomic is deprecated. Use rig_tools.core.io.write_json() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    write_json(path, data)
 
 
-@contextmanager
-def lock_file(path: Path, *, timeout: float = 10.0, poll_interval: float = 0.1) -> Iterator[None]:
-    import errno
-    import fcntl
-    import time
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+", encoding="utf-8") as fh:
-        deadline = time.monotonic() + timeout
-        while True:
-            try:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except OSError as exc:
-                if exc.errno not in {errno.EACCES, errno.EAGAIN} or time.monotonic() >= deadline:
-                    raise TimeoutError(f"Timed out acquiring lock: {path}") from exc
-                time.sleep(poll_interval)
-        try:
-            yield
-        finally:
-            try:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
-            except OSError:
-                pass
+def lock_file(path: Path, *, timeout: float = 10.0, poll_interval: float = 0.1) -> Any:
+    """
+    DEPRECATED: Use rig_tools.core.filesystem.locked() or FileLock instead.
+    
+    This function is kept for backward compatibility but should not be used in new code.
+    """
+    warnings.warn(
+        "lock_file is deprecated. Use rig_tools.core.filesystem.locked() or FileLock instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from rig_tools.core.filesystem import locked
+    return locked(path, timeout=timeout)
