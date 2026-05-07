@@ -22,6 +22,19 @@ class WorktreePlan:
     base: str
 
 
+@dataclass(frozen=True)
+class AttachedWorktree:
+    agent: str
+    task: str
+    path: Path
+    branch: str
+    expected_branch: str
+    head: str
+    dirty: bool
+    dirty_files: tuple[str, ...]
+    branch_matches_convention: bool
+
+
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
@@ -38,6 +51,11 @@ def _git_output(args: list[str], *, cwd: Path | None = None) -> str:
         message = result.stderr.strip() or result.stdout.strip() or "git command failed"
         raise RuntimeError(message)
     return result.stdout.strip()
+
+
+def repo_common_dir(repo_root: Path) -> Path:
+    common_dir = Path(_git_output(["rev-parse", "--git-common-dir"], cwd=repo_root))
+    return common_dir if common_dir.is_absolute() else (repo_root / common_dir).resolve()
 
 
 def validate_slug(value: str, kind: str) -> str:
@@ -84,6 +102,57 @@ def print_prompt(agent: str, task: str, plan: WorktreePlan) -> str:
             f"Agent: {agent}",
             f"Task: {task}",
         ]
+    )
+
+
+def worktree_prompt_header(path: Path) -> str:
+    return "\n".join(
+        [
+            "Before doing anything, read AGENTS.md and summarize the Git discipline rules you will follow. Do not edit files until you have done that.",
+            f"You are working ONLY in:",
+            f"{path}",
+            "First run:",
+            "  pwd",
+            "  git status --short --branch",
+            "  git branch --show-current",
+            "  git rev-parse --show-toplevel",
+            "  git rev-parse --short HEAD",
+            f"If pwd or git rev-parse --show-toplevel is not exactly {path}, stop immediately and report that you are in the wrong directory.",
+            "Do not edit files outside this worktree.",
+            "Do not run forbidden Git commands.",
+        ]
+    )
+
+
+def inspect_attached_worktree(agent: str, task: str, path: Path, *, repo_root: Path | None = None) -> AttachedWorktree:
+    agent = validate_slug(agent, "agent")
+    task = validate_slug(task, "task")
+    path = path.resolve()
+    if not path.exists():
+        raise FileNotFoundError(f"Worktree path does not exist: {path}")
+    repo_root = repo_root or resolve_repo_root()
+    path_top = Path(_git_output(["rev-parse", "--show-toplevel"], cwd=path)).resolve()
+    path_head = _git_output(["rev-parse", "--short", "HEAD"], cwd=path)
+    path_branch = _git_output(["branch", "--show-current"], cwd=path)
+    status = _git_output(["status", "--short", "--branch"], cwd=path)
+    if repo_common_dir(path_top) != repo_common_dir(repo_root):
+        raise ValueError(f"Worktree does not belong to the same repository: {path}")
+    dirty_files = tuple(
+        line
+        for line in status.splitlines()
+        if line.strip() and not line.startswith("##")
+    )
+    expected_branch = f"agent/{task}/{agent}"
+    return AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch=path_branch,
+        expected_branch=expected_branch,
+        head=path_head,
+        dirty=bool(dirty_files),
+        dirty_files=dirty_files,
+        branch_matches_convention=(path_branch == expected_branch),
     )
 
 
@@ -150,7 +219,38 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 def cmd_prompt(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
-    print(print_prompt(args.agent, args.task, plan))
+    print(worktree_prompt_header(plan.worktree_path))
+    print()
+    print(f"Agent: {args.agent}")
+    print(f"Task: {args.task}")
+    return 0
+
+
+def cmd_attach(args: argparse.Namespace) -> int:
+    try:
+        attachment = inspect_attached_worktree(args.agent, args.task, Path(args.path))
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"agent: {attachment.agent}")
+    print(f"task: {attachment.task}")
+    print(f"path: {attachment.path}")
+    print(f"branch: {attachment.branch}")
+    print(f"expected_branch: {attachment.expected_branch}")
+    print(f"branch_matches_convention: {str(attachment.branch_matches_convention).lower()}")
+    print(f"HEAD: {attachment.head}")
+    print(f"dirty: {str(attachment.dirty).lower()}")
+    if attachment.dirty_files:
+        print("dirty_files:")
+        for line in attachment.dirty_files:
+            print(f"  {line}")
+    if not attachment.branch_matches_convention:
+        print("Branch does not match convention. Do not rename while dirty. Consider rename-branch later when clean.")
+    print()
+    print(worktree_prompt_header(attachment.path))
+    print()
+    print(f"Agent: {attachment.agent}")
+    print(f"Task: {attachment.task}")
     return 0
 
 
@@ -192,6 +292,11 @@ def build_parser() -> argparse.ArgumentParser:
         command_parser.add_argument("agent")
         command_parser.add_argument("task")
 
+    attach_parser = subparsers.add_parser("attach")
+    attach_parser.add_argument("agent")
+    attach_parser.add_argument("task")
+    attach_parser.add_argument("--path", required=True)
+
     subparsers.add_parser("list")
     subparsers.add_parser("status")
     return parser
@@ -206,6 +311,7 @@ def main(argv: list[str] | None = None) -> int:
         "status": cmd_status,
         "prompt": cmd_prompt,
         "remove": cmd_remove,
+        "attach": cmd_attach,
     }
     try:
         return handlers[args.command](args)
