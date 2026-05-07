@@ -30,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="rig", description="Rig product shell")
     parser.add_argument("--debug", action="store_true")
     sub = parser.add_subparsers(dest="cmd", required=True)
+    status = sub.add_parser("status", help="Show repo, queue, providers, and next gates")
+    status.set_defaults(handler=lambda args: _status(repo))
     init = sub.add_parser("init", help="Initialize Rig")
     init.add_argument("--yes", action="store_true")
     init.add_argument("--dry-run", action="store_true")
@@ -69,6 +71,18 @@ def main(argv: list[str] | None = None) -> int:
         return _log_command(repo, args)
     if hasattr(args, "handler"):
         return args.handler(args)
+    return 0
+
+
+def _status(repo_root: Path) -> int:
+    from rig_tools import orchestration, provider_registry
+    payload = {
+        "repo_root": str(repo_root),
+        "queue": orchestration.queue_health(repo_root),
+        "jobs": orchestration.list_jobs_summary(repo_root)[:10],
+        "providers": provider_registry.list_providers(repo_root)[:10],
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 
 
