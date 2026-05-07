@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import importlib
 import json
 import os
 import subprocess
@@ -8,9 +9,8 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-from rig_tools.loop_engine import LoopEngine
 from rig_tools.gc import GarbageCollector
 from rig_tools import proposal_swarm
 from rig_tools.projections import ProjectionsBuilder
@@ -20,10 +20,9 @@ from rig_tools.runtime_executor import RuntimeExecutor
 from rig_tools.scheduler import Scheduler
 from rig_tools.settings_store import SettingsStore
 from rig_tools.state_store import StateStore
-from rig_tools.vault_export import VaultExporter
 try:
-    from rig_tools.tui_actions import ActionRegistry
-except ImportError:
+    ActionRegistry = importlib.import_module("rig_tools.tui_actions").ActionRegistry
+except Exception:
     ActionRegistry = None
 
 
@@ -49,7 +48,7 @@ class CheckResult:
     subsystem: str
     command: str
     status: str
-    exit_code: int| Optional
+    exit_code: int | Optional[int]
     stdout_excerpt: str
     stderr_excerpt: str
     artifact_path: str
@@ -78,7 +77,7 @@ class RigDoctor:
         self.warnings: list[str] = []
         self.recommendations: list[str] = []
 
-    def _run(self, check_id: str, subsystem: str, argv: list[str], *, cwd: Path| Optional = None, timeout: int = 30) -> CheckResult:
+    def _run(self, check_id: str, subsystem: str, argv: list[str], *, cwd: Path | None = None, timeout: int = 30) -> CheckResult:
         try:
             proc = subprocess.run(argv, cwd=cwd or self.repo_root, text=True, capture_output=True, timeout=timeout, check=False)
             status = "pass" if proc.returncode == 0 else "fail"
@@ -224,6 +223,18 @@ class RigDoctor:
         ))
 
     def _runtime_executor_check(self) -> dict[str, Any]:
+        if ActionRegistry is None:
+            return self._record(CheckResult(
+                check_id="runtime_executor",
+                subsystem="runtime_executor",
+                command="ActionRegistry.refresh_status",
+                status="warn",
+                exit_code=0,
+                stdout_excerpt="",
+                stderr_excerpt="rig_tools.tui_actions is unavailable",
+                artifact_path="",
+                recommendation="Install the runtime action registry or keep the retired TUI path deferred.",
+            ))
         registry = ActionRegistry(self.repo_root)
         action = registry.actions.get("refresh_status")
         if action is None:
@@ -281,7 +292,7 @@ class RigDoctor:
 
         builder = ProjectionsBuilder(self.repo_root)
         manifest = builder.rebuild(dry_run=True)
-        kinds = {p.get("kind") for p in manifest.get("projections", []) if isinstance(p, dict)}
+        kinds = {str(p.get("kind")) for p in manifest.get("projections", []) if isinstance(p, dict) and p.get("kind") is not None}
         required = {"kanban", "task_graph", "monitor", "tui_snapshot"}
         missing = sorted(required - kinds)
         if missing:
@@ -505,15 +516,15 @@ class RigDoctor:
 
     def _tui_checks(self) -> None:
         try:
-            import textual  # noqa: F401
+            importlib.import_module("textual")
             textual_available = True
-        except ImportError:
+        except Exception:
             textual_available = False
         
         if textual_available:
             # Textual is installed as package, but textual-serve has its own CLI
             try:
-                import textual_serve  # noqa: F401
+                importlib.import_module("textual_serve")
                 result = self._run("textual_validate", "textual-serve", 
                     [sys.executable, "-m", "textual_serve", "--help"])
                 self._record(result)
@@ -578,7 +589,7 @@ class RigDoctor:
     def _window_checks(self) -> None:
         # Check textual-serve as Python package
         try:
-            import textual_serve  # noqa: F401
+            importlib.import_module("textual_serve")
             self._record(CheckResult(
                 check_id="window_textual_serve",
                 subsystem="window",
@@ -604,7 +615,7 @@ class RigDoctor:
             ))
 
         try:
-            import webview
+            importlib.import_module("webview")
             self._record(CheckResult(
                 check_id="window_pywebview",
                 subsystem="window",
@@ -774,7 +785,7 @@ class RigDoctor:
         from rig_tools import productization_check
         pc = productization_check.ProductizationChecker(self.repo_root)
         # We run in dry-run to avoid writing artifacts during doctor check
-        report = pc.run_check(dry_run=True)
+        report = pc.check()
         
         self._record(CheckResult(
             check_id="product_readiness",

@@ -1,10 +1,13 @@
+from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
+import importlib
 from pathlib import Path
 from rig.domain.projections import (
-    UIProjection, WidgetProjection, IntentProjection, ProjectionLayout, 
-    ChatProjection, ChatMessage, ValidatorStackProjection, ValidatorItem
+    UIProjection, WidgetProjection, IntentProjection, ProjectionLayout,
+    ChatProjection, ChatMessage, ValidatorItem
 )
+from rig.domain.receipts import get_receipt_store
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -16,9 +19,9 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     # Try to load snapshot from gridline if available, otherwise use empty dict
     # tui_snapshot was retired with Textual TUI
     try:
-        from rig_tools.tui_snapshot import load_snapshot
-        snapshot = load_snapshot(repo_root)
-    except (ImportError, ModuleNotFoundError):
+        tui_snapshot = importlib.import_module("rig_tools.tui_snapshot")
+        snapshot = tui_snapshot.load_snapshot(repo_root)
+    except (ImportError, ModuleNotFoundError, AttributeError):
         snapshot = {}
 
     domain = WorkspaceDomain(repo_root)
@@ -27,7 +30,15 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     # Simple heuristic for active workspace: the one most recently modified
     # Use any non-applied workspace first, fall back to applied if that's all we have
     active_ws = None
-    for ws in sorted(workspaces, key=lambda x: x.get("status_history", [{"at": "" }])[-1]["at"], reverse=True):
+    def _workspace_sort_key(ws: dict) -> str:
+        history = ws.get("status_history")
+        if isinstance(history, list) and history:
+            last = history[-1]
+            if isinstance(last, dict):
+                return str(last.get("at", ""))
+        return ""
+
+    for ws in sorted(workspaces, key=_workspace_sort_key, reverse=True):
         if ws.get("status") != "applied":
             active_ws = ws
             break
@@ -61,18 +72,17 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     recent_receipts: List = []
     
     try:
-        from datetime import datetime as dt, timezone
         store = get_receipt_store(repo_root)
         recent_receipts = store.list(
             workspace_id=ws_id,
             kind="validator_run",
             limit=5
         )
-        now = dt.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         for receipt in recent_receipts:
             if hasattr(receipt, "timestamp"):
                 try:
-                    receipt_time = dt.fromisoformat(receipt.timestamp.replace("Z", "+00:00"))
+                    receipt_time = datetime.fromisoformat(receipt.timestamp.replace("Z", "+00:00"))
                     if (now - receipt_time).total_seconds() < 5:
                         run_in_progress = True
                         if hasattr(receipt, "validator_id") and receipt.validator_id:
@@ -85,20 +95,29 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     
     val_path = active_ws.get("validation_result_path")
     if val_path and Path(val_path).exists():
-        val_data = read_json(Path(val_path))
+        val_data_raw = read_json(Path(val_path))
+        val_data = val_data_raw if isinstance(val_data_raw, dict) else {}
         status_map = {"passed": "success", "failed": "danger", "warning": "attention"}
+        status_value = str(val_data.get("status") or "unknown")
         val_status = {
-            "label": val_data.get("status", "unknown").capitalize(),
-            "severity": status_map.get(val_data.get("status"), "info")
+            "label": status_value.capitalize(),
+            "severity": status_map.get(status_value, "info")
         }
-        passed = len([v for v in val_data.get("validators", []) if v.get("exit_code") == 0])
-        total = len(val_data.get("validators", []))
+        validators_obj = val_data.get("validators")
+        validators = validators_obj if isinstance(validators_obj, list) else []
+        if not isinstance(validators, list):
+            validators = []
+        passed = len([v for v in validators if isinstance(v, dict) and v.get("exit_code") == 0])
+        total = len(validators)
         val_summary = f"{passed} passed · {total - passed} failed"
         
-        for v in val_data.get("validators", []):
+        for v in validators:
+            if not isinstance(v, dict):
+                continue
+            validator_id = str(v.get("validator_id") or "")
             val_items.append(ValidatorItem(
-                id=v.get("validator_id"),
-                label=v.get("validator_id"),
+                id=validator_id,
+                label=validator_id,
                 state="passed" if v.get("exit_code") == 0 else "failed",
                 detail=v.get("stderr_tail") if v.get("exit_code") != 0 else None
             ))
@@ -244,9 +263,17 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
         intents={
             "intent.refresh_projection": IntentProjection("rig.intent.refresh_projection", "Refresh", True),
             "intent.chat.submit": IntentProjection("rig.intent.chat.submit", "Send", True),
-            "intent.open_workspace": IntentProjection("rig.intent.open_workspace", "Open Repository", False, disabled_reason="Not implemented."),
-            "intent.initialize_current_folder": IntentProjection("rig.intent.initialize_current_folder", "Initialize", False, disabled_reason="Not implemented.")
+            "intent.open_workspace": IntentProjection(
+                "rig.intent.open_workspace",
+                "Open Repository",
+                False,
+                disabled_reason="Select or enter a repository path before continuing.",
+            ),
+            "intent.initialize_current_folder": IntentProjection(
+                "rig.intent.initialize_current_folder",
+                "Initialize",
+                False,
+                disabled_reason="Repository path is required before initialization.",
+            )
         }
     )
-
-from dataclasses import asdict

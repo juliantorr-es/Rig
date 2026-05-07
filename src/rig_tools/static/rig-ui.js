@@ -8,10 +8,15 @@
 
     function connect() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        RigLog.debug('WS', 'Connecting to UI websocket', {
+            protocol,
+            host: window.location.host,
+            hasSessionToken: Boolean(sessionToken)
+        });
         socket = new WebSocket(`${protocol}//${window.location.host}/ui/ws?rig_session=${sessionToken}`);
 
         socket.onopen = () => {
-            console.log('WebSocket connected');
+            RigLog.info('WS', 'WebSocket connected');
             socket.send(JSON.stringify({ kind: 'hello' }));
         };
 
@@ -19,6 +24,11 @@
             const msg = JSON.parse(event.data);
             if (msg.kind === 'projection') {
                 projection = msg.data;
+                RigLog.debug('Projection', 'Received projection', {
+                    revision: projection.revision,
+                    screen: projection.screen,
+                    widgetCount: projection.widgets ? Object.keys(projection.widgets).length : 0
+                });
                 // Clear pending intents - projection is authoritative state
                 pendingIntents.clear();
                 render();
@@ -166,6 +176,37 @@
         socket.send(JSON.stringify(msg));
     }
 
+    function sendManualRepoIntent(actionId, workspacePath) {
+        const intentRef = projection && projection.intents ? projection.intents[actionId] : null;
+        const path = String(workspacePath || '').trim();
+        if (!intentRef || !path) return;
+
+        RigLog.info('RepoSelect', 'Submitting manual repository path', {
+            actionId,
+            path: RigLog._redactSecrets(path)
+        });
+
+        const idempotencyKey = Math.random().toString(36).substring(7);
+        const msg = {
+            schema_version: 'rig.ui.message.v1',
+            kind: 'intent',
+            intent: {
+                schema_version: 'rig.ui.intent.v1',
+                intent_id: idempotencyKey,
+                kind: intentRef.kind,
+                target: {
+                    workspace_path: path,
+                    source: 'manual_path_input'
+                },
+                observed_projection_revision: projection.revision,
+                idempotency_key: idempotencyKey,
+                submitted_at: new Date().toISOString(),
+                client: { kind: 'pywebview' }
+            }
+        };
+        socket.send(JSON.stringify(msg));
+    }
+
     const MAX_LOG_LINES = 100;
     const MAX_BUFFER_BYTES = 10000; // 10KB per stream buffer
 
@@ -228,6 +269,19 @@
             const p = document.createElement('p');
             p.textContent = data.body || '';
             el.appendChild(p);
+            const disabledReasons = [];
+            (actions || []).forEach(actionId => {
+                const intent = projection.intents[actionId];
+                if (intent && !intent.enabled && intent.disabled_reason) {
+                    disabledReasons.push(intent.disabled_reason);
+                }
+            });
+            if (disabledReasons.length > 0) {
+                const reasonsEl = document.createElement('div');
+                reasonsEl.className = 'empty-state-reasons';
+                reasonsEl.textContent = disabledReasons.join(' ');
+                el.appendChild(reasonsEl);
+            }
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'actions';
             (actions || []).forEach(actionId => {
@@ -245,6 +299,43 @@
                 actionsDiv.appendChild(btn);
             });
             el.appendChild(actionsDiv);
+            if (id === 'workspace.empty') {
+                const manualDiv = document.createElement('div');
+                manualDiv.className = 'manual-repo-input';
+
+                const label = document.createElement('label');
+                label.textContent = 'Enter repository path:';
+                manualDiv.appendChild(label);
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'manual-repo-path';
+                input.placeholder = '/path/to/rig';
+                manualDiv.appendChild(input);
+
+                const manualBtn = document.createElement('button');
+                manualBtn.textContent = 'Open Repository';
+                manualBtn.onclick = () => {
+                    const path = input.value.trim();
+                    if (!path) {
+                        showError('Enter a repository path first.');
+                        return;
+                    }
+                    if (!projection.intents['intent.open_workspace']) {
+                        showError('Repository selection intent is unavailable.');
+                        return;
+                    }
+                    sendManualRepoIntent('intent.open_workspace', path);
+                };
+                manualDiv.appendChild(manualBtn);
+
+                const hint = document.createElement('p');
+                hint.className = 'empty-state-reasons';
+                hint.textContent = 'Manual path input is available when native file dialogs are unavailable.';
+                manualDiv.appendChild(hint);
+
+                el.appendChild(manualDiv);
+            }
             return el;
         },
         EvidenceCard: (id, data) => {

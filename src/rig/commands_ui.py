@@ -12,7 +12,7 @@ def _check_ui_dependencies() -> bool:
     """
     try:
         import aiohttp  # noqa: F401
-        import pywebview  # noqa: F401
+        import webview  # noqa: F401
         return True
     except ImportError:
         return False
@@ -26,7 +26,7 @@ def _get_missing_ui_dependencies() -> list[str]:
     except ImportError:
         missing.append("aiohttp")
     try:
-        import pywebview  # noqa: F401
+        import webview  # noqa: F401
     except ImportError:
         missing.append("pywebview")
     return missing

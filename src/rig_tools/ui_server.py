@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,7 +10,7 @@ from aiohttp import web
 
 from rig.domain.intent_defs import Intent, IntentHandler
 from rig.domain.projection_builder import build_projection
-from rig.domain.projections import ChatMessage, UIProjection
+from rig.domain.projections import ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +43,58 @@ class UIServer:
         self.intent_handler.register("rig.intent.run_validators", self.handle_run_validators)
 
     def _stub_handler(self, intent: Intent) -> Dict[str, Any]:
+        target = intent.target or {}
+        workspace_path = target.get("workspace_path")
+        if workspace_path:
+            path = Path(str(workspace_path)).expanduser()
+            logger.debug(
+                "Repo selection attempt received",
+                extra={
+                    "intent_kind": intent.kind,
+                    "workspace_path": str(path),
+                },
+            )
+            if not path.exists():
+                return {
+                    "accepted": False,
+                    "reason": f"Repository path does not exist: {path}",
+                    "status": "invalid_workspace_path",
+                    "workspace_path": str(path),
+                }
+            if not path.is_dir():
+                return {
+                    "accepted": False,
+                    "reason": f"Repository path is not a directory: {path}",
+                    "status": "invalid_workspace_path",
+                    "workspace_path": str(path),
+                }
+            return {
+                "accepted": False,
+                "reason": (
+                    f"Repository path received: {path}. "
+                    "Dynamic workspace switching is not available in this build."
+                ),
+                "status": "workspace_path_received",
+                "workspace_path": str(path),
+            }
+
+        if intent.kind == "rig.intent.open_workspace":
+            return {
+                "accepted": False,
+                "reason": "Repository selection requires a path. Enter a local repository path in the UI.",
+                "status": "workspace_path_required",
+            }
+        if intent.kind == "rig.intent.initialize_current_folder":
+            return {
+                "accepted": False,
+                "reason": "Repository initialization requires a path. Enter a local repository path in the UI.",
+                "status": "workspace_path_required",
+            }
+
         return {
             "accepted": False,
             "reason": f"Intent '{intent.kind}' not implemented in this phase.",
-            "status": "not_implemented"
+            "status": "not_implemented",
         }
 
     def handle_refresh(self, intent: Intent) -> Dict[str, Any]:
@@ -140,7 +187,6 @@ class UIServer:
             v_id = v_conf.get("id", v_conf.get("argv", [""])[0])
             argv = [str(part) for part in v_conf.get("argv", [])]
             timeout = v_conf.get("timeout", 60)
-            required = v_conf.get("required", False)
             validator_stream_id = f"{run_stream_id}-v{v_idx}-{v_id}"
             
             # Send validator started event
@@ -176,7 +222,7 @@ class UIServer:
                 result_or_failure = executor.execute(lease, stream_sink=stream_sink)
                 
                 # Check result
-                if hasattr(result_or_failure, 'succeeded') and result_or_failure.succeeded:
+                if getattr(result_or_failure, "succeeded", False):
                     passed_count += 1
                     v_status = "passed"
                     exit_code = 0
