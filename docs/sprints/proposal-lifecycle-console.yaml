@@ -1,0 +1,31 @@
+sprint: Proposal Lifecycle Console
+goal: Projection-first product usability for workspace handoff understanding
+increment:
+  - workspace selection visible
+  - workspace status visible
+  - Dogfood Gate A visible
+  - transient progress visible
+  - recommendation/proposal visible
+  - validation summary visible
+  - next safe action visible
+backlog:
+  - ProposalLifecycleProjection domain model
+  - projection builder integration
+  - ProposalLifecycleConsole UI widget/region
+  - Dogfood Gate A visible in CLI/projection/UI
+  - validation summary projection
+  - proposal/recommendation lifecycle surface
+  - progress timeline usability
+  - frontend usability pass
+  - docs and handoff guidance
+non_goals:
+  - durable progress receipts
+  - progress persistence
+  - replay
+  - event store or queue machinery
+  - apply-to-main execution
+  - automatic PR creation
+  - provider/OAuth sync
+  - GitHub/Google provider integrations
+  - full workspace runtime implementation
+recommended_first_task: Define ProposalLifecycleProjection and wire a minimal proposal lifecycle console region into the projection builder
