@@ -113,7 +113,6 @@ def open_window(repo_root: Path, dry_run: bool, host: str, port: Optional[int], 
 
     if dry_run:
         session["status"] = "dry_run"
-        save_session(repo_root, session)
         return session
 
     # Logs

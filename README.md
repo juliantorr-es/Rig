@@ -20,6 +20,8 @@ rig tui
 rig run --task fix-imports --provider custom-command
 ```
 
+The TUI's canonical shell is the Gridline Interface: a CSS grid dashboard with semantic regions, a slash-command console, and a native footer.
+
 ## Core Concepts
 
 - Workspaces
@@ -55,6 +57,7 @@ rig run --task fix-imports --provider custom-command
 - `rig workspace apply`
 - `rig log list`
 - `rig log show`
+- `rig debug bundle`
 - `rig tui`
 
 ## Maturity

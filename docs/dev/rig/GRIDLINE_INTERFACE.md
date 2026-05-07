@@ -8,6 +8,7 @@ Gridline Interface is Rig's grid-based TUI language for governed local AI contro
 - Typed Python containers own semantic regions.
 - Reactive widgets own local display state.
 - Native `BINDINGS` and `Footer` expose shortcuts.
+- The Gridline shell can surface a governed slash/chat console and a debug-bundle affordance.
 - Color is semantic, not decorative.
 - The TUI is a projection and control surface, not a mutation engine.
 

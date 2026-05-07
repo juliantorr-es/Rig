@@ -12,6 +12,8 @@ def register(subparsers, helpers):
     parser.add_argument("--auto-approve", action="store_true", help="Launch in auto-approve mode (bounded YOLO)")
     parser.add_argument("--yolo", action="store_true", help="Alias for --auto-approve")
     parser.add_argument("--window", action="store_true", help="Open the TUI in window mode")
+    parser.add_argument("--gridline", action="store_true", help="Use the Gridline dashboard shell")
+    parser.add_argument("--chat", action="store_true", help="Enable the chat/slash console")
     parser.add_argument("--dry-run", action="store_true", help="Plan the launch without starting the app")
     parser.add_argument("--mode", choices=["safe", "action", "auto-approve"], default=None, help="Explicitly set mode")
     parser.add_argument("--refresh", type=int, default=2)
@@ -34,7 +36,15 @@ def _run(helpers, args) -> int:
         return 0 if window_launcher.open_window(helpers.repo_root, dry_run=args.dry_run, host="127.0.0.1", port=None, browser=True, allow_lan=False).get("status") != "failed" else 1
 
     if args.dry_run:
-        payload = {"status": "dry_run", "mode": mode, "command": [sys.executable, "-m", "rig", "tui", "--mode", mode]}
+        gridline = bool(getattr(args, "gridline", False))
+        chat = bool(getattr(args, "chat", False))
+        payload = {
+            "status": "dry_run",
+            "mode": mode,
+            "gridline": gridline,
+            "chat": chat,
+            "command": [sys.executable, "-m", "rig", "tui", "--mode", mode] + (["--gridline"] if gridline else []) + (["--chat"] if chat else []),
+        }
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
 
@@ -44,7 +54,7 @@ def _run(helpers, args) -> int:
         payload = {
             "status": "tool_missing",
             "message": "Textual not installed",
-            "install_hint": "python3.14 -m pip install textual",
+            "install_hint": "Textual is not installed.\nInstall Rig product dependencies with:\n  python3.14 -m pip install -e .",
             "error": str(exc),
         }
         out_dir = helpers.repo_root / ".build" / "rig" / "tui"
@@ -54,7 +64,11 @@ def _run(helpers, args) -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
 
-    from rig_tools import tui_app
-    app = tui_app.build_app(helpers.repo_root, mode=mode, refresh_seconds=max(1, int(args.refresh)))
+    if args.gridline:
+        from rig_tools import tui_grid
+        app = tui_grid.build_gridline_app(helpers.repo_root, chat_enabled=args.chat)
+    else:
+        from rig_tools import tui_app
+        app = tui_app.build_app(helpers.repo_root, mode=mode, refresh_seconds=max(1, int(args.refresh)))
     app.run()
     return 0

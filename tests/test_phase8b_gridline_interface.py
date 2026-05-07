@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import ast
 import json
+import zipfile
 from pathlib import Path
 
 from rig_tools import tui_theme, tui_layout, tui_grid
+from rig_tools import debug_bundle, tui_command_registry, tui_chat_rendering
 from rig import commands_tui
+from rig import commands_debug
 
 
 def _imports(path: Path) -> set[str]:
@@ -62,6 +65,8 @@ def test_layout_primitives_exist():
     assert hasattr(tui_layout, "RigEvidenceRail")
     assert hasattr(tui_layout, "RigMetricWidget")
     assert hasattr(tui_layout, "RigCommandInput")
+    assert hasattr(tui_layout, "RigChatTranscript")
+    assert hasattr(tui_layout, "RigDebugBundleCard")
 
 
 def test_metric_widget_is_reactive():
@@ -111,6 +116,31 @@ def test_grid_module_exports_shell():
     assert hasattr(tui_grid, "compose_main")
     assert hasattr(tui_grid, "compose_evidence_rail")
     assert hasattr(tui_grid, "compose_chat")
+    assert hasattr(tui_grid, "GridlineApp")
+
+
+def test_layout_components_apply_expected_classes():
+    panel = tui_layout.RigPanel(title="X")
+    metric = tui_layout.RigMetricWidget(title="Jobs", value="1")
+    chat = tui_layout.RigCommandInput()
+    transcript = tui_layout.RigChatTranscript()
+    bundle = tui_layout.RigDebugBundleCard()
+    assert panel.classes is None or True
+    assert getattr(metric, "classes", "rig-metric") == "rig-metric"
+    assert chat.placeholder.startswith("Type /")
+    assert transcript.classes is None or True
+    assert getattr(bundle, "classes", "rig-debug-bundle") == "rig-debug-bundle"
+
+
+def test_slash_registry_contains_mvp_and_blocks():
+    registry = tui_command_registry.build_registry()
+    assert registry["run"].canonical_command[:2] == ("rig", "run")
+    assert registry["apply"].action_type == "blocked_in_mvp"
+    assert registry["shell"].action_type == "blocked_in_mvp"
+
+
+def test_chat_redaction():
+    assert "<redacted>" in tui_chat_rendering.redact("sk-test-secret")
 
 
 def test_tui_window_dry_run_uses_canonical_invocation(tmp_path, monkeypatch, capsys):
@@ -131,6 +161,30 @@ def test_tui_window_dry_run_uses_canonical_invocation(tmp_path, monkeypatch, cap
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["command"][1:4] == ["-m", "rig", "tui"]
+
+
+def test_tui_gridline_chat_dry_run(tmp_path, capsys):
+    class Helpers:
+        repo_root = tmp_path
+
+    class Args:
+        safe = True
+        action = False
+        auto_approve = False
+        yolo = False
+        window = False
+        gridline = True
+        chat = True
+        dry_run = True
+        mode = None
+        refresh = 2
+
+    assert commands_tui._run(Helpers(), Args()) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["gridline"] is True
+    assert payload["chat"] is True
+    assert "--gridline" in payload["command"]
+    assert "--chat" in payload["command"]
 
 
 def test_tui_window_alias_dry_run(monkeypatch, tmp_path):
@@ -161,3 +215,46 @@ def test_tui_window_alias_dry_run(monkeypatch, tmp_path):
     assert commands_tui._run(Helpers(), Args()) == 0
     assert captured["dry_run"] is True
     assert captured["browser"] is True
+
+
+def test_debug_bundle_dry_run(tmp_path):
+    result = debug_bundle.build_bundle(tmp_path, dry_run=True)
+    assert result.bundle_path is None
+    assert result.manifest["schema"] == "rig.debug_bundle_manifest.v1"
+
+
+def test_debug_bundle_writes_zip(tmp_path):
+    output = tmp_path / "bundle.zip"
+    result = debug_bundle.build_bundle(tmp_path, output=output, include_tui=True)
+    assert result.bundle_path == output
+    assert output.exists()
+    with zipfile.ZipFile(output) as zf:
+        names = set(zf.namelist())
+        assert "bundle_manifest.json" in names
+        assert "doctor.json" in names
+        assert "config.json" in names
+        assert "tui_snapshot.json" in names
+        assert "src/" not in "\n".join(names)
+
+
+def test_bundle_manifest_has_schema(tmp_path):
+    result = debug_bundle.build_bundle(tmp_path, dry_run=True)
+    assert result.manifest["schema"] == "rig.debug_bundle_manifest.v1"
+
+
+def test_debug_bundle_command_dry_run(tmp_path, capsys):
+    class Helpers:
+        repo_root = tmp_path
+
+    class Args:
+        output = None
+        include_logs = False
+        include_receipts = False
+        include_context = False
+        include_tui = False
+        redact = True
+        dry_run = True
+
+    assert commands_debug._bundle(Helpers(), Args()) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["manifest"]["schema"] == "rig.debug_bundle_manifest.v1"

@@ -11,7 +11,7 @@ from rig.config.loader import merge_config
 from rig.config.paths import config_file, repo_state_root, cache_home, worktree_root
 from rig.logging.jsonl_logger import JsonlLogger
 from rig_tools.workspace_governance import WorkspaceGovernance
-from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run, commands_window, commands_benchmark, commands_provider, commands_context
+from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run, commands_window, commands_benchmark, commands_provider, commands_context, commands_debug
 
 
 def _repo_root() -> Path:
@@ -59,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     commands_provider.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_context.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_run.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_debug.register(sub, type("H", (), {"repo_root": _repo_root()})())
     args = parser.parse_args(argv)
     repo = _repo_root()
     if args.debug:

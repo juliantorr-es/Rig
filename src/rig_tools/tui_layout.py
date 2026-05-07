@@ -47,6 +47,7 @@ except Exception:  # pragma: no cover - fallback for test/bootstrap environments
 class RigPanel(Container):
     def __init__(self, *children, title: str | None = None, id: str | None = None, classes: str | None = None) -> None:
         super().__init__(*children, id=id, classes=classes)
+        self.add_class("rig-panel")
         self.title = title or ""
 
     def on_mount(self) -> None:
@@ -74,6 +75,7 @@ class RigMetricWidget(Static):
 
     def __init__(self, *, title: str = "", value: str = "", sublines: Iterable[str] | None = None, status: str = "info", id: str | None = None) -> None:
         super().__init__(id=id, classes="rig-metric")
+        self.add_class("rig-metric")
         self.title = title
         self.value = value
         self.sublines = tuple(sublines or ())
@@ -101,6 +103,10 @@ class CommandSubmitted(Message):
 class RigCommandInput(Input):
     DEFAULT_CSS_CLASSES = "rig-chat-input"
 
+    def __init__(self, *children, placeholder: str = "Type / for commands or describe an intent…", **kwargs):
+        super().__init__(*children, placeholder=placeholder, **kwargs)
+        self.add_class("rig-chat-input")
+
     def submit_command(self) -> None:
         raw = self.value.strip()
         if not raw:
@@ -108,3 +114,25 @@ class RigCommandInput(Input):
         kind = "slash" if raw.startswith("/") else "natural-language"
         self.post_message(CommandSubmitted(self, raw, kind))
         self.value = ""
+
+
+class RigChatTranscript(Container):
+    def __init__(self, *children, id: str | None = None, classes: str | None = None) -> None:
+        super().__init__(*children, id=id, classes=classes)
+        self.add_class("rig-panel")
+
+
+class RigDebugBundleCard(Static):
+    def __init__(self, *, id: str | None = None) -> None:
+        super().__init__(id=id, classes="rig-debug-bundle")
+
+    def render(self) -> str:
+        return "\n".join(
+            [
+                "DEBUG BUNDLE",
+                "dry-run available",
+                "redaction on",
+                "excluded: secrets, model weights, venvs, full repo source",
+                "command: rig debug bundle --dry-run",
+            ]
+        )
