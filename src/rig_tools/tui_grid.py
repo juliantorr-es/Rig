@@ -21,7 +21,7 @@ from rig_tools.tui_theme import RIG_GLOBAL_CSS
 try:  # pragma: no cover - exercised when Textual is installed
     from textual.app import App
     from textual.binding import Binding
-    from textual.containers import Container, Horizontal
+    from textual.containers import Container
     from textual.widgets import Footer, Static
 except Exception:  # pragma: no cover - fallback for environments without Textual
     from rig_tools.tui_layout import Container, Static
@@ -38,9 +38,6 @@ except Exception:  # pragma: no cover - fallback for environments without Textua
         def __init__(self, *args, **kwargs):
             self.args = args
             self.kwargs = kwargs
-
-    class Horizontal(Container):
-        pass
 
     class Footer(Static):
         pass
@@ -72,17 +69,19 @@ class RigDashboardGrid(Container):
             yield Static(f"status: {self.snapshot.get('queue', {}).get('status', 'unknown')}")
 
     def compose_body(self):
-        with Horizontal():
+        with Container(id="rig-body", classes="rig-body"):
             with RigSidebar(id="rig-sidebar"):
+                yield Static("NAV", classes="rig-panel-title")
                 yield RigMetricWidget(title="Jobs", value=str(len(self.snapshot.get("jobs", []))), status="info")
                 yield RigMetricWidget(title="Workspaces", value=str(len(self.snapshot.get("workspaces", []))), status="success")
                 yield RigMetricWidget(title="Providers", value=str(len(self.snapshot.get("providers", []))), status="warning")
             with RigMainColumn(id="rig-main"):
                 yield Static("COMMAND CENTER", classes="rig-panel-title")
                 yield Static("Jobs, workspaces, providers, and governed runs live here.")
+                yield Static("The shell is read-only in window mode.", classes="rig-command-preview")
             with RigEvidenceRail(id="rig-evidence"):
                 yield Static("NEXT GATE", classes="rig-panel-title")
-                yield Static(self.snapshot.get("queue", {}).get("status", "unknown"))
+                yield Static(self.snapshot.get("queue", {}).get("next_gate") or self.snapshot.get("queue", {}).get("status", "unknown"))
                 yield RigDebugBundleCard()
 
     def compose_chat(self):

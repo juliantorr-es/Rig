@@ -56,15 +56,21 @@ class RigPanel(Container):
 
 
 class RigSidebar(Container):
-    pass
+    def __init__(self, *children, id: str | None = None, classes: str | None = None) -> None:
+        super().__init__(*children, id=id, classes=classes)
+        self.add_class("rig-sidebar")
 
 
 class RigMainColumn(Container):
-    pass
+    def __init__(self, *children, id: str | None = None, classes: str | None = None) -> None:
+        super().__init__(*children, id=id, classes=classes)
+        self.add_class("rig-main")
 
 
 class RigEvidenceRail(Container):
-    pass
+    def __init__(self, *children, id: str | None = None, classes: str | None = None) -> None:
+        super().__init__(*children, id=id, classes=classes)
+        self.add_class("rig-evidence-rail")
 
 
 class RigMetricWidget(Static):
@@ -120,6 +126,7 @@ class RigChatTranscript(Container):
     def __init__(self, *children, id: str | None = None, classes: str | None = None) -> None:
         super().__init__(*children, id=id, classes=classes)
         self.add_class("rig-panel")
+        self.add_class("rig-chat-transcript")
 
 
 class RigDebugBundleCard(Static):

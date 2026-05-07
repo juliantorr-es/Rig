@@ -62,7 +62,7 @@ RIG_GLOBAL_CSS = f"""
     layout: grid;
     grid-size: 3;
     grid-columns: 28 1fr 38;
-    grid-rows: auto 1fr auto;
+    grid-rows: auto 1fr auto auto;
     background: {SEMANTIC_COLORS["background"]};
     color: {SEMANTIC_COLORS["text"]};
     border: solid {SEMANTIC_COLORS["border"]};
@@ -73,11 +73,18 @@ RIG_GLOBAL_CSS = f"""
     background: {SEMANTIC_COLORS["surface"]};
 }}
 
-.rig-topbar {{ grid-column: 1; column-span: 3; }}
+.rig-topbar {{ column-span: 3; }}
+.rig-body {{
+    layout: grid;
+    grid-columns: 28 1fr 38;
+    grid-rows: auto;
+    column-span: 3;
+    gap: 1;
+}}
 .rig-sidebar {{ grid-column: 1; }}
 .rig-main {{ grid-column: 2; }}
 .rig-evidence-rail {{ grid-column: 3; }}
-.rig-chat {{ grid-column: 1; column-span: 3; }}
+.rig-chat {{ column-span: 3; }}
 
 .rig-panel-title {{
     text-style: bold;
@@ -110,6 +117,11 @@ RIG_GLOBAL_CSS = f"""
 
 .rig-debug-bundle {{
     border: solid {SEMANTIC_COLORS["border"]};
+}}
+
+.rig-chat-transcript {{
+    border: solid {SEMANTIC_COLORS["border"]};
+    background: {SEMANTIC_COLORS["background"]};
 }}
 
 {_status_css()}

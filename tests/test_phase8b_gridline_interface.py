@@ -213,7 +213,7 @@ def test_window_launcher_dry_run_uses_textual_cli(tmp_path):
     payload = window_launcher.open_window(tmp_path, dry_run=True, host="127.0.0.1", port=None, browser=False, allow_lan=False, chat_enabled=True)
     command = " ".join(payload["command_argv"])
     assert "textual_serve" not in command
-    assert "-m textual serve" in command or "textual serve" in command
+    assert command.endswith("-m rig tui --gridline --window") or "rig tui --gridline --window" in command
     assert payload["status"] == "dry_run"
 
 
