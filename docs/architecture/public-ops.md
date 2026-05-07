@@ -201,6 +201,79 @@ Future auth strategy should follow least-privilege and connector-scoped access.
 - No provider token should be stored in project files.
 - Secrets must not be included in receipts or debug bundles.
 
+## Implementation Posture
+
+Rig should stay boring and standards-based at the dependency boundary.
+
+### GitHub
+
+Practical options for future provider work:
+
+- `PyGithub` for straightforward GitHub REST API work: repositories, issues, labels, pull requests, comments, releases, users, and organizations
+- `githubkit` if a more modern, typed client and explicit API-call control is preferred
+- direct `requests` or `httpx` clients behind Rig-owned provider interfaces for the long-term architecture
+- `GitPython` only for local Git repository operations, not GitHub SaaS operations
+
+Recommended posture:
+
+- Phase 1 prototype: `PyGithub` or `githubkit`
+- Long-term: Rig-owned `GitHubProvider` over `requests` or `httpx`
+- Authentication: GitHub App installation tokens rather than broad user OAuth tokens
+
+GitHub App flows should use JWT-based app authentication and installation-scoped access. If a library exposes GitHub App helpers, that is acceptable for the prototype phase, but Rig's contract must remain independent of the client library.
+
+### Google Workspace
+
+Official baseline options:
+
+- `google-api-python-client` for Google API discovery and service access
+- `google-auth` and `google-auth-oauthlib` for OAuth credential handling
+- `google-auth-httplib2` where the Google client stack expects it
+- `gspread` only as an ergonomic Sheets helper for experiments or prototypes
+
+Recommended posture:
+
+- Phase 1 prototype: `google-api-python-client` plus `google-auth-oauthlib`
+- Sheets convenience: `gspread` only if it helps early experiments
+- Long-term: Rig-owned `GoogleFormsProvider`, `GoogleSheetsProvider`, and `GoogleDocsProvider`
+
+Google client libraries should remain implementation details behind Rig-owned contracts. Rig must not adopt the library API as its public API shape.
+
+### Dependency Extras
+
+A plausible packaging split is:
+
+- `rig[github]`
+  - `PyGithub` or `githubkit`
+  - `PyJWT` or `cryptography` if GitHub App signing support is needed
+- `rig[google]`
+  - `google-api-python-client`
+  - `google-auth`
+  - `google-auth-oauthlib`
+  - `google-auth-httplib2`
+- `rig[public-ops]`
+  - `rig[github]`
+  - `rig[google]`
+
+Required core should not depend on any of these libraries. PublicOps support should remain optional so core Rig operation still works without external SaaS credentials.
+
+### Thin Contract Example
+
+Future provider contracts should stay small and Rig-owned:
+
+```python
+class PublicIntakeProvider:
+    def list_new_submissions(self) -> list[PublicIntakePacket]: ...
+
+class PublicTrackerProvider:
+    def publish_rows(self, rows: list[PublicTrackerRow]) -> PublicSyncReceipt: ...
+
+class PublicPublisherProvider:
+    def publish_issue(self, packet: PublicIntakePacket) -> PublicSyncReceipt: ...
+```
+
+The point is not to freeze these exact method names. The point is to keep the provider API narrower than the SaaS client API and make Rig the authority on canonical state.
+
 ## Future CLI Surface
 
 These command shapes are proposed only.
