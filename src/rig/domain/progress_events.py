@@ -20,7 +20,15 @@ ALLOWED_PROGRESS_PHASES = {
 }
 
 ALLOWED_PROGRESS_LEVELS = {"debug", "info", "warning", "error"}
-ALLOWED_PROGRESS_STATUSES = {"running", "completed", "failed", "blocked", "unknown"}
+ALLOWED_PROGRESS_STATUSES = {
+    "running",
+    "completed",
+    "failed",
+    "blocked",
+    "unknown",
+    "succeeded",
+    "cancelled",
+}
 
 
 def utc_now() -> str:

@@ -100,3 +100,41 @@ Prefer the existing WebSocket transport for browser-to-backend intentions and ba
 - history is bounded per operation and across operations
 - `CommandProgressCard` is a dumb renderer for backend-authored progress payloads
 - the workspace projection declares a `workspace.command_progress` region for transient command telemetry
+
+## Future ProgressReceipt Derivation Boundary
+
+`ProgressEvent` is transient telemetry. It describes what the operator saw in motion, not what has become durable evidence.
+
+Future `ProgressReceipt` support is intentionally separated into a deterministic advisory planner. The planner can look at a bounded, ordered sequence of `ProgressEvent` records and decide whether that sequence could later be promoted into a receipt-backed artifact.
+
+This slice does not implement durable progress receipts.
+
+Rules:
+
+- `receipt_candidate` is a hint, not authority.
+- `evidence_refs` are inert until receipt-backed progress exists.
+- durable receipts require explicit issuer, subject, and evidence semantics.
+- the frontend progress-store is not a source of truth.
+- projection controls placement, not trust.
+
+Eligible future receipt kinds:
+
+- `operational_transcript`
+- `validation_summary`
+- `workspace_scan_summary`
+- `reserved_future`
+
+In this slice, only read-only operational transcripts may be eligible for future derivation planning. Mutating command progress remains transient unless a separate receipt authority already exists.
+
+Future `ProgressReceipt` planning would minimally carry:
+
+- `receipt_kind`
+- `operation_id`
+- `command`
+- `status`
+- `evidence_refs`
+- `issuer`
+- `subject`
+- `summary`
+
+The planner is advisory only; it does not persist events, create receipts, or resolve evidence references.

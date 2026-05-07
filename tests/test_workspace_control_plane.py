@@ -6,6 +6,8 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 
 def _init_git_repo(path: Path) -> None:
     subprocess.run(["git", "init", "-b", "main", str(path)], check=True, capture_output=True, text=True)
@@ -238,6 +240,97 @@ def test_progress_event_builder_normalizes_metadata_and_lists():
     assert payload["evidence_refs"] == []
     assert payload["metadata"] == {"detail": "scan"}
     assert payload["sequence"] == 3
+
+
+def test_progress_receipt_plan_rejects_empty_sequence():
+    from rig.domain.progress_receipt_derivation import ProgressReceiptDerivationError, derive_progress_receipt_plan
+
+    with pytest.raises(ProgressReceiptDerivationError):
+        derive_progress_receipt_plan([])
+
+
+def test_progress_receipt_plan_rejects_mixed_operation_ids():
+    from rig.domain.progress_events import build_progress_event
+    from rig.domain.progress_receipt_derivation import ProgressReceiptDerivationError, derive_progress_receipt_plan
+
+    events = [
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.started", status="running", message="a", sequence=1),
+        build_progress_event(operation_id="op-2", command="workspace.status", phase="operation.completed", status="succeeded", message="b", sequence=2),
+    ]
+    with pytest.raises(ProgressReceiptDerivationError):
+        derive_progress_receipt_plan(events)
+
+
+def test_progress_receipt_plan_rejects_non_monotonic_sequence_numbers():
+    from rig.domain.progress_events import build_progress_event
+    from rig.domain.progress_receipt_derivation import ProgressReceiptDerivationError, derive_progress_receipt_plan
+
+    events = [
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.started", status="running", message="a", sequence=2),
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.completed", status="succeeded", message="b", sequence=1),
+    ]
+    with pytest.raises(ProgressReceiptDerivationError):
+        derive_progress_receipt_plan(events)
+
+
+def test_progress_receipt_plan_rejects_missing_terminal_status():
+    from rig.domain.progress_events import build_progress_event
+    from rig.domain.progress_receipt_derivation import ProgressReceiptDerivationError, derive_progress_receipt_plan
+
+    events = [
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.started", status="running", message="a", sequence=1, receipt_candidate=True),
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.progress", status="running", message="b", sequence=2, receipt_candidate=True),
+    ]
+    with pytest.raises(ProgressReceiptDerivationError):
+        derive_progress_receipt_plan(events)
+
+
+def test_progress_receipt_plan_rejects_false_candidates_by_default():
+    from rig.domain.progress_events import build_progress_event
+    from rig.domain.progress_receipt_derivation import derive_progress_receipt_plan
+
+    events = [
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.started", status="running", message="a", sequence=1),
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.completed", status="succeeded", message="b", sequence=2),
+    ]
+    plan = derive_progress_receipt_plan(events)
+    assert plan.eligible.eligible is False
+    assert "not marked" in plan.eligible.reason.lower()
+
+
+def test_progress_receipt_plan_accepts_read_only_operational_transcript():
+    from rig.domain.progress_events import build_progress_event
+    from rig.domain.progress_receipt_derivation import derive_progress_receipt_plan
+
+    events = [
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.started", status="running", message="a", sequence=1, receipt_candidate=True),
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.completed", status="succeeded", message="done", sequence=2, receipt_candidate=True),
+    ]
+    plan = derive_progress_receipt_plan(events)
+    assert plan.eligible.eligible is True
+    assert plan.receipt_kind == "operational_transcript"
+
+
+def test_progress_receipt_plan_does_not_resolve_evidence_refs():
+    from rig.domain.progress_events import build_progress_event
+    from rig.domain.progress_receipt_derivation import derive_progress_receipt_plan
+
+    events = [
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.started", status="running", message="a", sequence=1, receipt_candidate=True, evidence_refs=["evidence://raw"]),
+        build_progress_event(operation_id="op-1", command="workspace.status", phase="operation.completed", status="succeeded", message="done", sequence=2, receipt_candidate=True, evidence_refs=["evidence://raw"]),
+    ]
+    plan = derive_progress_receipt_plan(events)
+    assert plan.evidence_refs == ("evidence://raw", "evidence://raw")
+    assert plan.metadata["command"] == "workspace.status"
+
+
+def test_progress_receipt_plan_does_not_create_receipts_or_persist_events():
+    path = Path(__file__).parent.parent / "src" / "rig" / "domain" / "progress_receipt_derivation.py"
+    content = path.read_text(encoding="utf-8")
+    assert "receipt_store" not in content.lower()
+    assert "persist" not in content.lower()
+    assert "write(" not in content.lower()
+    assert "save(" not in content.lower()
 
 
 def test_static_index_loads_module_entrypoint_and_css():

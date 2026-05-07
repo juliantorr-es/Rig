@@ -111,6 +111,7 @@ The frontend keeps the existing WebSocket-based projection/intent loop.
 - progress events are ordered by `sequence` and `timestamp`
 - `CommandProgressCard` renders backend-authored progress payloads only
 - `workspace.command_progress` is the projection-declared lane for transient command telemetry
+- progress cards remain transient UI and must not imply evidence, proof, or receipt authority
 
 Future progress events can be added without changing the doctrine.
 
