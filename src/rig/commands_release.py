@@ -12,17 +12,14 @@ def register(subparsers, helpers):
 
 
 def _check(helpers, args) -> int:
-    from rig_tools.release_readiness import run_release_readiness_command, run_release_readiness
+    from rig_tools.release_check import run_release_check, run_release_check_command
 
-    report = run_release_readiness(helpers.repo_root, format_type="json" if args.json else "text", dry_run_build=True)
     if args.json:
-        print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
-    else:
-        print(f"Rig release check: {report.status.upper()}")
-        for check in report.checks:
-            print(f"- [{check.status.upper()}] {check.check_id}")
-        if report.warnings:
-            print("Warnings:")
-            for warning in report.warnings:
-                print(f"- {warning}")
+        return run_release_check_command(helpers.repo_root, as_json=True)
+    report = run_release_check(helpers.repo_root)
+    print(f"Rig release check: {report.status.upper()}")
+    for check in getattr(report, "checks", []):
+        print(f"- [{check.status.upper()}] {check.category}:{check.id} :: {check.message}")
+        if check.next_action:
+            print(f"  next: {check.next_action}")
     return 0 if report.status != "fail" else 1

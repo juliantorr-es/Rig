@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rig_tools import release_readiness
+from rig_tools import release_check
 from rig import commands_release
 
 
@@ -41,9 +41,9 @@ def test_public_command_contract_matches_readme():
 
 
 def test_release_readiness_json():
-    report = release_readiness.run_release_readiness(Path.cwd(), format_type="json", dry_run_build=True)
+    report = release_check.run_release_check(Path.cwd())
     payload = report.to_dict()
-    assert payload["schema_version"] == "rig.release_readiness.v1"
+    assert payload["schema_version"] == "rig.release_readiness.v2"
     assert "checks" in payload
 
 
@@ -60,7 +60,7 @@ def test_release_check_json(monkeypatch, capsys, tmp_path):
         def to_dict(self):
             return {"status": "pass", "checks": []}
 
-    monkeypatch.setattr("rig_tools.release_readiness.run_release_readiness", lambda *args, **kwargs: Report())
+    monkeypatch.setattr("rig_tools.release_check.run_release_check", lambda *args, **kwargs: Report())
 
     class Args:
         json = True

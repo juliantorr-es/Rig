@@ -11,4 +11,8 @@ jobs:
         with:
           python-version: "3.14"
       - run: python -m pip install -e .[dev]
-      - run: python -m rig release check --json
+      - run: python -m rig release check --json | tee release-check.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-check-json
+          path: release-check.json
