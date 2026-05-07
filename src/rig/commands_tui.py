@@ -6,13 +6,12 @@ from pathlib import Path
 
 
 def register(subparsers, helpers):
-    parser = subparsers.add_parser("tui", help="Launch the safe Rig Textual TUI")
+    parser = subparsers.add_parser("tui", help="Launch the Rig Gridline TUI")
     parser.add_argument("--safe", action="store_true", help="Launch in safe mode (default)")
     parser.add_argument("--action", action="store_true", help="Launch in action mode (guarded execution)")
     parser.add_argument("--auto-approve", action="store_true", help="Launch in auto-approve mode (bounded YOLO)")
     parser.add_argument("--yolo", action="store_true", help="Alias for --auto-approve")
-    parser.add_argument("--window", action="store_true", help="Open the TUI in window mode")
-    parser.add_argument("--gridline", action="store_true", help="Use the Gridline dashboard shell")
+    parser.add_argument("--window", action="store_true", help="Open the TUI in a native window (uses pywebview)")
     parser.add_argument("--chat", action="store_true", help="Enable the chat/slash console")
     parser.add_argument("--dry-run", action="store_true", help="Plan the launch without starting the app")
     parser.add_argument("--mode", choices=["safe", "action", "auto-approve"], default=None, help="Explicitly set mode")
@@ -33,17 +32,19 @@ def _run(helpers, args) -> int:
 
     if args.window:
         from rig_tools import window_launcher
-        return 0 if window_launcher.open_window(helpers.repo_root, dry_run=args.dry_run, host="127.0.0.1", port=None, browser=True, allow_lan=False).get("status") != "failed" else 1
+        result = window_launcher.open_window(helpers.repo_root, dry_run=args.dry_run, host="127.0.0.1", port=None, browser=True, allow_lan=False, chat_enabled=getattr(args, "chat", False))
+        payload = result
+        if payload.get("status") == "dry_run":
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0 if payload.get("status") != "failed" else 1
 
     if args.dry_run:
-        gridline = bool(getattr(args, "gridline", False))
         chat = bool(getattr(args, "chat", False))
         payload = {
             "status": "dry_run",
             "mode": mode,
-            "gridline": gridline,
             "chat": chat,
-            "command": [sys.executable, "-m", "rig", "tui", "--mode", mode] + (["--gridline"] if gridline else []) + (["--chat"] if chat else []),
+            "command": [sys.executable, "-m", "rig", "tui", "--mode", mode] + (["--chat"] if chat else []),
         }
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
@@ -64,11 +65,7 @@ def _run(helpers, args) -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
 
-    if args.gridline:
-        from rig_tools import tui_grid
-        app = tui_grid.build_gridline_app(helpers.repo_root, chat_enabled=args.chat)
-    else:
-        from rig_tools import tui_app
-        app = tui_app.build_app(helpers.repo_root, mode=mode, refresh_seconds=max(1, int(args.refresh)))
+    from rig_tools import tui_grid
+    app = tui_grid.build_gridline_app(helpers.repo_root, chat_enabled=args.chat)
     app.run()
     return 0

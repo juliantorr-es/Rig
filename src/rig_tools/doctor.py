@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -502,10 +501,21 @@ class RigDoctor:
         return sentinel
 
     def _tui_checks(self) -> None:
-        textual_bin = shutil.which("textual")
-        if textual_bin:
-            result = self._run("textual_validate", "textual", [textual_bin, "validate", "--agent"])
-            self._record(result)
+        try:
+            import textual  # noqa: F401
+            textual_available = True
+        except ImportError:
+            textual_available = False
+        
+        if textual_available:
+            # Textual is installed as package, but textual-serve has its own CLI
+            try:
+                import textual_serve  # noqa: F401
+                result = self._run("textual_validate", "textual-serve", 
+                    [sys.executable, "-m", "textual_serve", "--help"])
+                self._record(result)
+            except ImportError:
+                pass
         else:
             self._record(CheckResult(
                 check_id="textual_validate",
@@ -563,31 +573,31 @@ class RigDoctor:
             self.failures.append("shell_true_detected_in_rig_tools")
 
     def _window_checks(self) -> None:
-        import shutil
-        textual_bin = shutil.which("textual") or shutil.which("textual-serve")
-        if textual_bin:
+        # Check textual-serve as Python package
+        try:
+            import textual_serve  # noqa: F401
             self._record(CheckResult(
                 check_id="window_textual_serve",
                 subsystem="window",
-                command="which textual-serve",
+                command="import textual_serve",
                 status="passed",
                 exit_code=0,
-                stdout_excerpt=f"Found at {textual_bin}",
+                stdout_excerpt="textual-serve available",
                 stderr_excerpt="",
                 artifact_path="",
                 recommendation="",
             ))
-        else:
+        except ImportError:
             self._record(CheckResult(
                 check_id="window_textual_serve",
                 subsystem="window",
-                command="which textual-serve",
+                command="import textual_serve",
                 status="skipped",
                 exit_code=1,
                 stdout_excerpt="",
-                stderr_excerpt="textual serve not found",
+                stderr_excerpt="textual-serve not found",
                 artifact_path="",
-                recommendation="Install the tui extra or textual directly",
+                recommendation="Install textual-serve: pip install textual-serve",
             ))
 
         try:

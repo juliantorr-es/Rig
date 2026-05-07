@@ -16,6 +16,7 @@ dependencies = [
   "PyYAML>=6.0",
   "rich>=13.7",
   "textual>=0.76",
+  "textual-serve>=1.1.0",
   "pywebview>=5.3",
   "mlx>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
   "llama-cpp-python>=0.3.0",

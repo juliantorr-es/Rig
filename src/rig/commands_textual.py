@@ -26,13 +26,18 @@ def _validate(helpers: Any, args: argparse.Namespace) -> int:
     if args.path:
         paths.append(Path(args.path))
     else:
-        # Defaults
-        paths.append(helpers.repo_root / "scripts" / "rig_tools" / "tui_app.py")
-        for p in (helpers.repo_root / "scripts" / "rig_tools").glob("*.tcss"):
-            paths.append(p)
-        for p in (helpers.repo_root / "scripts" / "rig_tools").glob("*.py"):
-            if "CSS =" in p.read_text(encoding="utf-8", errors="ignore"):
+        # Defaults - validate TUI source files
+        tui_files = [
+            "src/rig_tools/tui_grid.py",
+            "src/rig_tools/tui_layout.py",
+            "src/rig_tools/tui_theme.py",
+        ]
+        for f in tui_files:
+            p = helpers.repo_root / f
+            if p.exists():
                 paths.append(p)
+        for p in (helpers.repo_root / "src" / "rig_tools").glob("tui_*.py"):
+            paths.append(p)
 
     result = textual_validator.run_validation(paths)
     
