@@ -1073,6 +1073,501 @@ def test_review_handles_base_resolution_failure_as_blocker(monkeypatch: pytest.M
     assert any("unable to resolve base ref" in blocker or "fatal: ambiguous argument" in blocker for blocker in report.blockers)
 
 
+def test_promote_requires_dry_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    result = rat.cmd_promote(SimpleNamespace(agent="gemini", task="ui-cockpit", path=str(path), base="main", target=None, strategy="manual", dry_run=False))
+    assert result == 1
+    assert "requires --dry-run" in capsys.readouterr().err
+
+
+def test_promote_validates_slugs(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        rat.build_promote_report("Gemini", "ui-cockpit", tmp_path, dry_run=True)
+
+
+def test_promote_rejects_missing_path(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        rat.build_promote_report("gemini", "ui-cockpit", tmp_path / "missing", dry_run=True)
+
+
+def test_promote_output_includes_dry_run_and_would_not_mutate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    result = rat.cmd_promote(SimpleNamespace(agent="gemini", task="ui-cockpit", path=str(path), base="main", target="sprint/ui-cockpit", strategy="manual", dry_run=True))
+    assert result == 0
+    out = capsys.readouterr().out
+    assert "dry_run: true" in out
+    assert "would_mutate: false" in out
+
+
+def test_promote_blocks_main_source_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "main-lane"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="main",
+        expected_branch="agent/task/gemini",
+        head="abcd123",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t0\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/main-lane"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "main-lane", path, dry_run=True)
+    assert "branch is main" in report.blockers
+    assert report.ready_to_promote is False
+
+
+def test_promote_blocks_dirty_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=True,
+        dirty_files=(" M src/file.py",),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert report.ready_to_promote is False
+    assert "worktree is dirty" in report.blockers
+
+
+def test_promote_blocks_zero_commits_ahead_of_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t0\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert report.ready_to_promote is False
+    assert "lane has no commits ahead of base" in report.blockers
+
+
+def test_promote_blocks_unresolved_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "missing-base"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="fatal: ambiguous argument 'missing-base'")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, base="missing-base", dry_run=True)
+    assert report.ready_to_promote is False
+    assert any("missing-base" in blocker or "unable to resolve base ref" in blocker for blocker in report.blockers)
+
+
+def test_promote_blocks_target_equal_to_source_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/feature/ui-cockpit-widgets"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, target="feature/ui-cockpit-widgets", dry_run=True)
+    assert "target branch equals source branch" in report.blockers
+
+
+def test_promote_warns_on_branch_mismatch_and_behind_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="8\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert "branch does not match preferred agent convention" in report.warnings
+    assert "lane is behind base" in report.warnings
+
+
+def test_promote_warns_when_target_branch_does_not_exist(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert "target branch does not exist yet" in report.warnings
+
+
+def test_promote_supports_strategy_pr(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, strategy="pr", dry_run=True)
+    assert report.strategy == "pr"
+    assert any("gh pr create" in command for command in report.future_commands)
+
+
+def test_promote_supports_strategy_squash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, strategy="squash", dry_run=True)
+    assert report.strategy == "squash"
+    assert any("squash" in line for line in report.planned_operations)
+
+
+def test_promote_supports_strategy_cherry_pick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, strategy="cherry-pick", dry_run=True)
+    assert report.strategy == "cherry-pick"
+    assert any("cherry-pick" in line for line in report.future_commands)
+
+
+def test_promote_rejects_unknown_strategy(tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    with pytest.raises(ValueError):
+        rat.build_promote_report("gemini", "ui-cockpit", path, strategy="unknown", dry_run=True)
+
+
+def test_promote_reports_changed_files_and_commits(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="A\tsrc/rig/domain/git_helper.py\nM\tsrc/rig_tools/static/index.html\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert report.changed_files == ("A\tsrc/rig/domain/git_helper.py", "M\tsrc/rig_tools/static/index.html")
+    assert report.commits == ("7d47eb3 Add UI cockpit projection widgets",)
+
+
+def test_promote_does_not_call_mutating_commands(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=False,
+    ))
+    calls: list[list[str]] = []
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        calls.append(args)
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert all("add" not in args and "commit" not in args and "push" not in args and "merge" not in args and "rebase" not in args and "reset" not in args and "clean" not in args and "stash" not in args for args in calls)
+
+
+def test_promote_requires_porcelain_status_for_dirty_decision(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="feature/ui-cockpit-widgets",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="7d47eb3",
+        dirty=True,
+        dirty_files=(" M src/file.py",),
+        branch_matches_convention=False,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["rev-parse", "--verify", "main"]:
+            return SimpleNamespace(returncode=0, stdout="main\n", stderr="")
+        if args == ["rev-list", "--left-right", "--count", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="0\t1\n", stderr="")
+        if args == ["diff", "--name-status", "main...HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="M\tsrc/rig/domain/git_helper.py\n", stderr="")
+        if args == ["log", "--oneline", "--decorate", "main..HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="7d47eb3 Add UI cockpit projection widgets\n", stderr="")
+        if args == ["show-ref", "--verify", "--quiet", "refs/heads/sprint/ui-cockpit"]:
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    report = rat.build_promote_report("gemini", "ui-cockpit", path, dry_run=True)
+    assert report.dirty is True
+    assert "worktree is dirty" in report.blockers
+
+
 def test_remove_refuses_dirty_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "Rig"
     worktree_path = tmp_path / "Rig-worktrees" / "rig-codex-task"

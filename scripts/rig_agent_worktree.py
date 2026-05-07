@@ -71,6 +71,34 @@ class ReviewReport:
     next_actions: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class PromoteReport:
+    agent: str
+    task: str
+    path: Path
+    source_branch: str
+    expected_branch: str
+    branch_matches_convention: bool
+    head: str
+    base: str
+    target: str
+    strategy: str
+    dirty: bool
+    dirty_files: tuple[str, ...]
+    ahead: int
+    behind: int
+    commits: tuple[str, ...]
+    changed_files: tuple[str, ...]
+    required_validations: tuple[str, ...]
+    planned_operations: tuple[str, ...]
+    future_commands: tuple[str, ...]
+    blockers: tuple[str, ...]
+    warnings: tuple[str, ...]
+    dry_run: bool
+    would_mutate: bool
+    ready_to_promote: bool
+
+
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
@@ -385,6 +413,151 @@ def build_review_report(
     )
 
 
+def _resolve_target_branch(task: str, target: str | None) -> str:
+    if target is not None:
+        target = target.strip()
+        if not target:
+            raise ValueError("Target branch must be non-empty.")
+        return target
+    return f"sprint/{task}"
+
+
+def build_promote_report(
+    agent: str,
+    task: str,
+    path: Path,
+    *,
+    base: str = DEFAULT_BASE,
+    target: str | None = None,
+    strategy: str = "manual",
+    dry_run: bool = False,
+    repo_root: Path | None = None,
+) -> PromoteReport:
+    if not dry_run:
+        raise ValueError("Promotion planner requires --dry-run for now.")
+
+    strategy = strategy.strip().lower()
+    if strategy not in {"manual", "pr", "squash", "cherry-pick"}:
+        raise ValueError(f"Unknown promotion strategy: {strategy}")
+
+    attachment = inspect_attached_worktree(agent, task, path, repo_root=repo_root)
+    review = build_review_report(agent, task, path, base=base, repo_root=repo_root)
+    target_branch = _resolve_target_branch(task, target)
+    blockers = list(review.blockers)
+    warnings = list(review.warnings)
+    required_validations = (
+        "python3.14 -m compileall -q scripts tests",
+        "python3.14 -m pytest tests/test_rig_agent_worktree.py -v",
+        "python3.14 -m compileall -q src tests",
+        "python3.14 -m pytest tests/test_ui_repo_selection.py -v",
+        "python3.14 -m pytest tests/test_ui_intent_contract.py -v",
+        "python3.14 -m pytest tests/test_ui_frontend_logic.py -v",
+        "python3.14 -m rig ui --help",
+        "python3.14 -m rig window open --dry-run",
+    )
+
+    if attachment.branch == "main":
+        blockers.append("branch is main")
+    if review.dirty:
+        blockers.append("worktree is dirty")
+    if review.ahead <= 0:
+        blockers.append("lane has no commits ahead of base")
+    if not review.branch_matches_convention:
+        warnings.append("branch does not match preferred agent convention")
+    if review.behind > 0:
+        warnings.append("lane is behind base")
+
+    target_exists = _run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{target_branch}"], cwd=attachment.path)
+    if target_exists.returncode != 0:
+        warnings.append("target branch does not exist yet")
+    elif target_branch != base:
+        warnings.append("target branch already exists")
+    if target_branch == attachment.branch:
+        blockers.append("target branch equals source branch")
+    if target_branch == "main":
+        warnings.append("target branch is main; promotion should stay in human review / PR path")
+    if strategy == "pr" and target_branch == "main":
+        warnings.append("PR flow to main will require protected-branch review and may prompt a push later")
+    if strategy == "pr":
+        planned_operations = (
+            f"plan future PR from {attachment.branch} into {target_branch}",
+            f"future: gh pr create --base {target_branch} --head {attachment.branch} --title \"{task}: {agent} lane\" --body \"Promote {agent} {task} lane\"",
+        )
+        future_commands = (
+            f"gh pr create --base {target_branch} --head {attachment.branch} --title \"{task}: {agent} lane\" --body \"Promote {agent} {task} lane\"",
+        )
+    elif strategy == "squash":
+        planned_operations = (
+            f"plan future squash promotion into {target_branch}",
+            f"source commits: {base}..HEAD",
+            f"file list: {base}...HEAD",
+        )
+        future_commands = (
+            f"git checkout -b {target_branch}",
+            f"git merge --squash {attachment.branch}",
+            f"git commit -m \"{task}: {agent} lane\"",
+        )
+    elif strategy == "cherry-pick":
+        planned_operations = (
+            f"plan future cherry-pick promotion into {target_branch}",
+            f"source commits: {base}..HEAD",
+        )
+        future_commands = tuple(f"git cherry-pick {commit.split()[0]}" for commit in review.commits) or ("git cherry-pick <commit>",)
+    else:
+        planned_operations = (
+            "review diff first",
+            f"plan human promotion path toward {target_branch}",
+        )
+        future_commands = (
+            f"review diff {base}...HEAD",
+            f"prepare human promotion path toward {target_branch}",
+        )
+
+    changed_files = review.changed_files
+    if strategy == "squash":
+        planned_operations = planned_operations + (f"apply diff from {base}...HEAD to {target_branch}", "create one squash commit")
+    elif strategy == "cherry-pick":
+        planned_operations = planned_operations + ("apply commits one by one",)
+
+    if target_branch == "main" and strategy not in {"pr", "manual"}:
+        warnings.append("target branch is main; human review or PR is still required")
+
+    ready_to_promote = bool(
+        strategy in {"manual", "pr", "squash", "cherry-pick"}
+        and not blockers
+        and review.ready_for_review
+    )
+    if strategy == "manual":
+        future_commands = future_commands + ("review diff",)
+
+    return PromoteReport(
+        agent=attachment.agent,
+        task=attachment.task,
+        path=attachment.path,
+        source_branch=attachment.branch,
+        expected_branch=attachment.expected_branch,
+        branch_matches_convention=attachment.branch_matches_convention,
+        head=attachment.head,
+        base=base,
+        target=target_branch,
+        strategy=strategy,
+        dirty=review.dirty,
+        dirty_files=review.dirty_files,
+        ahead=review.ahead,
+        behind=review.behind,
+        commits=review.commits,
+        changed_files=changed_files,
+        required_validations=required_validations,
+        planned_operations=planned_operations,
+        future_commands=future_commands,
+        blockers=tuple(blockers),
+        warnings=tuple(warnings),
+        dry_run=True,
+        would_mutate=False,
+        ready_to_promote=ready_to_promote,
+    )
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
     if not plan.worktree_root.exists() and not args.dry_run:
@@ -572,6 +745,59 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_promote(args: argparse.Namespace) -> int:
+    if not getattr(args, "dry_run", False):
+        print("Promotion planner requires --dry-run for now.", file=sys.stderr)
+        return 1
+    try:
+        report = build_promote_report(
+            args.agent,
+            args.task,
+            Path(args.path),
+            base=getattr(args, "base", DEFAULT_BASE),
+            target=getattr(args, "target", None),
+            strategy=getattr(args, "strategy", "manual"),
+            dry_run=True,
+        )
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"agent: {report.agent}")
+    print(f"task: {report.task}")
+    print(f"path: {report.path}")
+    print(f"source_branch: {report.source_branch}")
+    print(f"expected_branch: {report.expected_branch}")
+    print(f"branch_matches_convention: {str(report.branch_matches_convention).lower()}")
+    print(f"head: {report.head}")
+    print(f"base: {report.base}")
+    print(f"target: {report.target}")
+    print(f"strategy: {report.strategy}")
+    print(f"dirty: {str(report.dirty).lower()}")
+    print(f"ahead: {report.ahead}")
+    print(f"behind: {report.behind}")
+    print("commits:")
+    for line in report.commits:
+        print(f"  {line}")
+    print("changed_files:")
+    for line in report.changed_files:
+        print(f"  {line}")
+    print("required_validations:")
+    for line in report.required_validations:
+        print(f"  {line}")
+    print("planned_operations:")
+    for line in report.planned_operations:
+        print(f"  {line}")
+    print("future_commands:")
+    for line in report.future_commands:
+        print(f"  {line}")
+    print(f"blockers: {', '.join(report.blockers) if report.blockers else 'none'}")
+    print(f"warnings: {', '.join(report.warnings) if report.warnings else 'none'}")
+    print(f"dry_run: {str(report.dry_run).lower()}")
+    print(f"would_mutate: {str(report.would_mutate).lower()}")
+    print(f"ready_to_promote: {str(report.ready_to_promote).lower()}")
+    return 0
+
+
 def cmd_remove(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
     if not plan.worktree_path.exists():
@@ -630,6 +856,15 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser.add_argument("--path", required=True)
     review_parser.add_argument("--base", default=DEFAULT_BASE)
 
+    promote_parser = subparsers.add_parser("promote")
+    promote_parser.add_argument("agent")
+    promote_parser.add_argument("task")
+    promote_parser.add_argument("--path", required=True)
+    promote_parser.add_argument("--base", default=DEFAULT_BASE)
+    promote_parser.add_argument("--target")
+    promote_parser.add_argument("--strategy", default="manual")
+    promote_parser.add_argument("--dry-run", action="store_true")
+
     subparsers.add_parser("list")
     subparsers.add_parser("status")
     return parser
@@ -647,6 +882,7 @@ def main(argv: list[str] | None = None) -> int:
         "attach": cmd_attach,
         "checkpoint": cmd_checkpoint,
         "review": cmd_review,
+        "promote": cmd_promote,
     }
     try:
         return handlers[args.command](args)

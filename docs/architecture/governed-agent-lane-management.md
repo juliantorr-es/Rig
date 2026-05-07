@@ -290,6 +290,60 @@ Expected output:
 - warnings
 - recommended next actions
 
+### `promote <agent> <task> --path <path> --dry-run`
+
+Purpose:
+- Produce a read-only promotion plan for a review-ready lane.
+
+Inputs:
+- agent slug
+- task slug
+- existing worktree path
+- optional base ref, defaulting to `main`
+- optional target branch, defaulting to `sprint/<task>`
+- optional strategy, defaulting to `manual`
+
+Side effects:
+- none
+
+Refusals:
+- invalid slugs
+- missing path
+- missing `--dry-run`
+- dirty worktree
+- `main` source branch
+- zero commits ahead of base
+- unresolved base ref
+- target branch equals source branch
+- unknown strategy
+
+Mutates Git/files:
+- no
+
+Allowed on main:
+- yes, read-only only
+
+Expected output:
+- lane summary
+- base/target/strategy
+- cleanliness
+- ahead/behind counts
+- commits ahead of base
+- changed files vs base
+- required validations
+- planned operations
+- future command templates
+- blockers
+- warnings
+- ready-to-promote status
+
+Strategy semantics:
+- `manual`: human review path, default
+- `pr`: future pull request planning only; prints a `gh pr create` template but does not call `gh`
+- `squash`: future squash promotion planning only
+- `cherry-pick`: future cherry-pick promotion planning only
+- `manual` is the safest default unless a caller explicitly selects a strategy
+
 ## Future Rig CLI Shape
 
 These are planned product commands, not implemented by the current MVP unless the repo explicitly adds them later.
@@ -305,6 +359,7 @@ These are planned product commands, not implemented by the current MVP unless th
 - `rig sprint pr`
 
 The product CLI should preserve the same governed semantics as the helper script.
+Promotion remains planning-only in the current MVP; actual promotion is future work.
 
 ## Safety Invariants
 
