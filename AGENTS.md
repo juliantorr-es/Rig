@@ -81,6 +81,17 @@ git rev-parse --short HEAD
 - Files **created** by the agent
 - Files **deleted** by the agent
 
+### Commit Authority
+- Agents may create commits only on non-main agent/sprint/feature branches when explicitly assigned to that worktree or lane.
+- Approved branch patterns: `agent/<task>/<agent>`, `sprint/<task>`, `feature/<task>`.
+- Agents must never commit to `main`.
+- Agents must never push unless the user explicitly asks for push in the current message.
+- Agents must never merge into `main`.
+- Agents must never rebase, reset, clean, stash, or use Git as an undo mechanism.
+- Commits must stay inside the intended assigned worktree and include only files changed for the current task.
+- Messy checkpoint commits are acceptable on approved non-main branches.
+- Main history stays clean through review, squash, or merge policy.
+
 ### FORBIDDEN Git Commands (unless user explicitly requests the **exact** operation in the current message):
 
 | Command | Forbidden | Exception |
