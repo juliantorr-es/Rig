@@ -1,81 +1,68 @@
 # Rig
 
-Rig is a repo-local developer control plane for the Rig source tree that was migrated out of the parent Anigma workspace.
+Rig is the cryptographically governed control plane for local AI coding.
 
-It solves a practical problem: there were many small automation entrypoints, validators, and review helpers living inside a larger monorepo-like workspace. Rig packages the reusable Python control surface into a standalone repository so it can be installed, tested, and evolved on its own.
+Most AI coding tools mutate your code blindly. Rig forces AI work through isolated Git worktrees, cryptographic receipts, validation gates, and explicit review before anything touches your main branch.
 
-## Maturity
-
-Early but serious. The core CLI and helper modules are migrated, the repo has local validation, and compatibility wrappers preserve the old `scripts/rig.py` path. Some commands still assume Anigma-specific workspace content and may need path repair when run outside the original source tree.
+Models propose. Rig disposes.
 
 ## Install
 
 ```bash
-cd /Users/user/Developer/GitHub/Rig
 python -m pip install -e ".[dev]"
 ```
 
-## Run
+## First Run
 
 ```bash
-rig --help
-rig doctor
-rig os sentinel --format json
-python scripts/rig.py --help
+rig init
+rig tui
+rig run --task fix-imports --provider custom-command
 ```
 
-## Main commands
+## Core Concepts
 
-- `rig doctor`
-- `rig os sentinel`
-- `rig affected`
-- `rig atlas`
-- `rig audit`
-- `rig brief`
-- `rig bundle`
-- `rig context`
-- `rig docs`
-- `rig git`
-- `rig loop`
-- `rig monitor`
-- `rig pipeline`
-- `rig queue`
-- `rig schema`
-- `rig settings`
-- `rig swarm`
-- `rig text`
+- Workspaces
+- Isolated worktrees
+- Receipts
+- Proposals
+- Review and apply gates
+- Job queue
+
+## Safety Model
+
+- No silent mutation of main
+- No auto-apply
+- No provider direct mutation
+- No background daemon by default
+- All orchestration leaves receipts and logs
+
+## Command Overview
+
+- `rig init`
+- `rig config inspect`
+- `rig runtime list`
+- `rig model list`
+- `rig system inspect`
+- `rig job create`
+- `rig job run`
+- `rig run --task <task-id> --provider <provider_id>`
+- `rig agent propose`
+- `rig workspace create`
+- `rig workspace review`
+- `rig workspace apply`
+- `rig log list`
+- `rig log show`
 - `rig tui`
 
-## Repository layout
+## Maturity
 
-```text
-src/
-  rig/         CLI and command modules
-  rig_tools/   reusable validators, adapters, and helpers
-scripts/
-  rig.py       legacy compatibility entrypoint
-  ci/          local validation gate
-tests/         smoke tests and behavior checks
-docs/          migration notes and repo scaffolding
-```
+Rig is usable as a standalone CLI and governance shell. Runtime/model/provider integration is advisory only and remains behind explicit policy gates.
 
-## Development workflow
+## Documentation
 
-1. Edit the package under `src/`.
-2. Keep the compatibility wrapper working if the legacy `scripts/rig.py` path is still referenced.
-3. Run the local check script.
-4. Run focused tests for the command or helper you changed.
+See [docs/index.md](/Users/user/Developer/GitHub/Rig/docs/index.md).
 
-## Validation
+## Notes
 
-```bash
-scripts/ci/check.sh
-python -m pytest -q
-python -m compileall src tests rig.py scripts/rig.py
-```
-
-## Known limitations
-
-- A number of commands are still Anigma-aware and expect workspace files that do not exist in this standalone repo.
-- The migration preserved behavior first; path cleanup is incomplete.
-- Some helper modules refer to legacy `scripts/` paths that are now served through compatibility wrappers.
+Rig originated from a migration out of the Anigma workspace, but the product surface is now standalone. Migration history remains in `docs/migration/` for reference only.

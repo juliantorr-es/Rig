@@ -1,0 +1,24 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.orchestration_job.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Orchestration Job Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.orchestration_job.v1" },
+    "job_id": { "type": "string" },
+    "task": { "type": "string" },
+    "repo_root": { "type": "string" },
+    "workspace_id": { "type": ["string", "null"] },
+    "provider_id": { "type": "string" },
+    "model_id": { "type": ["string", "null"] },
+    "requested_steps": { "type": "array", "items": { "type": "string" } },
+    "completed_steps": { "type": "array", "items": { "type": "string" } },
+    "current_step": { "type": ["string", "null"] },
+    "status": { "type": "string" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "blocked_reason": { "type": ["string", "null"] },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "job_id", "task", "repo_root", "provider_id", "requested_steps", "completed_steps", "status", "created_at", "updated_at", "authoritative"]
+}

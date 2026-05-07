@@ -1,6 +1,7 @@
 # Concepts
 
-- Worktrees isolate execution.
+- Workspaces describe governed work items.
+- Isolated worktrees contain untrusted execution.
 - Receipts are evidence, not decoration.
-- Review bundles freeze apply intent.
-
+- Proposals are advisory until Rig accepts them.
+- Review and apply gates protect the main branch.

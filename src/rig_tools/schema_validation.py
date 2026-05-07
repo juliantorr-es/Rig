@@ -83,6 +83,8 @@ SCHEMA_FAMILIES = {
     "rig.review_bundle.v1": "Docs/schemas/rig.review_bundle.v1.schema.json",
     "rig.runtime_manifest.v1": "Docs/schemas/rig.runtime_manifest.v1.schema.json",
     "rig.agent_proposal.v1": "Docs/schemas/rig.agent_proposal.v1.schema.json",
+    "rig.orchestration_job.v1": "Docs/schemas/rig.orchestration_job.v1.schema.json",
+    "rig.orchestration_receipt.v1": "Docs/schemas/rig.orchestration_receipt.v1.schema.json",
 }
 
 
@@ -406,6 +408,12 @@ def _discover_family_paths(repo_root: Path, family: str) -> list[Path]:
     if family == "rig.agent_proposal.v1":
         out = repo_root / ".build" / "rig" / "agent-proposals"
         return sorted([p for p in out.glob("*.json") if p.is_file()], key=lambda p: p.name) if out.exists() else []
+    if family == "rig.orchestration_job.v1":
+        out = repo_root / ".build" / "rig" / "jobs"
+        return sorted([p for p in out.glob("*.json") if p.is_file()], key=lambda p: p.name) if out.exists() else []
+    if family == "rig.orchestration_receipt.v1":
+        out = repo_root / ".build" / "rig" / "receipts"
+        return sorted([p for p in out.glob("*_orchestration.json") if p.is_file()], key=lambda p: p.name) if out.exists() else []
     if family == "rig.event.v1":
         out = repo_root / ".build" / "rig" / "events"
         if not out.exists():

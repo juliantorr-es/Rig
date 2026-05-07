@@ -198,6 +198,7 @@ def render_command_center_snapshot(
     sentinel = snapshot.get("sentinel") or {}
     pressure = snapshot.get("pressure") or {}
     queue = snapshot.get("queue") or {}
+    jobs = snapshot.get("jobs") or []
     loop = snapshot.get("loop") or {}
     swarm = snapshot.get("swarm") or {}
     project = snapshot.get("project") or {}
@@ -240,6 +241,7 @@ def render_command_center_snapshot(
             {"label": "queue", "status": queue.get("status") or "unknown", "count": len(queue.get("jobs") or []), "receipt": queue_receipt},
             {"label": "loop", "status": loop.get("status") or "unknown", "run_id": loop.get("run_id"), "receipt": latest_receipts["loop"]},
             {"label": "swarm", "status": swarm.get("status") or "unknown", "swarm_id": swarm.get("swarm_id"), "receipt": latest_receipts["swarm"]},
+            {"label": "jobs", "status": jobs[0].get("status") if jobs else "none", "count": len(jobs), "receipt": ".build/rig/jobs"},
         ],
         "warnings": warnings[:10],
         "event_lines": events[:max_events],
@@ -251,6 +253,18 @@ def render_command_center_snapshot(
             "command-center-jobs",
             "command-center-warnings",
             "command-center-event-log",
+        ],
+        "jobs": [
+            {
+                "job_id": job.get("job_id"),
+                "task": job.get("task"),
+                "status": job.get("status"),
+                "current_step": job.get("current_step"),
+                "provider_id": job.get("provider_id"),
+                "workspace_id": job.get("workspace_id"),
+                "blocked_reason": job.get("blocked_reason"),
+            }
+            for job in jobs
         ],
     }
 

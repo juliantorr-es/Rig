@@ -46,3 +46,11 @@ pythonpath = ["src"]
 id = "pytest"
 argv = ["python", "-m", "pytest", "-q"]
 required = true
+
+[tool.rig.policy]
+allow_provider_proposals = true
+allow_auto_accept_proposals = false
+allow_auto_execute = false
+allow_auto_validate = true
+allow_auto_review = true
+allow_auto_apply = false

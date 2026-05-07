@@ -1,4 +1,7 @@
 # Rig
 
-Rig is a governed CLI for wrapping repositories in isolated worktrees, receipts, review bundles, and explicit apply gates.
+Rig is the cryptographically governed control plane for local AI coding.
 
+It wraps repositories in isolated worktrees, receipts, review bundles, and explicit apply gates.
+
+Phase 6 adds governed orchestration jobs that stop at human gates instead of mutating main automatically.

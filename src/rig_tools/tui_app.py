@@ -39,7 +39,7 @@ try:
 except ImportError:
     HAS_YAML = False
 
-from rig_tools import policy, system_pressure, model_manager, kanban_board, task_graph, tui_views
+from rig_tools import policy, system_pressure, model_manager, kanban_board, task_graph, tui_views, orchestration
 from rig_tools.tui_state import load_tui_state, save_tui_state, clamp_mode
 from rig_tools.tui_actions import ActionRegistry, ActionDefinition, CommandPlan
 from rig_tools.tui_events import render_tui_event, render_command_result, render_human_event_line, event_semantic_class, bauhaus_marker_for_status
@@ -165,6 +165,7 @@ class RigDataStore:
         wm = WorkspaceManager(self.repo_root)
         workspaces = wm.list_workspaces()
         latest_workspace = _read_json(self.base / "workspaces" / "latest.json") or {}
+        jobs = orchestration.list_jobs_summary(self.repo_root)
 
         # Product
         product_report = _read_json(self.base / "product" / "latest.json") or {}
@@ -197,6 +198,7 @@ class RigDataStore:
             "agent_discovery": agent_discovery,
             "workspaces": workspaces,
             "latest_workspace": latest_workspace,
+            "jobs": jobs,
             "product_report": product_report,
             "board": board,
             "graph": graph,

@@ -11,7 +11,7 @@ from rig.config.loader import merge_config
 from rig.config.paths import config_file, repo_state_root, cache_home, worktree_root
 from rig.logging.jsonl_logger import JsonlLogger
 from rig_tools.workspace_governance import WorkspaceGovernance
-from rig import commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5
+from rig import commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run
 
 
 def _repo_root() -> Path:
@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     commands_model.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_system.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_agent_phase5.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_job.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_run.register(sub, type("H", (), {"repo_root": _repo_root()})())
     args = parser.parse_args(argv)
     repo = _repo_root()
     if args.debug:
@@ -60,22 +62,42 @@ def main(argv: list[str] | None = None) -> int:
 
 def _init(repo_root: Path, *, dry_run: bool, yes: bool, config_target: str) -> int:
     cfg = config_file()
+    pyproject = repo_root / "pyproject.toml"
+    dotrig = repo_root / ".rig" / "config.toml"
+    target = pyproject if config_target == "pyproject" else dotrig
+    if not yes and not dry_run:
+        print("Initialize Rig in this repository? [y/N] ", end="", flush=True)
+        answer = sys.stdin.readline().strip().lower()
+        if answer not in {"y", "yes"}:
+            print("Rig init cancelled.")
+            return 1
     if dry_run:
-        print(json.dumps({"would_write": [str(cfg), str(repo_root / ".gitignore")]}, indent=2))
+        writes = [str(repo_root / ".gitignore"), str(target)]
+        print(json.dumps({"would_write": writes}, indent=2))
         return 0
-    cfg.parent.mkdir(parents=True, exist_ok=True)
-    if not cfg.exists() and config_target == "dotrig":
-        (repo_root / ".rig").mkdir(parents=True, exist_ok=True)
-        cfg.write_text("default_mode = \"safe\"\n", encoding="utf-8")
-    elif not cfg.exists():
-        cfg.write_text("[tool.rig]\n", encoding="utf-8")
+    if config_target == "dotrig":
+        dotrig.parent.mkdir(parents=True, exist_ok=True)
+        if dotrig.exists():
+            print("Refusing to overwrite existing .rig/config.toml without an explicit migration step.", file=sys.stderr)
+            return 1
+        dotrig.write_text("default_mode = \"safe\"\n", encoding="utf-8")
+    else:
+        if pyproject.exists():
+            text = pyproject.read_text(encoding="utf-8")
+            if "[tool.rig]" not in text:
+                if not text.endswith("\n"):
+                    text += "\n"
+                text += "\n[tool.rig]\n"
+                pyproject.write_text(text, encoding="utf-8")
+        else:
+            pyproject.write_text("[build-system]\nrequires = [\"setuptools>=69\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"rig\"\nversion = \"0.1.0\"\n", encoding="utf-8")
     gitignore = repo_root / ".gitignore"
     existing = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
     for line in ["# Rig local state", ".build/rig/", ".rig/tmp/", ".rig/cache/"]:
         if line not in existing:
             existing += ("" if existing.endswith("\n") or not existing else "\n") + line + "\n"
     gitignore.write_text(existing, encoding="utf-8")
-    print("Rig initialized.\nRun `rig tui` to open the command center.\nRun `rig workspace create --task <task-id>` to create your first governed workspace.")
+    print("Rig initialized.\nNext:\n  rig tui\n  rig run --task <task-id> --provider custom-command")
     return 0
 
 

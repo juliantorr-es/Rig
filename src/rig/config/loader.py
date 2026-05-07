@@ -13,6 +13,14 @@ def defaults() -> dict[str, Any]:
         "default_mode": "safe",
         "worktree_root": None,
         "log_dir": None,
+        "policy": {
+            "allow_provider_proposals": True,
+            "allow_auto_accept_proposals": False,
+            "allow_auto_execute": False,
+            "allow_auto_validate": True,
+            "allow_auto_review": True,
+            "allow_auto_apply": False,
+        },
     }
 
 

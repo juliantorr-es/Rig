@@ -1,0 +1,22 @@
+# Rig Productization Phase 6A Proof
+
+- Files created: `docs/dev/rig/PUBLIC_PRODUCT_HARDENING.md`, `tests/test_phase6a_public_hardening.py`
+- Files modified: `README.md`, `docs/index.md`, `docs/quickstart.md`, `docs/concepts.md`, `docs/cli.md`, `docs/troubleshooting.md`, `src/rig/cli/main.py`, `scripts/ci/check.sh`
+- Files moved: none
+- Product hardening changes: README now leads with product positioning; `rig init` now prompts by default, supports `--dry-run` and `--yes`, and prints a next-step path; canonical compile check now uses `find ... | xargs -0 python -m py_compile`
+- Init behavior: no-write dry-run; prompt unless `--yes`; emits `rig tui` and `rig run --task <task-id> --provider custom-command`
+- Logging behavior: unchanged from Phase 4, still JSONL under `.build/rig/logs/`
+- TUI changes: unchanged in this subphase
+- Packaging validation:
+  - `python -m rig --help` -> passed
+  - `python rig.py --help` -> passed
+  - `python scripts/rig.py --help` -> passed
+  - `find src scripts -name "*.py" -print0 | xargs -0 python -m py_compile` -> passed
+  - `python -m rig init --dry-run` -> passed
+  - `python -m rig init --yes` -> passed
+  - `.build/venv/bin/python -m pytest -q` -> passed, `23 passed`
+- Validation commands and results: same as packaging validation; `python -m rig config inspect` also passed
+- Remaining risks: legacy migration docs still mention Anigma for history; `scripts/` still contains historical utilities and compatibility wrappers by design
+- No auto-apply: confirmed
+- No background daemon: confirmed
+- Phase 7 scheduling/autonomous loop work: not started

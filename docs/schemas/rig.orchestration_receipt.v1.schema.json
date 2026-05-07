@@ -1,0 +1,24 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.orchestration_receipt.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Orchestration Receipt Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.orchestration_receipt.v1" },
+    "receipt_id": { "type": "string" },
+    "job_id": { "type": "string" },
+    "workspace_id": { "type": ["string", "null"] },
+    "proposal_id": { "type": ["string", "null"] },
+    "plan_id": { "type": ["string", "null"] },
+    "execution_receipt_id": { "type": ["string", "null"] },
+    "validation_receipt_ids": { "type": "array", "items": { "type": "string" } },
+    "review_bundle_hash": { "type": ["string", "null"] },
+    "status": { "type": "string" },
+    "started_at": { "type": "string" },
+    "finished_at": { "type": "string" },
+    "failed_step": { "type": ["string", "null"] },
+    "blocked_reason": { "type": ["string", "null"] },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "receipt_id", "job_id", "status", "started_at", "finished_at", "authoritative"]
+}

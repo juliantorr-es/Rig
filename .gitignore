@@ -11,3 +11,7 @@ build/
 .env
 .env.*
 *.log
+# Rig local state
+.build/rig/
+.rig/tmp/
+.rig/cache/
