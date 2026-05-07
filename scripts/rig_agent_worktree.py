@@ -99,6 +99,35 @@ class PromoteReport:
     ready_to_promote: bool
 
 
+@dataclass(frozen=True)
+class RecommendationReport:
+    agent: str
+    task: str
+    path: Path
+    base: str
+    target: str
+    source_branch: str
+    expected_branch: str
+    branch_matches_convention: bool
+    head: str
+    dirty: bool
+    ahead: int
+    behind: int
+    changed_files: tuple[str, ...]
+    commits: tuple[str, ...]
+    blockers: tuple[str, ...]
+    warnings: tuple[str, ...]
+    preferred_path: str
+    recommended_path: str
+    ready: bool
+    rationale: str
+    future_commands: tuple[str, ...]
+    validations_to_run: tuple[str, ...]
+    dry_run: bool
+    would_mutate: bool
+    next_safe_action: str
+
+
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
@@ -422,6 +451,67 @@ def _resolve_target_branch(task: str, target: str | None) -> str:
     return f"sprint/{task}"
 
 
+def required_validation_commands() -> tuple[str, ...]:
+    return (
+        "python3.14 -m compileall -q scripts tests",
+        "python3.14 -m pytest tests/test_rig_agent_worktree.py -v",
+        "python3.14 -m compileall -q src tests",
+        "python3.14 -m pytest tests/test_ui_repo_selection.py -v",
+        "python3.14 -m pytest tests/test_ui_intent_contract.py -v",
+        "python3.14 -m pytest tests/test_ui_frontend_logic.py -v",
+        "python3.14 -m rig ui --help",
+        "python3.14 -m rig window open --dry-run",
+    )
+
+
+def _promotion_future_commands(
+    report: ReviewReport,
+    *,
+    target: str,
+    strategy: str,
+) -> tuple[str, ...]:
+    if strategy == "pr":
+        return (
+            f"gh pr create --base {target} --head {report.branch} --title \"{report.task}: {report.agent} lane\" --body \"Promote {report.agent} {report.task} lane\"",
+        )
+    if strategy == "squash":
+        return (
+            f"rig agent lane promote {report.agent} {report.task} --strategy squash --target {target} --dry-run",
+        )
+    if strategy == "cherry-pick":
+        return (
+            f"rig agent lane promote {report.agent} {report.task} --strategy cherry-pick --target {target} --dry-run",
+        )
+    return (
+        f"python scripts/rig_agent_worktree.py review {report.agent} {report.task} --path {report.path}",
+        f"python scripts/rig_agent_worktree.py promote {report.agent} {report.task} --path {report.path} --strategy manual --dry-run",
+        f"git diff {report.base}...HEAD",
+    )
+
+
+def _infer_recommendation_path(
+    report: ReviewReport,
+    *,
+    target_exists: bool,
+    prefer: str,
+) -> tuple[str, bool, str]:
+    if prefer == "hold":
+        return "hold", False, "user requested hold"
+    if report.blockers:
+        return "hold", False, "blockers must be resolved before promotion"
+    if prefer in {"pr", "squash", "cherry-pick"}:
+        if prefer == "cherry-pick" and len(report.commits) > 3:
+            return "review", True, "lane is promotable but has enough commits that human review is safer"
+        if prefer == "pr":
+            return "pr", True, "user prefers PR flow and the lane is clean and review-ready"
+        if prefer == "squash":
+            return "squash", True, "user prefers squash promotion and the lane is clean and review-ready"
+        return "cherry-pick", True, "user prefers cherry-pick and the lane has a small commit count"
+    if report.branch_matches_convention and target_exists and report.behind == 0:
+        return "review", True, "lane is clean and review-ready, but default policy is human review before mutation"
+    return "review", True, "lane is clean and review-ready; human review remains the safest next path"
+
+
 def build_promote_report(
     agent: str,
     task: str,
@@ -445,16 +535,7 @@ def build_promote_report(
     target_branch = _resolve_target_branch(task, target)
     blockers = list(review.blockers)
     warnings = list(review.warnings)
-    required_validations = (
-        "python3.14 -m compileall -q scripts tests",
-        "python3.14 -m pytest tests/test_rig_agent_worktree.py -v",
-        "python3.14 -m compileall -q src tests",
-        "python3.14 -m pytest tests/test_ui_repo_selection.py -v",
-        "python3.14 -m pytest tests/test_ui_intent_contract.py -v",
-        "python3.14 -m pytest tests/test_ui_frontend_logic.py -v",
-        "python3.14 -m rig ui --help",
-        "python3.14 -m rig window open --dry-run",
-    )
+    required_validations = required_validation_commands()
 
     if attachment.branch == "main":
         blockers.append("branch is main")
@@ -559,6 +640,138 @@ def build_promote_report(
         would_mutate=False,
         ready_to_promote=ready_to_promote,
     )
+
+
+def build_recommendation_report(
+    agent: str,
+    task: str,
+    path: Path,
+    *,
+    base: str = DEFAULT_BASE,
+    target: str | None = None,
+    prefer: str = "review",
+    repo_root: Path | None = None,
+) -> RecommendationReport:
+    review = build_review_report(agent, task, path, base=base, repo_root=repo_root)
+    target_branch = _resolve_target_branch(task, target)
+    prefer = prefer.strip().lower()
+    known_preference = prefer in {"review", "pr", "squash", "cherry-pick", "hold"}
+    if not known_preference:
+        prefer = "hold"
+    warnings = list(review.warnings)
+    target_exists = _run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{target_branch}"], cwd=review.path).returncode == 0
+    if not target_exists:
+        warnings.append("target branch does not exist yet")
+    recommended_path, ready, rationale = _infer_recommendation_path(
+        review,
+        target_exists=target_exists,
+        prefer=prefer,
+    )
+    if not known_preference:
+        rationale = "preference was invalid; holding until the user supplies a known next path"
+    elif prefer == "hold":
+        ready = False
+        rationale = "user explicitly requested hold"
+
+    if recommended_path == "hold":
+        future_commands = (
+            "resolve blockers",
+            f"python scripts/rig_agent_worktree.py review {agent} {task} --path {path}",
+        )
+        next_safe_action = "resolve blockers before re-running review"
+    elif recommended_path == "review":
+        future_commands = _promotion_future_commands(review, target=target_branch, strategy="manual")
+        next_safe_action = "review diff / inspect cockpit manually / decide promotion path"
+    else:
+        future_commands = _promotion_future_commands(review, target=target_branch, strategy=recommended_path)
+        if recommended_path == "pr":
+            next_safe_action = "prepare a future PR path; do not run gh yet"
+            warnings.append("gh pr create may prompt to push; do not invoke it during recommendation")
+        elif recommended_path == "squash":
+            next_safe_action = "prepare a future squash promotion path"
+        else:
+            next_safe_action = "prepare a future cherry-pick promotion path"
+
+    return RecommendationReport(
+        agent=review.agent,
+        task=review.task,
+        path=review.path,
+        base=review.base,
+        target=target_branch,
+        source_branch=review.branch,
+        expected_branch=review.expected_branch,
+        branch_matches_convention=review.branch_matches_convention,
+        head=review.head,
+        dirty=review.dirty,
+        ahead=review.ahead,
+        behind=review.behind,
+        changed_files=review.changed_files,
+        commits=review.commits,
+        blockers=review.blockers,
+        warnings=tuple(dict.fromkeys(warnings)),
+        preferred_path=prefer,
+        recommended_path=recommended_path,
+        ready=ready,
+        rationale=rationale,
+        future_commands=future_commands,
+        validations_to_run=required_validation_commands(),
+        dry_run=True,
+        would_mutate=False,
+        next_safe_action=next_safe_action,
+    )
+
+
+def cmd_recommend(args: argparse.Namespace) -> int:
+    try:
+        report = build_recommendation_report(
+            args.agent,
+            args.task,
+            Path(args.path),
+            base=getattr(args, "base", DEFAULT_BASE),
+            target=getattr(args, "target", None),
+            prefer=getattr(args, "prefer", "review"),
+        )
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"agent: {report.agent}")
+    print(f"task: {report.task}")
+    print(f"path: {report.path}")
+    print(f"base: {report.base}")
+    print(f"target: {report.target}")
+    print(f"source_branch: {report.source_branch}")
+    print(f"expected_branch: {report.expected_branch}")
+    print(f"branch_matches_convention: {str(report.branch_matches_convention).lower()}")
+    print(f"head: {report.head}")
+    print(f"dirty: {str(report.dirty).lower()}")
+    print(f"ahead: {report.ahead}")
+    print(f"behind: {report.behind}")
+    print("changed_files:")
+    for line in report.changed_files:
+        print(f"  {line}")
+    print("commits:")
+    for line in report.commits:
+        print(f"  {line}")
+    print("blockers:")
+    for line in report.blockers:
+        print(f"  {line}")
+    print("warnings:")
+    for line in report.warnings:
+        print(f"  {line}")
+    print(f"preferred_path: {report.preferred_path}")
+    print(f"recommended_path: {report.recommended_path}")
+    print(f"ready: {str(report.ready).lower()}")
+    print(f"rationale: {report.rationale}")
+    print("future_commands:")
+    for line in report.future_commands:
+        print(f"  {line}")
+    print("validations_to_run:")
+    for line in report.validations_to_run:
+        print(f"  {line}")
+    print(f"dry_run: {str(report.dry_run).lower()}")
+    print(f"would_mutate: {str(report.would_mutate).lower()}")
+    print(f"next_safe_action: {report.next_safe_action}")
+    return 0
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -868,6 +1081,14 @@ def build_parser() -> argparse.ArgumentParser:
     promote_parser.add_argument("--strategy", default="manual")
     promote_parser.add_argument("--dry-run", action="store_true")
 
+    recommend_parser = subparsers.add_parser("recommend")
+    recommend_parser.add_argument("agent")
+    recommend_parser.add_argument("task")
+    recommend_parser.add_argument("--path", required=True)
+    recommend_parser.add_argument("--base", default=DEFAULT_BASE)
+    recommend_parser.add_argument("--target")
+    recommend_parser.add_argument("--prefer", default="review")
+
     subparsers.add_parser("list")
     subparsers.add_parser("status")
     return parser
@@ -886,6 +1107,7 @@ def main(argv: list[str] | None = None) -> int:
         "checkpoint": cmd_checkpoint,
         "review": cmd_review,
         "promote": cmd_promote,
+        "recommend": cmd_recommend,
     }
     try:
         return handlers[args.command](args)

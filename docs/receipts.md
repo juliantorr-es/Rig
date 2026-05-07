@@ -17,6 +17,7 @@ Lane receipt kinds include:
 - `lane_remove_refused`
 - `lane_remove`
 - `lane_promote` future
+- `lane_recommendation` future
 
 Lane receipts should record repo root, worktree path, branch, before/after HEAD, detected dirty files, selected files, excluded files, command summary, result, timestamp, and warnings.
 

@@ -139,12 +139,16 @@ python scripts/rig_agent_worktree.py promote gemini ui-cockpit --path .rig/workt
 python scripts/rig_agent_worktree.py promote gemini ui-cockpit --path .rig/worktrees/ui-cockpit --strategy squash --target sprint/ui-cockpit --dry-run
 python scripts/rig_agent_worktree.py promote gemini ui-cockpit --path .rig/worktrees/ui-cockpit --strategy cherry-pick --target sprint/ui-cockpit --dry-run
 
+# Recommend the safest next path without mutating the lane
+python scripts/rig_agent_worktree.py recommend gemini ui-cockpit --path .rig/worktrees/ui-cockpit
+python scripts/rig_agent_worktree.py recommend gemini ui-cockpit --path .rig/worktrees/ui-cockpit --prefer pr --target sprint/ui-cockpit
+
 # List or remove a lane
 python scripts/rig_agent_worktree.py list
 python scripts/rig_agent_worktree.py remove gemini ui-entrypoint
 ```
 
-`start` creates an isolated lane, `attach` recognizes an existing lane without mutation, `prompt` prints guarded handoff text, `checkpoint` commits only selected files on non-main branches, `review` is read-only and reports readiness for promotion, `promote` is read-only planning only, and `remove` refuses dirty worktrees. Do not use `push`, `merge`, `rebase`, `reset`, `clean`, or `stash` in this workflow.
+`start` creates an isolated lane, `attach` recognizes an existing lane without mutation, `prompt` prints guarded handoff text, `checkpoint` commits only selected files on non-main branches, `review` is read-only and reports readiness for promotion, `promote` is read-only planning only, `recommend` is the governed next-step policy layer above review/promote, and `remove` refuses dirty worktrees. Do not use `push`, `merge`, `rebase`, `reset`, `clean`, or `stash` in this workflow.
 
 ### Syncing Agent Memory Into TD
 ```bash

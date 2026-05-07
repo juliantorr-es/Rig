@@ -344,6 +344,51 @@ Strategy semantics:
 - `cherry-pick`: future cherry-pick promotion planning only
 - `manual` is the safest default unless a caller explicitly selects a strategy
 
+### `recommend <agent> <task> --path <path> [--prefer <path>]`
+
+Purpose:
+- Choose the safest next governed path for a clean lane.
+
+Inputs:
+- agent slug
+- task slug
+- existing worktree path
+- optional base ref, defaulting to `main`
+- optional target branch, defaulting to `sprint/<task>`
+- optional preference hint: `review`, `pr`, `squash`, `cherry-pick`, or `hold`
+
+Side effects:
+- none
+
+Refusals:
+- invalid slugs
+- missing path
+- repository mismatch
+
+Mutates Git/files:
+- no
+
+Allowed on main:
+- yes, read-only only
+
+Expected output:
+- lane summary
+- blockers and warnings
+- preferred path
+- recommended path
+- rationale
+- future commands
+- validations to run
+- ready/hold state
+- next safe action
+
+Decision model:
+- `hold` when blockers exist or the user preference is invalid / explicitly hold
+- `review` when the lane is clean and promotable but warnings make human review the safest next step
+- `pr` / `squash` / `cherry-pick` only when explicitly preferred or policy-driven and no blockers exist
+- default recommendation is `review`
+- warnings do not block recommendation; blockers do
+
 ## Future Rig CLI Shape
 
 These are planned product commands, not implemented by the current MVP unless the repo explicitly adds them later.
@@ -459,6 +504,7 @@ Future receipts should exist for:
 - `lane_remove_refused`
 - `lane_remove`
 - `lane_promote`
+- `lane_recommendation`
 
 Each receipt should include:
 
@@ -474,6 +520,9 @@ Each receipt should include:
 - result
 - timestamp
 - warnings
+- recommended path
+- rationale
+- validations to run
 
 ## UI Projection Plan
 
