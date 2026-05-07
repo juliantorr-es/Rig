@@ -35,6 +35,18 @@ class AttachedWorktree:
     branch_matches_convention: bool
 
 
+@dataclass(frozen=True)
+class CheckpointPlan:
+    agent: str
+    task: str
+    path: Path
+    branch: str
+    head: str
+    dirty_files: tuple[str, ...]
+    message: str
+    files_to_stage: tuple[str, ...]
+
+
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
@@ -156,6 +168,48 @@ def inspect_attached_worktree(agent: str, task: str, path: Path, *, repo_root: P
     )
 
 
+def parse_porcelain_status(status: str) -> tuple[list[str], bool]:
+    files: list[str] = []
+    has_conflict = False
+    for line in status.splitlines():
+        if not line or line.startswith("##"):
+            continue
+        if len(line) < 4:
+            continue
+        xy = line[:2]
+        path = line[3:]
+        if "U" in xy or xy == "DD" or xy == "AA" or xy == "AU" or xy == "UA" or xy == "DU" or xy == "UD":
+            has_conflict = True
+        if "->" in path:
+            path = path.split("->", 1)[1].strip()
+        files.append(path)
+    return files, has_conflict
+
+
+def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, repo_root: Path | None = None) -> CheckpointPlan:
+    attachment = inspect_attached_worktree(agent, task, path, repo_root=repo_root)
+    if attachment.branch == "main":
+        raise ValueError("Refusing to checkpoint on main branch.")
+    if not message.strip():
+        raise ValueError("Commit message must be non-empty.")
+    status = _git_output(["status", "--porcelain"], cwd=attachment.path)
+    files_to_stage, has_conflict = parse_porcelain_status(status)
+    if has_conflict:
+        raise ValueError("Refusing to checkpoint unresolved merge/conflict states.")
+    if not files_to_stage:
+        raise ValueError("Refusing to checkpoint a clean worktree.")
+    return CheckpointPlan(
+        agent=attachment.agent,
+        task=attachment.task,
+        path=attachment.path,
+        branch=attachment.branch,
+        head=attachment.head,
+        dirty_files=tuple(attachment.dirty_files),
+        message=message.strip(),
+        files_to_stage=tuple(files_to_stage),
+    )
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
     if not plan.worktree_root.exists() and not args.dry_run:
@@ -254,6 +308,41 @@ def cmd_attach(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_checkpoint(args: argparse.Namespace) -> int:
+    try:
+        plan = build_checkpoint_plan(args.agent, args.task, Path(args.path), args.message)
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"agent: {plan.agent}")
+    print(f"task: {plan.task}")
+    print(f"path: {plan.path}")
+    print(f"branch: {plan.branch}")
+    print(f"HEAD: {plan.head}")
+    print("dirty_files:")
+    for line in plan.dirty_files:
+        print(f"  {line}")
+    print(f"proposed_commit_message: {plan.message}")
+    print("files_to_stage:")
+    for item in plan.files_to_stage:
+        print(f"  {item}")
+    if args.dry_run:
+        print()
+        print(f"DRY RUN: git -C {plan.path} add -- { ' '.join(plan.files_to_stage) }")
+        print(f"DRY RUN: git -C {plan.path} commit -m {plan.message!r}")
+        return 0
+    result = _run_git(["-C", str(plan.path), "add", "--", *plan.files_to_stage], cwd=plan.path)
+    if result.returncode != 0:
+        print(result.stderr.strip() or result.stdout.strip() or "git add failed", file=sys.stderr)
+        return result.returncode or 1
+    result = _run_git(["-C", str(plan.path), "commit", "-m", plan.message], cwd=plan.path)
+    if result.returncode != 0:
+        print(result.stderr.strip() or result.stdout.strip() or "git commit failed", file=sys.stderr)
+        return result.returncode or 1
+    print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+    return 0
+
+
 def cmd_remove(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
     if not plan.worktree_path.exists():
@@ -297,6 +386,12 @@ def build_parser() -> argparse.ArgumentParser:
     attach_parser.add_argument("task")
     attach_parser.add_argument("--path", required=True)
 
+    checkpoint_parser = subparsers.add_parser("checkpoint")
+    checkpoint_parser.add_argument("agent")
+    checkpoint_parser.add_argument("task")
+    checkpoint_parser.add_argument("--path", required=True)
+    checkpoint_parser.add_argument("--message", required=True)
+
     subparsers.add_parser("list")
     subparsers.add_parser("status")
     return parser
@@ -312,6 +407,7 @@ def main(argv: list[str] | None = None) -> int:
         "prompt": cmd_prompt,
         "remove": cmd_remove,
         "attach": cmd_attach,
+        "checkpoint": cmd_checkpoint,
     }
     try:
         return handlers[args.command](args)

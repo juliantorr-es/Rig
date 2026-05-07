@@ -103,6 +103,190 @@ def test_attach_rejects_invalid_slugs(tmp_path: Path) -> None:
         rat.inspect_attached_worktree("Gemini", "ui-cockpit", tmp_path)
 
 
+def test_checkpoint_dry_run_does_not_call_mutating_commands(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    calls: list[list[str]] = []
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        calls.append(args)
+        if args == ["rev-parse", "--show-toplevel"]:
+            return SimpleNamespace(returncode=0, stdout=str(tmp_path / "Rig") + "\n", stderr="")
+        if args == ["rev-parse", "--git-common-dir"]:
+            return SimpleNamespace(returncode=0, stdout=".git\n", stderr="")
+        if args == ["rev-parse", "--short", "HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="175c824\n", stderr="")
+        if args == ["branch", "--show-current"]:
+            return SimpleNamespace(returncode=0, stdout="agent/ui-cockpit/gemini\n", stderr="")
+        if args == ["status", "--short", "--branch"]:
+            return SimpleNamespace(returncode=0, stdout="## agent/ui-cockpit/gemini\n", stderr="")
+        if args == ["status", "--porcelain"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/file.py\n", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    result = rat.cmd_checkpoint(SimpleNamespace(agent="gemini", task="ui-cockpit", path=str(path), message="Add UI cockpit widgets", dry_run=True))
+    assert result == 0
+    assert any(args == ["status", "--porcelain"] for args in calls)
+    assert all("commit" not in args for args in calls)
+    out = capsys.readouterr().out
+    assert "files_to_stage" in out
+    assert "DRY RUN: git -C" in out
+
+
+def test_checkpoint_refuses_main_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "main-lane"
+    path.mkdir(parents=True)
+
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="main",
+        expected_branch="agent/task/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M file.py",),
+        branch_matches_convention=False,
+    ))
+
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "msg")
+
+
+def test_checkpoint_refuses_clean_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=False,
+        dirty_files=(),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_git_output", lambda *args, **kwargs: "")
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "Add UI cockpit widgets")
+
+
+def test_checkpoint_refuses_empty_message(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M file.py",),
+        branch_matches_convention=True,
+    ))
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "   ")
+
+
+def test_parse_porcelain_status_extracts_explicit_files_and_conflicts() -> None:
+    files, has_conflict = rat.parse_porcelain_status(" M src/a.py\n?? src/b.py\nUU src/c.py\n")
+    assert files == ["src/a.py", "src/b.py", "src/c.py"]
+    assert has_conflict is True
+
+
+def test_checkpoint_summary_includes_lane_details(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M file.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_git_output", lambda *args, **kwargs: " M file.py\n")
+    plan = rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "Add UI cockpit widgets")
+    assert plan.path == path
+    assert plan.branch == "agent/ui-cockpit/gemini"
+    assert plan.head == "abcd123"
+    assert plan.files_to_stage == ("file.py",)
+
+
+def test_checkpoint_stages_explicit_files_and_uses_message(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M file.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_git_output", lambda *args, **kwargs: " M file.py\n")
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        calls.append(args)
+        if args == ["-C", str(path), "add", "--", "file.py"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["-C", str(path), "commit", "-m", "Add UI cockpit widgets"]:
+            return SimpleNamespace(returncode=0, stdout="done\n", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    result = rat.cmd_checkpoint(SimpleNamespace(agent="gemini", task="ui-cockpit", path=str(path), message="Add UI cockpit widgets", dry_run=False))
+    assert result == 0
+    assert ["-C", str(path), "add", "--", "file.py"] in calls
+    assert ["-C", str(path), "commit", "-m", "Add UI cockpit widgets"] in calls
+    assert all("add" not in args or "." not in args for args in calls)
+
+
+def test_checkpoint_does_not_push_merge_rebase_clean_reset_or_stash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M file.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_git_output", lambda *args, **kwargs: " M file.py\n")
+
+    calls: list[list[str]] = []
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        calls.append(args)
+        if args == ["-C", str(path), "add", "--", "file.py"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["-C", str(path), "commit", "-m", "msg"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    rat.cmd_checkpoint(SimpleNamespace(agent="gemini", task="ui-cockpit", path=str(path), message="msg", dry_run=False))
+    assert all(not any(part in args for part in ("push", "merge", "rebase", "clean", "reset", "stash")) for args in calls)
+
+
 def test_remove_refuses_dirty_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "Rig"
     worktree_path = tmp_path / "Rig-worktrees" / "rig-codex-task"
