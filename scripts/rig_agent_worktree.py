@@ -49,6 +49,28 @@ class CheckpointPlan:
     excluded_files: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class ReviewReport:
+    agent: str
+    task: str
+    path: Path
+    branch: str
+    expected_branch: str
+    branch_matches_convention: bool
+    base: str
+    head: str
+    dirty: bool
+    dirty_files: tuple[str, ...]
+    ahead: int
+    behind: int
+    changed_files: tuple[str, ...]
+    commits: tuple[str, ...]
+    ready_for_review: bool
+    blockers: tuple[str, ...]
+    warnings: tuple[str, ...]
+    next_actions: tuple[str, ...]
+
+
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
@@ -256,6 +278,113 @@ def build_checkpoint_plan(
     )
 
 
+def build_review_report(
+    agent: str,
+    task: str,
+    path: Path,
+    *,
+    base: str = DEFAULT_BASE,
+    repo_root: Path | None = None,
+) -> ReviewReport:
+    attachment = inspect_attached_worktree(agent, task, path, repo_root=repo_root)
+    blockers: list[str] = []
+    warnings: list[str] = []
+    ready_for_review = False
+    ahead = 0
+    behind = 0
+    changed_files: tuple[str, ...] = tuple()
+    commits: tuple[str, ...] = tuple()
+
+    if attachment.branch == "main":
+        blockers.append("branch is main")
+
+    try:
+        base_result = _run_git(["rev-parse", "--verify", base], cwd=attachment.path)
+        if base_result.returncode != 0:
+            raise RuntimeError(base_result.stderr.strip() or base_result.stdout.strip() or f"unable to resolve base ref: {base}")
+    except RuntimeError as exc:
+        blockers.append(str(exc))
+        return ReviewReport(
+            agent=attachment.agent,
+            task=attachment.task,
+            path=attachment.path,
+            branch=attachment.branch,
+            expected_branch=attachment.expected_branch,
+            branch_matches_convention=attachment.branch_matches_convention,
+            base=base,
+            head=attachment.head,
+            dirty=attachment.dirty,
+            dirty_files=attachment.dirty_files,
+            ahead=ahead,
+            behind=behind,
+            changed_files=changed_files,
+            commits=commits,
+            ready_for_review=False,
+            blockers=tuple(blockers),
+            warnings=tuple(warnings),
+            next_actions=("resolve base ref", "re-run review"),
+        )
+
+    counts = _run_git(["rev-list", "--left-right", "--count", f"{base}...HEAD"], cwd=attachment.path)
+    if counts.returncode != 0:
+        blockers.append(counts.stderr.strip() or counts.stdout.strip() or "git rev-list failed")
+    else:
+        left_right = counts.stdout.strip().split()
+        if len(left_right) == 2:
+            behind = int(left_right[0])
+            ahead = int(left_right[1])
+        else:
+            blockers.append("unable to parse ahead/behind counts")
+
+    diff = _run_git(["diff", "--name-status", f"{base}...HEAD"], cwd=attachment.path)
+    if diff.returncode != 0:
+        blockers.append(diff.stderr.strip() or diff.stdout.strip() or "git diff failed")
+    else:
+        changed_files = tuple(line.strip() for line in diff.stdout.splitlines() if line.strip())
+
+    log = _run_git(["log", "--oneline", "--decorate", f"{base}..HEAD"], cwd=attachment.path)
+    if log.returncode != 0:
+        blockers.append(log.stderr.strip() or log.stdout.strip() or "git log failed")
+    else:
+        commits = tuple(line.strip() for line in log.stdout.splitlines() if line.strip())
+
+    if attachment.dirty:
+        blockers.append("worktree is dirty")
+    if not attachment.branch_matches_convention:
+        warnings.append("branch does not match preferred agent convention")
+    if behind > 0:
+        warnings.append("lane is behind base")
+    if ahead <= 0:
+        blockers.append("lane has no commits ahead of base")
+    if not blockers:
+        ready_for_review = attachment.branch != "main" and not attachment.dirty and ahead > 0
+
+    next_actions = (
+        "review diff",
+        "promote to sprint branch or human review path",
+    )
+    return ReviewReport(
+        agent=attachment.agent,
+        task=attachment.task,
+        path=attachment.path,
+        branch=attachment.branch,
+        expected_branch=attachment.expected_branch,
+        branch_matches_convention=attachment.branch_matches_convention,
+        base=base,
+        head=attachment.head,
+        dirty=attachment.dirty,
+        dirty_files=attachment.dirty_files,
+        ahead=ahead,
+        behind=behind,
+        changed_files=changed_files,
+        commits=commits,
+        ready_for_review=ready_for_review,
+        blockers=tuple(blockers),
+        warnings=tuple(warnings),
+        next_actions=next_actions,
+    )
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
     if not plan.worktree_root.exists() and not args.dry_run:
@@ -402,6 +531,47 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_review(args: argparse.Namespace) -> int:
+    try:
+        report = build_review_report(
+            args.agent,
+            args.task,
+            Path(args.path),
+            base=getattr(args, "base", DEFAULT_BASE),
+        )
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"agent: {report.agent}")
+    print(f"task: {report.task}")
+    print(f"path: {report.path}")
+    print(f"branch: {report.branch}")
+    print(f"expected_branch: {report.expected_branch}")
+    print(f"branch_matches_convention: {str(report.branch_matches_convention).lower()}")
+    print(f"base: {report.base}")
+    print(f"head: {report.head}")
+    print(f"dirty: {str(report.dirty).lower()}")
+    print(f"ahead: {report.ahead}")
+    print(f"behind: {report.behind}")
+    print("changed_files:")
+    for line in report.changed_files:
+        print(f"  {line}")
+    print("commits:")
+    for line in report.commits:
+        print(f"  {line}")
+    print(f"ready_for_review: {str(report.ready_for_review).lower()}")
+    print("blockers:")
+    for line in report.blockers:
+        print(f"  {line}")
+    print("warnings:")
+    for line in report.warnings:
+        print(f"  {line}")
+    print("next_actions:")
+    for line in report.next_actions:
+        print(f"  {line}")
+    return 0
+
+
 def cmd_remove(args: argparse.Namespace) -> int:
     plan = resolve_worktree_plan(args.agent, args.task)
     if not plan.worktree_path.exists():
@@ -454,6 +624,12 @@ def build_parser() -> argparse.ArgumentParser:
     checkpoint_parser.add_argument("--exclude", action="append")
     checkpoint_parser.add_argument("--dry-run", action="store_true")
 
+    review_parser = subparsers.add_parser("review")
+    review_parser.add_argument("agent")
+    review_parser.add_argument("task")
+    review_parser.add_argument("--path", required=True)
+    review_parser.add_argument("--base", default=DEFAULT_BASE)
+
     subparsers.add_parser("list")
     subparsers.add_parser("status")
     return parser
@@ -470,6 +646,7 @@ def main(argv: list[str] | None = None) -> int:
         "remove": cmd_remove,
         "attach": cmd_attach,
         "checkpoint": cmd_checkpoint,
+        "review": cmd_review,
     }
     try:
         return handlers[args.command](args)

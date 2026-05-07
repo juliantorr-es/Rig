@@ -252,6 +252,44 @@ Purpose:
 Guarantee:
 - dry-run and real checkpoint use the same selected file list
 
+### `review <agent> <task> --path <path> [--base <ref>]`
+
+Purpose:
+- Produce a read-only promotion-readiness report for an existing lane.
+
+Inputs:
+- agent slug
+- task slug
+- existing worktree path
+- optional base ref, defaulting to `main`
+
+Side effects:
+- none
+
+Refusals:
+- invalid slugs
+- missing path
+- repository mismatch
+- unresolved base ref
+
+Mutates Git/files:
+- no
+
+Allowed on main:
+- yes, read-only only
+
+Expected output:
+- lane summary
+- cleanliness
+- branch convention status
+- ahead/behind counts
+- changed files vs base
+- commits ahead of base
+- ready-for-review status
+- blockers
+- warnings
+- recommended next actions
+
 ## Future Rig CLI Shape
 
 These are planned product commands, not implemented by the current MVP unless the repo explicitly adds them later.

@@ -130,12 +130,15 @@ python scripts/rig_agent_worktree.py prompt gemini ui-entrypoint
 python scripts/rig_agent_worktree.py checkpoint gemini ui-cockpit --path .rig/worktrees/ui-cockpit --message "Add UI cockpit projection widgets" --dry-run
 python scripts/rig_agent_worktree.py checkpoint gemini ui-cockpit --path .rig/worktrees/ui-cockpit --message "Add UI cockpit projection widgets" --exclude src/rig/domain/_git_helper.py
 
+# Inspect promotion readiness without mutating the lane
+python scripts/rig_agent_worktree.py review gemini ui-cockpit --path .rig/worktrees/ui-cockpit
+
 # List or remove a lane
 python scripts/rig_agent_worktree.py list
 python scripts/rig_agent_worktree.py remove gemini ui-entrypoint
 ```
 
-`start` creates an isolated lane, `attach` recognizes an existing lane without mutation, `prompt` prints guarded handoff text, `checkpoint` commits only selected files on non-main branches, and `remove` refuses dirty worktrees. Do not use `push`, `merge`, `rebase`, `reset`, `clean`, or `stash` in this workflow.
+`start` creates an isolated lane, `attach` recognizes an existing lane without mutation, `prompt` prints guarded handoff text, `checkpoint` commits only selected files on non-main branches, `review` is read-only and reports readiness for promotion, and `remove` refuses dirty worktrees. Do not use `push`, `merge`, `rebase`, `reset`, `clean`, or `stash` in this workflow.
 
 ### Syncing Agent Memory Into TD
 ```bash
