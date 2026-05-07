@@ -11,11 +11,15 @@ from rig.config.loader import merge_config
 from rig.config.paths import config_file, repo_state_root, cache_home, worktree_root
 from rig.logging.jsonl_logger import JsonlLogger
 from rig_tools.workspace_governance import WorkspaceGovernance
-from rig import commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run
+from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run
 
 
 def _repo_root() -> Path:
     return Path.cwd()
+
+
+def _legacy_queue_path(repo_root: Path) -> Path:
+    return repo_root / ".build" / "rig" / "queue" / "queue.json"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     show = log_sub.add_parser("show", help="Show run log"); show.add_argument("run_id")
     tail = log_sub.add_parser("tail", help="Tail run log"); tail.add_argument("run_id")
     commands_workspace.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_doctor.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_execute.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_validate.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_tui.register(sub, type("H", (), {"repo_root": _repo_root()})())
@@ -73,6 +78,8 @@ def _init(repo_root: Path, *, dry_run: bool, yes: bool, config_target: str) -> i
             return 1
     if dry_run:
         writes = [str(repo_root / ".gitignore"), str(target)]
+        if _legacy_queue_path(repo_root).exists():
+            print("Legacy queue state detected at .build/rig/queue/queue.json.\nRig now uses .build/rig/jobs/.\nRun:\n  rig doctor repair --migrate-legacy-queue")
         print(json.dumps({"would_write": writes}, indent=2))
         return 0
     if config_target == "dotrig":
@@ -97,6 +104,8 @@ def _init(repo_root: Path, *, dry_run: bool, yes: bool, config_target: str) -> i
         if line not in existing:
             existing += ("" if existing.endswith("\n") or not existing else "\n") + line + "\n"
     gitignore.write_text(existing, encoding="utf-8")
+    if _legacy_queue_path(repo_root).exists():
+        print("Legacy queue state detected at .build/rig/queue/queue.json.\nRig now uses .build/rig/jobs/.\nRun:\n  rig doctor repair --migrate-legacy-queue")
     print("Rig initialized.\nNext:\n  rig tui\n  rig run --task <task-id> --provider custom-command")
     return 0
 

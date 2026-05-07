@@ -9,6 +9,8 @@ Common commands:
 - `rig run --task <task-id> --provider custom-command`
 - `rig job create --task <task-id> --provider custom-command`
 - `rig job inspect <job_id>`
+- `rig doctor queue`
+- `rig doctor repair --migrate-legacy-queue`
 - `rig workspace list`
 - `rig agent propose --workspace <workspace_id> --provider <provider_id>`
 - `rig log show <run_id>`

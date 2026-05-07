@@ -192,7 +192,7 @@ def render_command_center_snapshot(
     max_events: int = 500,
 ) -> dict[str, Any]:
     latest_receipts = latest_receipt_paths(repo_root)
-    queue_receipt = str((repo_root / ".build" / "rig" / "queue" / "queue.json").relative_to(repo_root)) if (repo_root / ".build" / "rig" / "queue" / "queue.json").exists() else None
+    queue_receipt = str((repo_root / ".build" / "rig" / "jobs").relative_to(repo_root)) if (repo_root / ".build" / "rig" / "jobs").exists() else None
     doctor = snapshot.get("doctor") or {}
     audit = snapshot.get("audit") or {}
     sentinel = snapshot.get("sentinel") or {}
@@ -211,6 +211,8 @@ def render_command_center_snapshot(
         payload = snapshot.get(source) or {}
         for item in payload.get("warnings", []) if isinstance(payload.get("warnings"), list) else []:
             warnings.append(f"{source}: {item}")
+    for item in (queue.get("malformed") or []):
+        warnings.append(f"queue: malformed {item.get('path')}")
     
     events = human_event_lines(snapshot.get("recent_events") or [], max_events=max_events, focus_task_id=selected_task_id)
     return {

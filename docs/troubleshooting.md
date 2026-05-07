@@ -12,3 +12,7 @@ rig log show <run_id>
 ```
 
 If a governed run stops at a human gate, use the printed next command rather than forcing apply.
+
+If `rig doctor queue` reports malformed jobs, repair them deliberately with `rig doctor repair --queue`.
+
+If legacy queue state is detected, migrate it explicitly with `rig doctor repair --migrate-legacy-queue`.

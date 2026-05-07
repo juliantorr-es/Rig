@@ -114,7 +114,7 @@ class RigDataStore:
     def get_snapshot(self, build_derived: bool = False) -> dict[str, Any]:
         state = _read_json(self.base / "monitor" / "state.json") or {}
         loop = _read_json(self.base / "loop" / "latest.json") or {}
-        queue = _read_json(self.base / "queue" / "queue.json") or {}
+        queue = orchestration.queue_health(self.repo_root)
         llm = _read_json(self.base / "llm" / "latest-summary.json") or {}
         git = _read_json(self.base / "git" / "status.json") or {}
         

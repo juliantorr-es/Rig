@@ -6,3 +6,4 @@
 4. Create a workspace with `rig workspace create --task <task-id>`.
 5. For governed orchestration, start with `rig run --task <task-id> --provider custom-command`.
 6. Inspect the job with `rig job inspect <job_id>`.
+7. Check durability with `rig doctor queue` if job state looks inconsistent.
