@@ -11,7 +11,7 @@ from rig.config.loader import merge_config
 from rig.config.paths import config_file, repo_state_root, cache_home, worktree_root
 from rig.logging.jsonl_logger import JsonlLogger
 from rig_tools.workspace_governance import WorkspaceGovernance
-from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run
+from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run, commands_window, commands_benchmark
 
 
 def _repo_root() -> Path:
@@ -24,6 +24,9 @@ def _legacy_queue_path(repo_root: Path) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if sys.version_info < (3, 14):
+        print(f"Rig requires Python 3.14 or newer.\nCurrent: {sys.version.split()[0]}\nExecutable: {sys.executable}", file=sys.stderr)
+        return 1
     parser = argparse.ArgumentParser(prog="rig", description="Rig product shell")
     parser.add_argument("--debug", action="store_true")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -42,6 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     commands_workspace.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_doctor.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_execute.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_window.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_validate.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_tui.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_runtime.register(sub, type("H", (), {"repo_root": _repo_root()})())
@@ -49,6 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     commands_system.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_agent_phase5.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_job.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_benchmark.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_run.register(sub, type("H", (), {"repo_root": _repo_root()})())
     args = parser.parse_args(argv)
     repo = _repo_root()

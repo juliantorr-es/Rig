@@ -2,6 +2,8 @@
 
 If `rig` is not found, use editable install or verify the active interpreter.
 
+If Python is below 3.14, upgrade the interpreter. Rig will refuse to start cleanly on older versions.
+
 If `rig init` is cancelled, rerun with `--yes` to skip the confirmation prompt.
 
 If a command fails, inspect the logs first:

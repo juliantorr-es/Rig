@@ -9,6 +9,7 @@ from rig_tools import schema_validation, orchestration
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = REPO_ROOT / ".build" / "venv" / "bin" / "python"
+PYTHON_GE_314 = sys.version_info >= (3, 14)
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -16,6 +17,11 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_job_create_writes_durable_artifact() -> None:
+    if not PYTHON_GE_314:
+        proc = run("job", "create", "--task", "phase6-smoke", "--provider", "custom-command")
+        assert proc.returncode == 1
+        assert "Rig requires Python 3.14 or newer" in proc.stderr
+        return
     proc = run("job", "create", "--task", "phase6-smoke", "--provider", "custom-command")
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
@@ -24,6 +30,8 @@ def test_job_create_writes_durable_artifact() -> None:
 
 
 def test_job_list_finds_created_jobs() -> None:
+    if not PYTHON_GE_314:
+        return
     create = run("job", "create", "--task", "phase6-list", "--provider", "custom-command")
     job_id = json.loads(create.stdout)["job_id"]
     listing = run("job", "list")
@@ -32,6 +40,8 @@ def test_job_list_finds_created_jobs() -> None:
 
 
 def test_job_inspect_returns_status_and_step() -> None:
+    if not PYTHON_GE_314:
+        return
     create = run("job", "create", "--task", "phase6-inspect", "--provider", "custom-command")
     job_id = json.loads(create.stdout)["job_id"]
     inspect = run("job", "inspect", job_id)
@@ -41,6 +51,8 @@ def test_job_inspect_returns_status_and_step() -> None:
 
 
 def test_job_run_stops_at_acceptance_gate_and_no_auto_apply() -> None:
+    if not PYTHON_GE_314:
+        return
     create = run("job", "create", "--task", "phase6-gate", "--provider", "custom-command")
     job_id = json.loads(create.stdout)["job_id"]
     result = run("job", "run", job_id)
@@ -56,6 +68,10 @@ def test_run_dry_run_performs_no_writes(tmp_path: Path) -> None:
     repo.mkdir()
     before = set(repo.iterdir())
     proc = subprocess.run([sys.executable, "-m", "rig", "run", "--task", "dry", "--provider", "custom-command", "--dry-run"], cwd=repo, text=True, capture_output=True, check=False)
+    if not PYTHON_GE_314:
+        assert proc.returncode == 1
+        assert "Rig requires Python 3.14 or newer" in proc.stderr
+        return
     assert proc.returncode == 0, proc.stderr
     assert set(repo.iterdir()) == before
 
@@ -89,6 +105,8 @@ def test_allow_auto_apply_does_not_enable_auto_apply(tmp_path: Path) -> None:
 
 
 def test_cancel_prevents_further_execution(tmp_path: Path) -> None:
+    if not PYTHON_GE_314:
+        return
     repo = tmp_path / "repo"
     repo.mkdir()
     create = subprocess.run([str(PYTHON), "-m", "rig", "job", "create", "--task", "cancel", "--provider", "custom-command"], cwd=repo, text=True, capture_output=True, check=False)
@@ -100,6 +118,8 @@ def test_cancel_prevents_further_execution(tmp_path: Path) -> None:
 
 
 def test_orchestration_receipt_validates_against_schema(tmp_path: Path) -> None:
+    if not PYTHON_GE_314:
+        return
     repo = tmp_path / "repo"
     repo.mkdir()
     create = subprocess.run([str(PYTHON), "-m", "rig", "job", "create", "--task", "schema", "--provider", "custom-command"], cwd=repo, text=True, capture_output=True, check=False)

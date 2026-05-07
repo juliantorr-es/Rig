@@ -92,11 +92,7 @@ def open_window(repo_root: Path, dry_run: bool, host: str, port: Optional[int], 
     token_enabled = False # Could add a secure token in URL later
     
     command_argv = [
-        textual_bin, "serve",
-        "--host", host,
-        "--port", str(port),
-        "--",
-        sys.executable, str(repo_root / "scripts" / "rig.py"), "tui"
+        sys.executable, "-m", "rig", "tui"
     ]
     
     session = {
@@ -131,12 +127,7 @@ def open_window(repo_root: Path, dry_run: bool, host: str, port: Optional[int], 
     # Start server
     try:
         with open(out_log, "w") as stdout, open(err_log, "w") as stderr:
-            proc = subprocess.Popen(
-                command_argv,
-                stdout=stdout,
-                stderr=stderr,
-                cwd=str(repo_root)
-            )
+            proc = subprocess.Popen(command_argv, stdout=stdout, stderr=stderr, cwd=str(repo_root))
         session["server_pid"] = proc.pid
     except Exception as e:
         session["status"] = "failed"

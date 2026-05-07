@@ -32,7 +32,7 @@ def _run(helpers, args) -> int:
         payload = {
             "status": "tool_missing",
             "message": "Textual not installed",
-            "install_hint": "python -m pip install textual",
+            "install_hint": "python3.14 -m pip install textual",
             "error": str(exc),
         }
         out_dir = helpers.repo_root / ".build" / "rig" / "tui"

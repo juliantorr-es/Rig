@@ -9,7 +9,7 @@ Models propose. Rig disposes.
 ## Install
 
 ```bash
-python -m pip install -e ".[dev]"
+python3.14 -m pip install -e ".[dev]"
 ```
 
 ## First Run
@@ -58,6 +58,8 @@ rig run --task fix-imports --provider custom-command
 ## Maturity
 
 Rig is usable as a standalone CLI and governance shell. Runtime/model/provider integration is advisory only and remains behind explicit policy gates.
+
+Rig requires Python 3.14 or newer.
 
 ## Documentation
 

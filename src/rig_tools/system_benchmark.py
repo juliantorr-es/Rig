@@ -126,6 +126,13 @@ def run_benchmark(repo_root: Path, quick: bool = True) -> Dict[str, Any]:
         "available_memory_bytes": stats["available_memory_bytes"],
         "cpu_count": stats["cpu_count"],
         "backend_availability": backends,
+        "dependencies": {
+            "textual": _importable("textual"),
+            "pywebview": _importable("webview"),
+            "mlx": _importable("mlx"),
+            "llama_cpp": _importable("llama_cpp"),
+            "psutil": _importable("psutil"),
+        },
         "quick_results": {
             "prompt_eval_tokens_per_second": None,
             "generation_tokens_per_second": None,
@@ -142,7 +149,7 @@ def run_benchmark(repo_root: Path, quick: bool = True) -> Dict[str, Any]:
     return benchmark
 
 def write_benchmark_report(repo_root: Path, benchmark: Dict[str, Any]) -> Path:
-    target_dir = repo_root / ".build" / "rig" / "bench"
+    target_dir = repo_root / ".build" / "rig" / "benchmarks"
     target_dir.mkdir(parents=True, exist_ok=True)
     
     json_path = target_dir / "latest.json"
@@ -175,9 +182,17 @@ def write_benchmark_report(repo_root: Path, benchmark: Dict[str, Any]) -> Path:
     return json_path
 
 def get_latest_benchmark(repo_root: Path) -> Optional[Dict[str, Any]]:
-    path = repo_root / ".build" / "rig" / "bench" / "latest.json"
+    path = repo_root / ".build" / "rig" / "benchmarks" / "latest.json"
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except: pass
     return None
+
+
+def _importable(name: str) -> bool:
+    try:
+        __import__(name)
+        return True
+    except Exception:
+        return False

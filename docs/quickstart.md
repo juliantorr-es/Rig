@@ -1,6 +1,6 @@
 # Quickstart
 
-1. Install Rig with editable mode or your preferred package manager.
+1. Install Rig with Python 3.14 and your preferred package manager.
 2. Run `rig init`.
 3. Run `rig tui`.
 4. Create a workspace with `rig workspace create --task <task-id>`.

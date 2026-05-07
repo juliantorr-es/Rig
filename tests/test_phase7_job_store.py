@@ -11,6 +11,7 @@ from rig_tools.atomic_io import write_json_atomic
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = REPO_ROOT / ".build" / "venv" / "bin" / "python"
+PYTHON_GE_314 = sys.version_info >= (3, 14)
 
 def _repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
@@ -115,6 +116,8 @@ def test_product_commands_do_not_write_legacy_queue(tmp_path: Path) -> None:
 
 
 def test_init_warns_about_legacy_queue_without_migrating(tmp_path: Path) -> None:
+    if not PYTHON_GE_314:
+        return
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / ".build" / "rig" / "queue").mkdir(parents=True, exist_ok=True)
@@ -126,6 +129,8 @@ def test_init_warns_about_legacy_queue_without_migrating(tmp_path: Path) -> None
 
 
 def test_cli_repair_migrates_legacy_queue(tmp_path: Path) -> None:
+    if not PYTHON_GE_314:
+        return
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / ".build" / "rig" / "queue").mkdir(parents=True, exist_ok=True)
