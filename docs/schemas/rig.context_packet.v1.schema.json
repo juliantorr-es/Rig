@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.context_packet.v1.schema.json",
+  "title": "rig.context_packet.v1",
+  "type": "object",
+  "required": ["schema_version", "packet_id", "workspace_id", "provider_id", "model_id", "authoritative"],
+  "properties": {
+    "schema_version": { "const": "rig.context_packet.v1" },
+    "packet_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "provider_id": { "type": "string" },
+    "model_id": { "type": "string" },
+    "context_window_tokens": { "type": "integer" },
+    "reserved_output_tokens": { "type": "integer" },
+    "usable_input_tokens": { "type": "integer" },
+    "estimated_input_tokens": { "type": "integer" },
+    "token_count_method": { "type": "string" },
+    "token_count_confidence": { "type": "string" },
+    "included_items": { "type": "array" },
+    "excluded_items": { "type": "array" },
+    "summarized_items": { "type": "array" },
+    "truncation_policy": { "type": "string" },
+    "packing_policy": { "type": "array" },
+    "raw_hashes": { "type": "array" },
+    "authoritative": { "const": true }
+  },
+  "additionalProperties": true
+}

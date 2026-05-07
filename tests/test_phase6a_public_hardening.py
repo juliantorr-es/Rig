@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+PYTHON_GE_314 = sys.version_info >= (3, 14)
 
 
 def run(*args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -26,6 +27,10 @@ def test_init_dry_run_performs_no_writes(tmp_path: Path) -> None:
     pyproject = repo / "pyproject.toml"
     pyproject.write_text("[project]\nname = \"demo\"\nversion = \"0.1.0\"\n", encoding="utf-8")
     proc = subprocess.run([sys.executable, "-m", "rig", "init", "--dry-run"], cwd=repo, text=True, capture_output=True, check=False)
+    if not PYTHON_GE_314:
+        assert proc.returncode == 1
+        assert "Rig requires Python 3.14 or newer" in proc.stderr
+        return
     assert proc.returncode == 0, proc.stderr
     assert not (repo / ".gitignore").exists()
     assert pyproject.read_text(encoding="utf-8") == "[project]\nname = \"demo\"\nversion = \"0.1.0\"\n"
@@ -35,6 +40,10 @@ def test_init_yes_adds_gitignore_and_promptless_success(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     proc = subprocess.run([sys.executable, "-m", "rig", "init", "--yes"], cwd=repo, text=True, capture_output=True, check=False)
+    if not PYTHON_GE_314:
+        assert proc.returncode == 1
+        assert "Rig requires Python 3.14 or newer" in proc.stderr
+        return
     assert proc.returncode == 0, proc.stderr
     assert (repo / ".gitignore").exists()
     assert ".build/rig/" in (repo / ".gitignore").read_text(encoding="utf-8")

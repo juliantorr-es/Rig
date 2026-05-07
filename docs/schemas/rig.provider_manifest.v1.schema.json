@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig.provider_manifest.v1.schema.json",
+  "title": "rig.provider_manifest.v1",
+  "type": "object",
+  "required": ["schema_version", "provider_id", "kind", "rig_allows_file_mutation", "authoritative"],
+  "properties": {
+    "schema_version": { "const": "rig.provider_manifest.v1" },
+    "provider_id": { "type": "string" },
+    "kind": { "type": "string" },
+    "display_name": { "type": "string" },
+    "base_url": { "type": "string" },
+    "auth_type": { "type": "string" },
+    "credential_ref": { "type": ["string", "null"] },
+    "available": { "type": "boolean" },
+    "models_supported": { "type": "array", "items": { "type": "string" } },
+    "supports_streaming": { "type": "boolean" },
+    "supports_structured_output": { "type": "boolean" },
+    "supports_oauth": { "type": "boolean" },
+    "supports_api_key": { "type": "boolean" },
+    "rig_allows_file_mutation": { "const": false },
+    "trust_tier": { "type": "string" },
+    "authoritative": { "const": true }
+  },
+  "additionalProperties": true
+}

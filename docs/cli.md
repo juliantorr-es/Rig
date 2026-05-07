@@ -17,6 +17,8 @@ Common commands:
 - `rig workspace list`
 - `rig window status`
 - `rig window open --dry-run`
+- `rig provider list`
+- `rig context build --workspace <workspace_id> --provider <provider_id> --model <model_id>`
 - `rig agent propose --workspace <workspace_id> --provider <provider_id>`
 - `rig log show <run_id>`
 - `rig benchmark run --dry-run`

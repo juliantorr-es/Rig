@@ -199,6 +199,7 @@ def render_command_center_snapshot(
     pressure = snapshot.get("pressure") or {}
     queue = snapshot.get("queue") or {}
     jobs = snapshot.get("jobs") or []
+    providers = snapshot.get("providers") or []
     loop = snapshot.get("loop") or {}
     swarm = snapshot.get("swarm") or {}
     project = snapshot.get("project") or {}
@@ -244,6 +245,17 @@ def render_command_center_snapshot(
             {"label": "loop", "status": loop.get("status") or "unknown", "run_id": loop.get("run_id"), "receipt": latest_receipts["loop"]},
             {"label": "swarm", "status": swarm.get("status") or "unknown", "swarm_id": swarm.get("swarm_id"), "receipt": latest_receipts["swarm"]},
             {"label": "jobs", "status": jobs[0].get("status") if jobs else "none", "count": len(jobs), "receipt": ".build/rig/jobs"},
+        ],
+        "providers": [
+            {
+                "provider_id": provider.get("provider_id"),
+                "kind": provider.get("kind"),
+                "trust_tier": provider.get("trust_tier"),
+                "available": provider.get("available"),
+                "models_supported": provider.get("models_supported") or [],
+                "rig_allows_file_mutation": provider.get("rig_allows_file_mutation", False),
+            }
+            for provider in providers
         ],
         "warnings": warnings[:10],
         "event_lines": events[:max_events],

@@ -18,3 +18,5 @@ If a governed run stops at a human gate, use the printed next command rather tha
 If `rig doctor queue` reports malformed jobs, repair them deliberately with `rig doctor repair --queue`.
 
 If legacy queue state is detected, migrate it explicitly with `rig doctor repair --migrate-legacy-queue`.
+
+If provider connect fails, confirm the provider is supported and then retry with the correct key or OAuth flow.

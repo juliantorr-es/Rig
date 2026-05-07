@@ -43,6 +43,8 @@ rig run --task fix-imports --provider custom-command
 - `rig config inspect`
 - `rig runtime list`
 - `rig model list`
+- `rig provider list`
+- `rig context build`
 - `rig system inspect`
 - `rig job create`
 - `rig job run`

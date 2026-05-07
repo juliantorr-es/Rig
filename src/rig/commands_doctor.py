@@ -8,7 +8,8 @@ from pathlib import Path
 
 from rig_tools.doctor import run_doctor
 from rig_tools import orchestration
-from rig_tools import system_benchmark, llama_cpp_local, mlx_local
+from rig_tools import system_benchmark, llama_cpp_local, mlx_local, provider_registry
+from rig_tools.provider_credentials import keychain_available
 
 
 def _emit(payload):
@@ -69,6 +70,7 @@ def register(subparsers, helpers):
     sub = parser.add_subparsers(dest="doctor_command")
     sub.add_parser("queue", help="Inspect queue health").set_defaults(handler=lambda args: _emit(_queue(helpers.repo_root)))
     sub.add_parser("deps", help="Inspect dependency health").set_defaults(handler=lambda args: _emit(_deps(helpers.repo_root)))
+    sub.add_parser("providers", help="Inspect provider health").set_defaults(handler=lambda args: _emit({"providers": provider_registry.list_providers(helpers.repo_root), "keychain_available": keychain_available()}))
     repair = sub.add_parser("repair", help="Repair queue health")
     repair.add_argument("--queue", action="store_true")
     repair.add_argument("--migrate-legacy-queue", action="store_true")

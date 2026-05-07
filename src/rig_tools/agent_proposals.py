@@ -69,7 +69,7 @@ def decode_raw_output(raw_output: str, *, provider_manifest: dict[str, Any]) -> 
     }
 
 
-def create_proposal(repo_root: Path, *, workspace_id: str, provider_id: str, model_id: str, raw_output: str, provider_manifest: dict[str, Any]) -> dict[str, Any]:
+def create_proposal(repo_root: Path, *, workspace_id: str, provider_id: str, model_id: str, raw_output: str, provider_manifest: dict[str, Any], context_packet_id: str | None = None, context_packet_hash: str | None = None) -> dict[str, Any]:
     decoded = decode_raw_output(raw_output, provider_manifest=provider_manifest)
     proposal = {
         "schema_version": "rig.agent_proposal.v1",
@@ -86,6 +86,8 @@ def create_proposal(repo_root: Path, *, workspace_id: str, provider_id: str, mod
         "status": decoded.get("status") or "decoded",
         "authoritative": True,
         "rejection_reason": decoded.get("rejection_reason"),
+        "context_packet_id": context_packet_id,
+        "context_packet_hash": context_packet_hash,
     }
     out_dir = repo_root / ".build" / "rig" / "agent-proposals"
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -13,7 +13,8 @@ from rig.logging.jsonl_logger import JsonlLogger
 from rig_tools.agent_proposals import create_proposal, proposal_to_command_plan
 from rig_tools.atomic_io import write_json_atomic
 from rig_tools.file_lock import job_store_lock
-from rig_tools.runtime_registry import provider_for_id
+from rig_tools.provider_registry import provider_for_id
+from rig_tools.context_budget import build_context_packet
 from rig_tools.workspace_governance import WorkspaceGovernance
 
 
@@ -310,11 +311,14 @@ def run_job(repo_root: Path, job_id: str, *, until: str | None = None, dry_run: 
             return _blocked_result(job, reason="create_workspace_complete", step="create_workspace")
 
     try:
+        context_packet = build_context_packet(repo_root, workspace_id=job["workspace_id"], provider_id=provider.id(), model_id=str(job.get("model_id") or "static"))
         provider_result = provider.invoke(
             {
                 "workspace_id": job["workspace_id"],
                 "model_id": job.get("model_id") or "static",
                 "static_output": _proposal_seed_output(),
+                "context_packet_id": context_packet["packet_id"],
+                "context_packet_hash": hashlib.sha256(json.dumps(context_packet, sort_keys=True).encode("utf-8")).hexdigest(),
             }
         )
     except Exception:
@@ -331,6 +335,8 @@ def run_job(repo_root: Path, job_id: str, *, until: str | None = None, dry_run: 
         model_id=str(job.get("model_id") or "static"),
         raw_output=provider_result.raw_output,
         provider_manifest=provider.manifest(),
+        context_packet_id=context_packet["packet_id"],
+        context_packet_hash=hashlib.sha256(json.dumps(context_packet, sort_keys=True).encode("utf-8")).hexdigest(),
     )
     job["proposal_id"] = proposal["proposal_id"]
     job["completed_steps"].append("generate_proposal")

@@ -82,6 +82,8 @@ SCHEMA_FAMILIES = {
     "rig.apply_receipt.v1": "Docs/schemas/rig.apply_receipt.v1.schema.json",
     "rig.review_bundle.v1": "Docs/schemas/rig.review_bundle.v1.schema.json",
     "rig.runtime_manifest.v1": "Docs/schemas/rig.runtime_manifest.v1.schema.json",
+    "rig.provider_manifest.v1": "Docs/schemas/rig.provider_manifest.v1.schema.json",
+    "rig.context_packet.v1": "Docs/schemas/rig.context_packet.v1.schema.json",
     "rig.agent_proposal.v1": "Docs/schemas/rig.agent_proposal.v1.schema.json",
     "rig.orchestration_job.v1": "Docs/schemas/rig.orchestration_job.v1.schema.json",
     "rig.orchestration_receipt.v1": "Docs/schemas/rig.orchestration_receipt.v1.schema.json",
