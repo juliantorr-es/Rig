@@ -134,3 +134,47 @@ pre.validator-detail {
 
 .chat-composer { display: flex; gap: 4px; }
 .chat-composer input { flex: 1; padding: 4px; border: 1px solid var(--border); }
+
+/* Manual repo input fallback for empty workspace */
+.manual-repo-input {
+    background: rgba(0, 0, 0, 0.02);
+    padding: 12px;
+}
+
+.manual-repo-input input {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.85rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.manual-repo-input button {
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* Empty state reasons styling */
+.empty-state-reasons {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+/* Actions container */
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.actions button {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

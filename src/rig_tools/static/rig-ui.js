@@ -228,6 +228,30 @@
             const p = document.createElement('p');
             p.textContent = data.body || '';
             el.appendChild(p);
+            
+            // Show disabled reasons for actions prominently
+            const reasonsEl = document.createElement('div');
+            reasonsEl.className = 'empty-state-reasons';
+            reasonsEl.style.fontSize = '0.85rem';
+            reasonsEl.style.color = 'var(--muted)';
+            reasonsEl.style.marginBottom = '12px';
+            
+            let hasDisabledActions = false;
+            const disabledReasons = [];
+            (actions || []).forEach(actionId => {
+                const intent = projection.intents[actionId];
+                if (intent && !intent.enabled && intent.disabled_reason) {
+                    disabledReasons.push(intent.disabled_reason);
+                    hasDisabledActions = true;
+                }
+            });
+            
+            if (hasDisabledActions) {
+                const reasonsText = disabledReasons.join(' ');
+                reasonsEl.textContent = reasonsText;
+                el.appendChild(reasonsEl);
+            }
+            
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'actions';
             (actions || []).forEach(actionId => {
@@ -245,6 +269,80 @@
                 actionsDiv.appendChild(btn);
             });
             el.appendChild(actionsDiv);
+            
+            // Add manual repo path input as fallback for browser mode
+            if (window.RIG_DEBUG) {
+                RigLog.debug('EmptyStateCard', 'Debug mode detected, adding manual repo input fallback');
+            }
+            
+            // Check if we're in empty_workspace screen and no workspace exists
+            if (projection && projection.screen === 'empty_workspace') {
+                const manualDiv = document.createElement('div');
+                manualDiv.className = 'manual-repo-input';
+                manualDiv.style.marginTop = '12px';
+                manualDiv.style.paddingTop = '12px';
+                manualDiv.style.borderTop = '1px solid var(--border)';
+                
+                const label = document.createElement('label');
+                label.textContent = 'Or enter repository path manually:';
+                label.style.display = 'block';
+                label.style.marginBottom = '6px';
+                label.style.fontSize = '0.8rem';
+                label.style.color = 'var(--muted)';
+                manualDiv.appendChild(label);
+                
+                const isBrowserMode = !navigator.userAgent.includes('pywebview') && 
+                    (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'Path to Rig repository...';
+                input.style.width = '100%';
+                input.style.padding = '6px';
+                input.style.fontSize = '0.85rem';
+                input.style.border = '1px solid var(--border)';
+                input.id = 'manual-repo-path';
+                manualDiv.appendChild(input);
+                
+                const goBtn = document.createElement('button');
+                goBtn.textContent = 'Open Repository';
+                goBtn.style.marginTop = '8px';
+                goBtn.style.width = '100%';
+                goBtn.onclick = () => {
+                    const path = input.value.trim();
+                    if (path) {
+                        RigLog.info('EmptyStateCard', 'Manual repo path entered', { path: RigLog._redactSecrets(path) });
+                        const target = { workspace_path: path };
+                        if (projection.intents['intent.open_workspace']) {
+                            sendIntent('intent.open_workspace', target);
+                        } else if (projection.intents['intent.initialize_current_folder']) {
+                            sendIntent('intent.initialize_current_folder', target);
+                        }
+                        goBtn.disabled = true;
+                        goBtn.textContent = 'Opening...';
+                        setTimeout(() => {
+                            goBtn.disabled = false;
+                            goBtn.textContent = 'Open Repository';
+                        }, 2000);
+                    }
+                };
+                manualDiv.appendChild(goBtn);
+                
+                const hint = document.createElement('p');
+                hint.style.fontSize = '0.75rem';
+                hint.style.color = 'var(--muted)';
+                hint.style.marginTop = '6px';
+                hint.style.marginBottom = '0';
+                if (isBrowserMode) {
+                    hint.textContent = 'Browser mode: Use file:///path/to/repo format or absolute paths.';
+                } else {
+                    hint.textContent = 'Enter absolute path to a Rig repository.';
+                }
+                manualDiv.appendChild(hint);
+                
+                el.appendChild(manualDiv);
+            }
+            
             return el;
         },
         EvidenceCard: (id, data) => {

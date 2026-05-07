@@ -244,8 +244,18 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
         intents={
             "intent.refresh_projection": IntentProjection("rig.intent.refresh_projection", "Refresh", True),
             "intent.chat.submit": IntentProjection("rig.intent.chat.submit", "Send", True),
-            "intent.open_workspace": IntentProjection("rig.intent.open_workspace", "Open Repository", False, disabled_reason="Not implemented."),
-            "intent.initialize_current_folder": IntentProjection("rig.intent.initialize_current_folder", "Initialize", False, disabled_reason="Not implemented.")
+            "intent.open_workspace": IntentProjection(
+                "rig.intent.open_workspace",
+                "Open Repository",
+                False,
+                disabled_reason="File dialog unavailable in browser mode. Use manual path entry below.",
+            ),
+            "intent.initialize_current_folder": IntentProjection(
+                "rig.intent.initialize_current_folder",
+                "Initialize",
+                False,
+                disabled_reason="Requires a Rig repository. Use manual path entry below.",
+            ),
         }
     )
 

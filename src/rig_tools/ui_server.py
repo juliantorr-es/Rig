@@ -44,10 +44,37 @@ class UIServer:
         self.intent_handler.register("rig.intent.run_validators", self.handle_run_validators)
 
     def _stub_handler(self, intent: Intent) -> Dict[str, Any]:
+        # Check if this is a manual path attempt from the browser UI
+        target = intent.target or {}
+        workspace_path = target.get("workspace_path")
+        
+        if workspace_path:
+            logger.debug(f"Manual path received for {intent.kind}: {workspace_path}")
+            return {
+                "accepted": False,
+                "reason": f"Manual path entry requires backend workspace initialization. Path: {workspace_path}. This will be implemented in the next phase.",
+                "status": "path_received",
+                "workspace_path": workspace_path,
+            }
+        
+        # For open_workspace and initialize_current_folder, provide actionable guidance
+        if intent.kind == "rig.intent.open_workspace":
+            return {
+                "accepted": False,
+                "reason": "Native file dialog is not available in browser mode. Use the manual path entry field to enter a Rig repository path, or run 'rig window open' from the command line.",
+                "status": "browser_mode_limitation",
+            }
+        if intent.kind == "rig.intent.initialize_current_folder":
+            return {
+                "accepted": False,
+                "reason": "Current folder initialization requires terminal access. Use the manual path entry field, or initialize from command line with 'rig workspace init'.",
+                "status": "browser_mode_limitation",
+            }
+        
         return {
             "accepted": False,
             "reason": f"Intent '{intent.kind}' not implemented in this phase.",
-            "status": "not_implemented"
+            "status": "not_implemented",
         }
 
     def handle_refresh(self, intent: Intent) -> Dict[str, Any]:
