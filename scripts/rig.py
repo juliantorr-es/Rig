@@ -6,10 +6,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-sys.path = [str(SRC)] + [p for p in sys.path if Path(p).resolve() not in {ROOT, ROOT / "scripts"}]
-
-from rig.main import main
 
 
 if __name__ == "__main__":
+    sys.path = [str(SRC)] + [p for p in sys.path if Path(p).resolve() not in {ROOT, ROOT / "scripts"}]
+    from rig.cli.main import main
     raise SystemExit(main())

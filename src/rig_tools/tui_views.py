@@ -274,12 +274,23 @@ def render_workspace_snapshot(snapshot: dict[str, Any], *, selected_task_id: str
     board = snapshot.get("board") or {}
     card = next((item for item in board.get("cards") or [] if item.get("task_id") == selected_task_id), None)
     loop = snapshot.get("loop") or {}
+    workspaces = snapshot.get("workspaces") or []
+    latest_workspace = workspaces[-1] if workspaces else {}
     affordances = action_affordances(snapshot, selected_task_id=selected_task_id, mode=mode)
     receipts = latest_receipt_paths(repo_root)
     return {
         "selected_task_id": selected_task_id,
         "task_title": (card or {}).get("title") or selected_task_id or "No task selected",
         "mode": clamp_mode(mode),
+        "workspace": {
+            "workspace_id": latest_workspace.get("workspace_id"),
+            "task": latest_workspace.get("task"),
+            "status": latest_workspace.get("status"),
+            "branch": latest_workspace.get("branch"),
+            "worktree_path": latest_workspace.get("worktree_path"),
+            "execution_receipt_status": (snapshot.get("latest_workspace") or {}).get("receipt_status"),
+            "validation_status": latest_workspace.get("validation_status"),
+        },
         "loop": {
             "status": loop.get("status") or "unknown",
             "run_id": loop.get("run_id"),

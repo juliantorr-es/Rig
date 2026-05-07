@@ -1,4 +1,4 @@
-from rig_tools.workspace_manager import WorkspaceManager
+from rig_tools.workspace_governance import WorkspaceGovernance, WORKSPACE_STATUSES
 
 def register(subparsers, helpers):
     parser = subparsers.add_parser("workspace", help="Manage Rig workspaces")
@@ -11,19 +11,47 @@ def register(subparsers, helpers):
     create.set_defaults(handler=lambda args: create_workspace(helpers, args.task))
     
     sub.add_parser("list", help="List workspaces").set_defaults(handler=lambda args: list_workspaces(helpers))
+    review = sub.add_parser("review", help="Generate review bundle")
+    review.add_argument("workspace_id")
+    review.set_defaults(handler=lambda args: review_workspace(helpers, args.workspace_id))
+    apply_cmd = sub.add_parser("apply", help="Apply workspace")
+    apply_cmd.add_argument("workspace_id")
+    apply_cmd.set_defaults(handler=lambda args: apply_workspace(helpers, args.workspace_id))
+    transition = sub.add_parser("transition", help="Transition workspace status")
+    transition.add_argument("workspace_id")
+    transition.add_argument("status", choices=WORKSPACE_STATUSES)
+    transition.set_defaults(handler=lambda args: transition_workspace(helpers, args.workspace_id, args.status))
 
 def status(helpers):
     print("Workspace subsystem operational.")
     return 0
 
 def create_workspace(helpers, task):
-    mgr = WorkspaceManager(helpers.repo_root)
-    path = mgr.create(task)
-    print(f"Created workspace: {path}")
+    mgr = WorkspaceGovernance(helpers.repo_root)
+    record = mgr.create_workspace(task)
+    print(f"Created workspace: {record.path}")
     return 0
 
 def list_workspaces(helpers):
-    mgr = WorkspaceManager(helpers.repo_root)
+    mgr = WorkspaceGovernance(helpers.repo_root)
     for ws in mgr.list_workspaces():
-        print(f"{ws['workspace_id']} - {ws['task']} ({ws['status']})")
+        print(f"{ws['workspace_id']} - {ws['task']} ({ws['status']}) {ws.get('branch', '')}")
+    return 0
+
+def review_workspace(helpers, workspace_id):
+    mgr = WorkspaceGovernance(helpers.repo_root)
+    bundle = mgr.build_review_bundle(workspace_id)
+    print(bundle["workspace_id"], bundle["apply_eligibility"])
+    return 0
+
+def apply_workspace(helpers, workspace_id):
+    mgr = WorkspaceGovernance(helpers.repo_root)
+    payload = mgr.apply_workspace(workspace_id)
+    print(payload["receipt_id"], payload["status"])
+    return 0
+
+def transition_workspace(helpers, workspace_id, status):
+    mgr = WorkspaceGovernance(helpers.repo_root)
+    payload = mgr.transition_workspace(workspace_id, status)
+    print(payload["workspace_id"], payload["status"])
     return 0

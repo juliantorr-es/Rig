@@ -78,6 +78,11 @@ SCHEMA_FAMILIES = {
     "rig.workspace.v1": "Docs/schemas/rig.workspace.v1.schema.json",
     "rig.diff_review.v1": "Docs/schemas/rig.diff_review.v1.schema.json",
     "rig.productization_report.v1": "Docs/schemas/rig.productization_report.v1.schema.json",
+    "rig.validation_result.v1": "Docs/schemas/rig.validation_result.v1.schema.json",
+    "rig.apply_receipt.v1": "Docs/schemas/rig.apply_receipt.v1.schema.json",
+    "rig.review_bundle.v1": "Docs/schemas/rig.review_bundle.v1.schema.json",
+    "rig.runtime_manifest.v1": "Docs/schemas/rig.runtime_manifest.v1.schema.json",
+    "rig.agent_proposal.v1": "Docs/schemas/rig.agent_proposal.v1.schema.json",
 }
 
 
@@ -387,6 +392,20 @@ def _discover_family_paths(repo_root: Path, family: str) -> list[Path]:
         return sorted([p for p in out.glob("**/result.json") if p.is_file()], key=lambda p: p.parent.name)
     if family == "rig.result.v1":
         return [repo_root / ".build" / "rig" / "results" / "latest.json"]
+    if family == "rig.validation_result.v1":
+        out = repo_root / ".build" / "rig" / "validation"
+        return sorted([p for p in out.glob("**/validation.json") if p.is_file()], key=lambda p: p.as_posix()) if out.exists() else []
+    if family == "rig.apply_receipt.v1":
+        out = repo_root / ".build" / "rig" / "receipts"
+        return sorted([p for p in out.glob("*_apply.json") if p.is_file()], key=lambda p: p.name) if out.exists() else []
+    if family == "rig.review_bundle.v1":
+        out = repo_root / ".build" / "rig" / "reviews"
+        return sorted([p for p in out.glob("*/review.json") if p.is_file()], key=lambda p: p.as_posix()) if out.exists() else []
+    if family == "rig.runtime_manifest.v1":
+        return []
+    if family == "rig.agent_proposal.v1":
+        out = repo_root / ".build" / "rig" / "agent-proposals"
+        return sorted([p for p in out.glob("*.json") if p.is_file()], key=lambda p: p.name) if out.exists() else []
     if family == "rig.event.v1":
         out = repo_root / ".build" / "rig" / "events"
         if not out.exists():

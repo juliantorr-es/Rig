@@ -1,0 +1,22 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.agent_proposal.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Agent Proposal Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.agent_proposal.v1" },
+    "proposal_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "provider_id": { "type": "string" },
+    "model_id": { "type": "string" },
+    "intent": { "type": "object" },
+    "raw_output_hash": { "type": "string" },
+    "decoded_actions": { "type": "array", "items": { "type": "object" } },
+    "files_referenced": { "type": "array", "items": { "type": "string" } },
+    "risk_level": { "type": "string" },
+    "confidence": { "type": "number" },
+    "status": { "type": "string" },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "proposal_id", "workspace_id", "provider_id", "model_id", "intent", "raw_output_hash", "decoded_actions", "files_referenced", "risk_level", "confidence", "status", "authoritative"]
+}

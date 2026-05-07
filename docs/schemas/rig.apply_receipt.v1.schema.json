@@ -1,0 +1,23 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.apply_receipt.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Apply Receipt Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.apply_receipt.v1" },
+    "receipt_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "base_commit": { "type": "string" },
+    "workspace_branch": { "type": "string" },
+    "workspace_commit": { "type": "string" },
+    "main_before": { "type": "string" },
+    "main_after": { "type": "string" },
+    "execution_receipt_id": { "type": ["string", "null"] },
+    "validation_receipt_ids": { "type": "array", "items": { "type": "string" } },
+    "review_bundle_hash": { "type": "string" },
+    "apply_method": { "type": "string" },
+    "status": { "type": "string" },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "receipt_id", "workspace_id", "workspace_branch", "status", "authoritative"]
+}

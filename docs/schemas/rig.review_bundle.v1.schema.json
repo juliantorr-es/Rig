@@ -1,0 +1,24 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.review_bundle.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Review Bundle Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.review_bundle.v1" },
+    "workspace_id": { "type": "string" },
+    "task": { "type": ["string", "null"] },
+    "workspace_status": { "type": "string" },
+    "base_commit": { "type": ["string", "null"] },
+    "workspace_branch": { "type": ["string", "null"] },
+    "worktree_path": { "type": "string" },
+    "execution_receipt_id": { "type": ["string", "null"] },
+    "execution_receipt_hash": { "type": ["string", "null"] },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "diff_hash": { "type": "string" },
+    "validation_status": { "type": ["string", "null"] },
+    "apply_eligibility": { "type": "boolean" },
+    "known_blockers": { "type": "array", "items": { "type": "string" } },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "workspace_id", "workspace_status", "changed_files", "apply_eligibility", "authoritative"]
+}

@@ -1,0 +1,25 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.runtime_manifest.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Runtime Manifest Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.runtime_manifest.v1" },
+    "provider_id": { "type": "string" },
+    "kind": { "type": "string" },
+    "executable": { "type": "string" },
+    "version": { "type": ["string", "null"] },
+    "offline_capable": { "type": "boolean" },
+    "supports_streaming": { "type": "boolean" },
+    "supports_structured_output": { "type": "boolean" },
+    "can_modify_files": { "type": "boolean" },
+    "rig_allows_file_mutation": { "type": "boolean" },
+    "supported_tasks": { "type": "array", "items": { "type": "string" } },
+    "trust_tier": {
+      "type": "string",
+      "enum": ["blocked", "advisory", "reviewer", "planner", "executor_candidate", "validator"]
+    },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "provider_id", "kind", "executable", "offline_capable", "supports_streaming", "supports_structured_output", "can_modify_files", "rig_allows_file_mutation", "supported_tasks", "trust_tier", "authoritative"]
+}

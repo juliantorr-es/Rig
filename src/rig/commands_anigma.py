@@ -16,8 +16,8 @@ This module provides CLI integration for Anigma-specific governance:
 from __future__ import annotations
 
 import json
-import sys
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -155,7 +155,6 @@ def anigma_sentinel(format: str = "text", explain: bool = False,
 def anigma_loop_status(format: str = "json") -> int:
     """Get current Anigma sentinel and loop status."""
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent / "rig_tools"))
         from rig_tools.anigma_loop import run_status
         
         status = run_status()
@@ -206,7 +205,6 @@ def anigma_loop_plan(
 ) -> int:
     """Create a remediation plan."""
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent / "rig_tools"))
         from rig_tools.anigma_loop import run_plan
         
         plan = run_plan(
@@ -238,7 +236,6 @@ def anigma_loop_run(
 ) -> int:
     """Execute a remediation loop."""
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent / "rig_tools"))
         from rig_tools.anigma_loop import run_plan, run_loop
         
         plan = run_plan(
@@ -265,7 +262,6 @@ def anigma_loop_run(
 def anigma_loop_show(run_id: str, format: str = "json") -> int:
     """Show loop run details."""
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent / "rig_tools"))
         from rig_tools.anigma_loop import run_show
         
         data = run_show(run_id)
@@ -306,7 +302,6 @@ def anigma_loop_show(run_id: str, format: str = "json") -> int:
 def anigma_loop_list(format: str = "json") -> int:
     """List all loop runs."""
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent / "rig_tools"))
         from rig_tools.anigma_loop import run_list
         
         runs = run_list()

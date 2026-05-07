@@ -1,0 +1,21 @@
+# Rig Productization Phase 5 Proof
+
+- Files created: `src/rig_tools/runtime_registry.py`, `src/rig_tools/agent_proposals.py`, `src/rig_tools/model_registry.py`, `src/rig_tools/system_probe.py`, `src/rig/commands_runtime.py`, `src/rig/commands_model.py`, `src/rig/commands_system.py`, `src/rig/commands_agent_phase5.py`, `tests/test_phase5_runtime_registry.py`, `docs/dev/rig/RUNTIME_REGISTRY.md`, `docs/dev/rig/AGENT_PROPOSALS.md`
+- Files modified: `src/rig/cli/main.py`, `src/rig_tools/schema_validation.py`, `src/rig_tools/agent_proposals.py`, `src/rig/commands_agent_phase5.py`, `pyproject.toml`
+- Schemas: canonical location is `docs/schemas/` in this repo
+- Added schemas: `docs/schemas/rig.runtime_manifest.v1.schema.json`, `docs/schemas/rig.agent_proposal.v1.schema.json`
+- Runtime registry: provider manifests include trust tier and mutation flags
+- Proposal flow: raw provider output -> decoded proposal -> planned command artifact
+- Safety: advisory trust tier blocks executable command proposals during decode
+- Acceptance: `rig agent accept` writes a planned artifact and does not execute commands
+- Custom provider: end-to-end offline proposal path verified
+- Validation commands and results:
+  - `find src scripts -name "*.py" -print0 | xargs -0 python -m py_compile` -> passed
+  - `python -m rig --help` -> passed
+  - `python -m rig runtime inspect custom-command` -> passed
+  - `python -m rig model list` -> passed
+  - `python -m rig system inspect` -> passed
+  - `python -m rig agent propose --workspace demo --provider custom-command` -> passed
+  - `python scripts/check_rig_local.py` -> passed
+  - `.build/venv/bin/python -m pytest -q` -> passed, `19 passed`
+- Phase 6: not started

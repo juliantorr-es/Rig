@@ -1,0 +1,36 @@
+{
+  "$id": "https://rig.anigma.internal/schemas/rig.validation_result.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rig Validation Result Schema",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "rig.validation_result.v1" },
+    "workspace_id": { "type": "string" },
+    "workspace_branch": { "type": "string" },
+    "worktree_path": { "type": "string" },
+    "started_at": { "type": "string" },
+    "finished_at": { "type": "string" },
+    "status": { "type": "string", "enum": ["passed", "failed"] },
+    "validators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "validator_id": { "type": "string" },
+          "command": { "type": "array", "items": { "type": "string" } },
+          "required": { "type": "boolean" },
+          "exit_code": { "type": "integer" },
+          "stdout_tail": { "type": "string" },
+          "stderr_tail": { "type": "string" },
+          "started_at": { "type": "string" },
+          "finished_at": { "type": "string" },
+          "duration_seconds": { "type": "number" },
+          "authoritative": { "type": "boolean" }
+        },
+        "required": ["validator_id", "command", "exit_code", "authoritative"]
+      }
+    },
+    "authoritative": { "type": "boolean" }
+  },
+  "required": ["schema_version", "workspace_id", "status", "validators", "authoritative"]
+}
