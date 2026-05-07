@@ -46,6 +46,7 @@ class CheckpointPlan:
     message: str
     files_to_stage: tuple[str, ...]
     has_conflict: bool
+    excluded_files: tuple[str, ...]
 
 
 def _run_git(args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -198,12 +199,23 @@ def parse_porcelain_v1_z(status: bytes | str) -> tuple[tuple[str, ...], bool]:
     return tuple(files), has_conflict
 
 
-def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, repo_root: Path | None = None) -> CheckpointPlan:
+def build_checkpoint_plan(
+    agent: str,
+    task: str,
+    path: Path,
+    message: str,
+    *,
+    include: tuple[str, ...] = (),
+    exclude: tuple[str, ...] = (),
+    repo_root: Path | None = None,
+) -> CheckpointPlan:
     attachment = inspect_attached_worktree(agent, task, path, repo_root=repo_root)
     if attachment.branch == "main":
         raise ValueError("Refusing to checkpoint on main branch.")
     if not message.strip():
         raise ValueError("Commit message must be non-empty.")
+    if include and exclude:
+        raise ValueError("Refusing to mix include and exclude selection.")
     result = _run_git(["status", "--porcelain=v1", "-z"], cwd=attachment.path)
     if result.returncode != 0:
         message_text = result.stderr.strip() or result.stdout.strip() or "git status failed"
@@ -211,8 +223,25 @@ def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, re
     files_to_stage, has_conflict = parse_porcelain_v1_z(result.stdout)
     if has_conflict:
         raise ValueError("Refusing to checkpoint unresolved merge/conflict states.")
-    if not files_to_stage:
-        raise ValueError("Refusing to checkpoint a clean worktree.")
+    dirty_set = set(files_to_stage)
+    if include:
+        missing = [item for item in include if item not in dirty_set]
+        if missing:
+            raise ValueError(f"Refusing to include non-dirty path(s): {', '.join(missing)}")
+        selected = tuple(include)
+        excluded_files = tuple()
+    elif exclude:
+        missing = [item for item in exclude if item not in dirty_set]
+        if missing:
+            raise ValueError(f"Refusing to exclude non-dirty path(s): {', '.join(missing)}")
+        excluded_set = set(exclude)
+        selected = tuple(item for item in files_to_stage if item not in excluded_set)
+        excluded_files = tuple(exclude)
+    else:
+        selected = files_to_stage
+        excluded_files = tuple()
+    if not selected:
+        raise ValueError("Refusing to checkpoint with zero selected files.")
     return CheckpointPlan(
         agent=attachment.agent,
         task=attachment.task,
@@ -221,8 +250,9 @@ def build_checkpoint_plan(agent: str, task: str, path: Path, message: str, *, re
         head=attachment.head,
         dirty_files=tuple(attachment.dirty_files),
         message=message.strip(),
-        files_to_stage=files_to_stage,
+        files_to_stage=selected,
         has_conflict=has_conflict,
+        excluded_files=excluded_files,
     )
 
 
@@ -326,7 +356,16 @@ def cmd_attach(args: argparse.Namespace) -> int:
 
 def cmd_checkpoint(args: argparse.Namespace) -> int:
     try:
-        plan = build_checkpoint_plan(args.agent, args.task, Path(args.path), args.message)
+        include = tuple(getattr(args, "include", None) or ())
+        exclude = tuple(getattr(args, "exclude", None) or ())
+        plan = build_checkpoint_plan(
+            args.agent,
+            args.task,
+            Path(args.path),
+            args.message,
+            include=include,
+            exclude=exclude,
+        )
     except (ValueError, FileNotFoundError, RuntimeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -338,6 +377,10 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     print("dirty_files:")
     for line in plan.dirty_files:
         print(f"  {line}")
+    if plan.excluded_files:
+        print("excluded_files:")
+        for line in plan.excluded_files:
+            print(f"  {line}")
     print(f"proposed_commit_message: {plan.message}")
     print("files_to_stage:")
     for item in plan.files_to_stage:
@@ -407,6 +450,8 @@ def build_parser() -> argparse.ArgumentParser:
     checkpoint_parser.add_argument("task")
     checkpoint_parser.add_argument("--path", required=True)
     checkpoint_parser.add_argument("--message", required=True)
+    checkpoint_parser.add_argument("--include", action="append")
+    checkpoint_parser.add_argument("--exclude", action="append")
     checkpoint_parser.add_argument("--dry-run", action="store_true")
 
     subparsers.add_parser("list")

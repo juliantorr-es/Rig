@@ -405,6 +405,315 @@ def test_checkpoint_uses_explicit_paths_only(monkeypatch: pytest.MonkeyPatch, tm
     assert plan.files_to_stage == ("src/rig/domain/projection_builder.py",)
 
 
+def test_checkpoint_include_selects_only_included_dirty_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(
+            " M src/rig/domain/projection_builder.py",
+            "?? src/rig/domain/git_helper.py",
+            "?? src/rig/domain/_git_helper.py",
+        ),
+        branch_matches_convention=True,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0?? src/rig/domain/git_helper.py\0?? src/rig/domain/_git_helper.py\0", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    plan = rat.build_checkpoint_plan(
+        "gemini",
+        "ui-cockpit",
+        path,
+        "msg",
+        include=("src/rig/domain/git_helper.py",),
+    )
+    assert plan.files_to_stage == ("src/rig/domain/git_helper.py",)
+    assert plan.excluded_files == ()
+
+
+def test_checkpoint_include_repeated_preserves_exact_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M src/rig/domain/projection_builder.py", "?? src/rig_tools/static/index.html"),
+        branch_matches_convention=True,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0?? src/rig_tools/static/index.html\0", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    plan = rat.build_checkpoint_plan(
+        "gemini",
+        "ui-cockpit",
+        path,
+        "msg",
+        include=("src/rig/domain/projection_builder.py", "src/rig_tools/static/index.html"),
+    )
+    assert plan.files_to_stage == ("src/rig/domain/projection_builder.py", "src/rig_tools/static/index.html")
+
+
+def test_checkpoint_exclude_removes_only_excluded_dirty_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(
+            " M src/rig/domain/projection_builder.py",
+            " M src/rig_tools/static/index.html",
+            "?? src/rig/domain/_git_helper.py",
+        ),
+        branch_matches_convention=True,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0 M src/rig_tools/static/index.html\0?? src/rig/domain/_git_helper.py\0", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    plan = rat.build_checkpoint_plan(
+        "gemini",
+        "ui-cockpit",
+        path,
+        "msg",
+        exclude=("src/rig/domain/_git_helper.py",),
+    )
+    assert plan.files_to_stage == ("src/rig/domain/projection_builder.py", "src/rig_tools/static/index.html")
+    assert plan.excluded_files == ("src/rig/domain/_git_helper.py",)
+
+
+def test_checkpoint_exclude_repeated_works(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(
+            " M src/rig/domain/projection_builder.py",
+            " M src/rig_tools/static/index.html",
+            "?? src/rig/domain/_git_helper.py",
+        ),
+        branch_matches_convention=True,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0 M src/rig_tools/static/index.html\0?? src/rig/domain/_git_helper.py\0", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    plan = rat.build_checkpoint_plan(
+        "gemini",
+        "ui-cockpit",
+        path,
+        "msg",
+        exclude=("src/rig/domain/_git_helper.py", "src/rig_tools/static/index.html"),
+    )
+    assert plan.files_to_stage == ("src/rig/domain/projection_builder.py",)
+    assert plan.excluded_files == ("src/rig/domain/_git_helper.py", "src/rig_tools/static/index.html")
+
+
+def test_checkpoint_refuses_include_and_exclude_together(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M src/rig/domain/projection_builder.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_run_git", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0", stderr=""))
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "msg", include=("src/rig/domain/projection_builder.py",), exclude=("src/rig/domain/_git_helper.py",))
+
+
+def test_checkpoint_refuses_include_path_that_is_not_dirty(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M src/rig/domain/projection_builder.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_run_git", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0", stderr=""))
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "msg", include=("src/rig/domain/git_helper.py",))
+
+
+def test_checkpoint_refuses_exclude_path_that_is_not_dirty(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M src/rig/domain/projection_builder.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_run_git", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0", stderr=""))
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "msg", exclude=("src/rig/domain/git_helper.py",))
+
+
+def test_checkpoint_refuses_zero_selected_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(" M src/rig/domain/projection_builder.py",),
+        branch_matches_convention=True,
+    ))
+    monkeypatch.setattr(rat, "_run_git", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0", stderr=""))
+    with pytest.raises(ValueError):
+        rat.build_checkpoint_plan("gemini", "ui-cockpit", path, "msg", exclude=("src/rig/domain/projection_builder.py",))
+
+
+def test_checkpoint_dry_run_prints_selected_and_excluded_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(
+            " M src/rig/domain/projection_builder.py",
+            "?? src/rig/domain/_git_helper.py",
+        ),
+        branch_matches_convention=True,
+    ))
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0?? src/rig/domain/_git_helper.py\0", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    result = rat.cmd_checkpoint(SimpleNamespace(
+        agent="gemini",
+        task="ui-cockpit",
+        path=str(path),
+        message="msg",
+        include=None,
+        exclude=("src/rig/domain/_git_helper.py",),
+        dry_run=True,
+    ))
+    assert result == 0
+    out = capsys.readouterr().out
+    assert "dirty_files:" in out
+    assert "excluded_files:" in out
+    assert "files_to_stage:" in out
+    assert "src/rig/domain/projection_builder.py" in out
+    assert "src/rig/domain/_git_helper.py" in out
+
+
+def test_checkpoint_real_stages_only_selected_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "Rig-worktrees" / "ui-cockpit"
+    path.mkdir(parents=True)
+    monkeypatch.setattr(rat, "inspect_attached_worktree", lambda agent, task, path, repo_root=None: rat.AttachedWorktree(
+        agent=agent,
+        task=task,
+        path=path,
+        branch="agent/ui-cockpit/gemini",
+        expected_branch="agent/ui-cockpit/gemini",
+        head="abcd123",
+        dirty=True,
+        dirty_files=(
+            " M src/rig/domain/projection_builder.py",
+            " M src/rig_tools/static/index.html",
+            "?? src/rig/domain/_git_helper.py",
+        ),
+        branch_matches_convention=True,
+    ))
+
+    def planner_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return SimpleNamespace(returncode=0, stdout=" M src/rig/domain/projection_builder.py\0 M src/rig_tools/static/index.html\0?? src/rig/domain/_git_helper.py\0", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    calls: list[list[str]] = []
+
+    def fake_run_git(args: list[str], *, cwd: Path | None = None, check: bool = False):
+        if args == ["status", "--porcelain=v1", "-z"]:
+            return planner_git(args, cwd=cwd, check=check)
+        calls.append(args)
+        if args == ["-C", str(path), "add", "--", "src/rig/domain/projection_builder.py", "src/rig_tools/static/index.html"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args == ["-C", str(path), "commit", "-m", "msg"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(rat, "_run_git", fake_run_git)
+    result = rat.cmd_checkpoint(SimpleNamespace(
+        agent="gemini",
+        task="ui-cockpit",
+        path=str(path),
+        message="msg",
+        include=None,
+        exclude=("src/rig/domain/_git_helper.py",),
+        dry_run=False,
+    ))
+    assert result == 0
+    assert ["-C", str(path), "add", "--", "src/rig/domain/projection_builder.py", "src/rig_tools/static/index.html"] in calls
+    assert all(args != ["-C", str(path), "add", ".",] for args in calls)
+    assert all(args != ["-C", str(path), "add", "-A"] for args in calls)
+
+
 def test_remove_refuses_dirty_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "Rig"
     worktree_path = tmp_path / "Rig-worktrees" / "rig-codex-task"
