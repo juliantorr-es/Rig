@@ -129,6 +129,17 @@ def test_static_module_paths_exist():
     for rel in [
         "src/rig_tools/static/js/main.js",
         "src/rig_tools/static/js/app/runtime.js",
+        "src/rig_tools/static/js/app/boot.js",
+        "src/rig_tools/static/js/app/websocket.js",
+        "src/rig_tools/static/js/app/projection-store.js",
+        "src/rig_tools/static/js/app/intent-dispatch.js",
+        "src/rig_tools/static/js/app/render-root.js",
+        "src/rig_tools/static/js/app/logging.js",
+        "src/rig_tools/static/js/widgets/registry.js",
+        "src/rig_tools/static/js/widgets/empty-state-card.js",
+        "src/rig_tools/static/js/widgets/workspace-header.js",
+        "src/rig_tools/static/js/widgets/workspace-git-state.js",
+        "src/rig_tools/static/js/widgets/workspace-lane-summary.js",
         "src/rig_tools/static/css/main.css",
         "src/rig_tools/static/css/layers.css",
         "src/rig_tools/static/css/tokens.css",
@@ -139,3 +150,21 @@ def test_static_module_paths_exist():
         "src/rig_tools/static/css/utilities.css",
     ]:
         assert (repo_root / rel).exists(), rel
+
+
+def test_runtime_js_is_compatibility_shim():
+    runtime_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
+    content = runtime_path.read_text(encoding="utf-8")
+    assert "bootRigUI" in content
+    assert "connectWebSocket" not in content
+    assert "createIntentDispatcher" not in content
+    assert "buildWidgetRegistry" not in content
+
+
+def test_widget_registry_includes_workspace_renderers():
+    registry_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
+    content = registry_path.read_text(encoding="utf-8")
+    assert "WorkspaceHeader" in content
+    assert "WorkspaceGitState" in content
+    assert "WorkspaceLaneSummary" in content
+    assert "_fallback" in content

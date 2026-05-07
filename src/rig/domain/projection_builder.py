@@ -354,13 +354,13 @@ def _build_empty_projection(
                 "rig.intent.open_workspace",
                 "Open Repository",
                 False,
-                disabled_reason="Select or enter a repository path before continuing.",
+                disabled_reason="Select or enter a repository path manually before continuing.",
             ),
             "intent.initialize_current_folder": IntentProjection(
                 "rig.intent.initialize_current_folder",
                 "Initialize",
                 False,
-                disabled_reason="Repository path is required before initialization.",
+                disabled_reason="Repository path is required before initialization from the browser or manual path.",
             )
         }
     )

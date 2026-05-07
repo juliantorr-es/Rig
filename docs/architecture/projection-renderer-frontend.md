@@ -26,10 +26,31 @@ src/rig_tools/static/
   js/
     main.js
     app/
-      runtime.js
       boot.js
+      runtime.js  # compatibility/orchestration shim only
+      websocket.js
+      projection-store.js
+      intent-dispatch.js
+      render-root.js
+      logging.js
     widgets/
       registry.js
+      empty-state-card.js
+      validator-stack.js
+      receipt-list.js
+      backend-status.js
+      log-stream.js
+      workspace-header.js
+      workspace-git-state.js
+      workspace-lane-summary.js
+    components/
+      dom.js
+      badges.js
+      buttons.js
+      cards.js
+      lists.js
+    utils/
+      escape.js
     ...
   css/
     main.css
@@ -45,6 +66,8 @@ src/rig_tools/static/
 `index.html` loads `js/main.js` with `type="module"` and links `css/main.css`.
 
 `rig-ui.js` is retained only as a compatibility shim so older tests or callers can still import the legacy path.
+
+`main.js` is the browser entrypoint. `runtime.js` now exists only as a tiny orchestration shim for legacy import paths.
 
 ## Widget Registry
 

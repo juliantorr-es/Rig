@@ -56,40 +56,26 @@ class UIServer:
                     "workspace_path": str(path),
                 },
             )
-            if not path.exists():
-                return {
-                    "accepted": False,
-                    "reason": f"Repository path does not exist: {path}",
-                    "status": "invalid_workspace_path",
-                    "workspace_path": str(path),
-                }
-            if not path.is_dir():
-                return {
-                    "accepted": False,
-                    "reason": f"Repository path is not a directory: {path}",
-                    "status": "invalid_workspace_path",
-                    "workspace_path": str(path),
-                }
             return {
                 "accepted": False,
                 "reason": (
                     f"Repository path received: {path}. "
-                    "Dynamic workspace switching is not available in this build."
+                    "Use the manual browser fallback until workspace switching is available in this build."
                 ),
-                "status": "workspace_path_received",
+                "status": "path_received",
                 "workspace_path": str(path),
             }
 
         if intent.kind == "rig.intent.open_workspace":
             return {
                 "accepted": False,
-                "reason": "Repository selection requires a path. Enter a local repository path in the UI.",
+                "reason": "Repository selection requires a path. Enter a local repository path in the UI or use the manual browser fallback.",
                 "status": "workspace_path_required",
             }
         if intent.kind == "rig.intent.initialize_current_folder":
             return {
                 "accepted": False,
-                "reason": "Repository initialization requires a path. Enter a local repository path in the UI.",
+                "reason": "Repository initialization requires a path. Enter a local repository path in the UI or use the manual browser fallback.",
                 "status": "workspace_path_required",
             }
 

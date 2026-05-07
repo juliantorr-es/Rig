@@ -20,7 +20,7 @@ class TestEmptyProjectionDisabledReasons:
 
         proj = _build_empty_projection(1, None, 0, 0, 0)
         intent = proj.intents["intent.open_workspace"]
-        
+
         assert intent.enabled is False
         # The disabled reason should guide user to manual fallback
         assert intent.disabled_reason is not None
@@ -78,11 +78,11 @@ class TestUintServerStubHandlers:
                 client={"kind": "pywebview"}
             )
             
-            result = server._stub_handler(intent)
-            
-            assert result["accepted"] is False
-            assert "browser" in result["reason"].lower() or "manual" in result["reason"].lower()
-            assert "reason" in result
+        result = server._stub_handler(intent)
+
+        assert result["accepted"] is False
+        assert "browser" in result["reason"].lower() or "manual" in result["reason"].lower()
+        assert "reason" in result
 
     def test_stub_handler_initialize_browser_guidance(self):
         """Verify initialize_current_folder stub handler provides browser mode guidance."""
@@ -101,10 +101,10 @@ class TestUintServerStubHandlers:
                 client={"kind": "pywebview"}
             )
             
-            result = server._stub_handler(intent)
-            
-            assert result["accepted"] is False
-            assert "browser" in result["reason"].lower() or "manual" in result["reason"].lower() or "terminal" in result["reason"].lower()
+        result = server._stub_handler(intent)
+
+        assert result["accepted"] is False
+        assert "browser" in result["reason"].lower() or "manual" in result["reason"].lower() or "terminal" in result["reason"].lower()
 
     def test_stub_handler_with_manual_path(self):
         """Verify stub handler accepts and acknowledges manual path from UI."""
@@ -124,11 +124,11 @@ class TestUintServerStubHandlers:
                 client={"kind": "pywebview"}
             )
             
-            result = server._stub_handler(intent)
-            
-            assert result["accepted"] is False
-            assert "workspace_path" in result or "path" in result["reason"].lower()
-            assert result.get("status") == "path_received"
+        result = server._stub_handler(intent)
+
+        assert result["accepted"] is False
+        assert "workspace_path" in result or "path" in result["reason"].lower()
+        assert result.get("status") == "path_received"
 
 
 class TestFrontendStaticAssets:
@@ -144,10 +144,8 @@ class TestFrontendStaticAssets:
         assert "boot-status" in content
 
     def test_rig_ui_js_has_EmptyStateCard_renderer(self):
-        """Verify rig-ui.js has EmptyStateCard renderer."""
-        js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
-        )
+        """Verify widget registry exposes EmptyStateCard and workspace widgets."""
+        js_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
         content = js_path.read_text()
         assert "EmptyStateCard:" in content
         assert "WorkspaceHeader:" in content
@@ -156,9 +154,7 @@ class TestFrontendStaticAssets:
 
     def test_rig_ui_js_EmptyStateCard_shows_disabled_reasons(self):
         """Verify EmptyStateCard renderer displays disabled reasons prominently."""
-        js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
-        )
+        js_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "empty-state-card.js"
         content = js_path.read_text()
         # Should have code that checks for disabled reasons and displays them
         assert "disabled_reason" in content
@@ -166,9 +162,7 @@ class TestFrontendStaticAssets:
 
     def test_rig_ui_js_EmptyStateCard_has_manual_input(self):
         """Verify EmptyStateCard renderer has manual repo path input for empty workspace."""
-        js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
-        )
+        js_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "empty-state-card.js"
         content = js_path.read_text()
         # Should have manual input field for repo path
         assert "manual-repo-path" in content or "manual" in content.lower()
@@ -176,9 +170,7 @@ class TestFrontendStaticAssets:
 
     def test_rig_ui_js_sendIntent_sends_target(self):
         """Verify sendIntent function can send target parameter."""
-        js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "runtime.js"
-        )
+        js_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "intent-dispatch.js"
         content = js_path.read_text()
         # sendIntent should support target parameter
         assert "sendIntent" in content
