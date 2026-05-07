@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import tempfile
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import time
 import threading
+import uuid
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -113,6 +115,10 @@ def _render_html_list(items: list[Any]) -> str:
     return "<ul>" + "".join(f"<li>{_escape_html(item)}</li>" for item in items) + "</ul>"
 
 
+# LEGACY COMPATIBILITY: This function produces static HTML snapshots for the
+# embedded native window. It is retained for compatibility with historical tests
+# and tooling but is NOT used for the new WebSocket-based UI server.
+# For new UI development, use UIServer in ui_server.py instead.
 def _render_window_html(repo_root: Path, *, chat_enabled: bool) -> str:
     from rig_tools.tui_snapshot import load_snapshot
 
@@ -358,6 +364,8 @@ def open_window(
     chat_enabled: bool = False,
 ) -> Dict[str, Any]:
     session_id = f"win-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    session_token = uuid.uuid4().hex
+    
     if host == "0.0.0.0" and not allow_lan:
         return {"status": "failed", "error": "Refusing to bind 0.0.0.0 without --allow-lan"}
 
@@ -375,21 +383,36 @@ def open_window(
             "mode": "dry_run",
             "host": host,
             "port": port,
-            "url": "embedded-native-window",
+            "url": f"http://{host}:{port}/?rig_session={session_token}",
             "command_argv": [sys.executable, "-m", "rig", "tui", "--gridline", "--window"],
             "server_pid": None,
-            "token_enabled": False,
+            "token_enabled": True,
             "status": "dry_run",
             "warnings": warnings,
             "authoritative": False,
         }
 
-    if not get_textual_available():
-        return {"status": "failed", "error": "Textual is not installed.", "warnings": warnings}
+    from rig_tools.ui_server import UIServer
+    ui_server = UIServer(repo_root, session_token)
+    
+    # Start server in background thread
+    def run_server():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(ui_server.start(host, port))
+        loop.run_forever()
+
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    
+    url = f"http://{host}:{port}/?rig_session={session_token}"
+    
+    if not _wait_for_http(url):
+        return {"status": "failed", "error": "UI Server failed to start"}
 
     use_webview = get_pywebview() and not browser
     _set_macos_app_name("Rig")
-    html = _render_window_html(repo_root, chat_enabled=chat_enabled)
+    
     session = {
         "schema_version": WINDOW_SESSION_SCHEMA_VERSION,
         "session_id": session_id,
@@ -397,11 +420,11 @@ def open_window(
         "mode": "webview" if use_webview else "browser",
         "host": host,
         "port": port,
-        "url": "embedded-native-window",
+        "url": url,
         "command_argv": [sys.executable, "-m", "rig", "tui", "--gridline", "--window"],
         "server_pid": None,
-        "token_enabled": False,
-        "status": "planned",
+        "token_enabled": True,
+        "status": "active",
         "warnings": warnings,
         "authoritative": False,
     }
@@ -410,16 +433,11 @@ def open_window(
     try:
         if use_webview:
             import webview
-
-            webview.create_window("Rig", html=html, width=1200, height=800)
+            webview.create_window("Rig", url=url, width=1200, height=800)
             webview.start()
         else:
             import webbrowser
-
-            temp_html = repo_root / ".build" / "rig" / "window" / f"{session_id}.html"
-            temp_html.parent.mkdir(parents=True, exist_ok=True)
-            temp_html.write_text(html, encoding="utf-8")
-            webbrowser.open(temp_html.as_uri())
+            webbrowser.open(url)
     except Exception as exc:
         warnings.append(f"Window launch failed: {exc}")
         session["warnings"] = warnings
@@ -427,7 +445,7 @@ def open_window(
         session["error"] = str(exc)
         save_session(repo_root, session)
         return {"status": "failed", "error": str(exc), "warnings": warnings}
+    
     session["status"] = "stopped"
-    session["warnings"] = warnings
     save_session(repo_root, session)
     return session
