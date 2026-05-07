@@ -150,6 +150,9 @@ class TestFrontendStaticAssets:
         )
         content = js_path.read_text()
         assert "EmptyStateCard:" in content
+        assert "WorkspaceHeader:" in content
+        assert "WorkspaceGitState:" in content
+        assert "WorkspaceLaneSummary:" in content
 
     def test_rig_ui_js_EmptyStateCard_shows_disabled_reasons(self):
         """Verify EmptyStateCard renderer displays disabled reasons prominently."""

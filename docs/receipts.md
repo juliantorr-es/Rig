@@ -21,6 +21,18 @@ Lane receipt kinds include:
 
 Lane receipts should record repo root, worktree path, branch, before/after HEAD, detected dirty files, selected files, excluded files, command summary, result, timestamp, and warnings.
 
+Workspace receipts are the outer wrapper around lane receipts and progress events. When the workspace control plane becomes durable, receipt shapes should be able to carry:
+
+- workspace_id
+- lane_id
+- operation_id
+- receipt kind
+- evidence summary
+- warnings
+- next action
+
+For now, lane receipts remain the primary governed evidence surface for the helper MVP.
+
 Reference schema:
 
 - [`docs/schemas/rig.checkpoint.v1.json`](/Users/user/Developer/GitHub/Rig/docs/schemas/rig.checkpoint.v1.json)

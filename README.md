@@ -28,7 +28,8 @@ rig run --task fix-imports --provider custom-command
 
 ## Core Concepts
 
-- Workspaces
+- Workspaces as the project authority boundary
+- Agent lanes as governed children of a workspace
 - Isolated worktrees
 - Receipts
 - Proposals
@@ -56,6 +57,11 @@ rig run --task fix-imports --provider custom-command
 - `rig job run`
 - `rig run --task <task-id> --provider <provider_id>`
 - `rig agent propose`
+- `rig workspace status`
+- `rig workspace lanes`
+- `rig workspace projection`
+- `rig workspace receipts`
+- `rig workspace recommend`
 - `rig workspace create`
 - `rig workspace review`
 - `rig workspace apply`
@@ -73,6 +79,12 @@ Rig requires Python 3.14 or newer.
 ## Documentation
 
 See [docs/index.md](/Users/user/Developer/GitHub/Rig/docs/index.md).
+
+Workspace and lane architecture starts in:
+
+- [Workspace Control Plane](/Users/user/Developer/GitHub/Rig/docs/architecture/workspace-control-plane.md)
+- [Workspace UI Projection Contract](/Users/user/Developer/GitHub/Rig/docs/architecture/workspace-ui-projection-contract.md)
+- [Workspace Progress Stream](/Users/user/Developer/GitHub/Rig/docs/architecture/workspace-progress-stream.md)
 
 ## Notes
 

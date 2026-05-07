@@ -302,6 +302,74 @@
             });
             return el;
         },
+        WorkspaceHeader: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            const h2 = document.createElement('h2');
+            h2.textContent = data.title || 'Workspace';
+            el.appendChild(h2);
+            const badge = document.createElement('div');
+            badge.className = `badge severity-${data.authority_label ? 'info' : 'idle'}`;
+            badge.textContent = data.authority_label || 'Workspace control plane';
+            el.appendChild(badge);
+            const details = document.createElement('div');
+            details.className = 'muted';
+            details.textContent = [
+                data.repo_root ? `repo: ${data.repo_root}` : null,
+                data.branch ? `branch: ${data.branch}` : null,
+                data.head ? `HEAD: ${data.head}` : null,
+                data.workspace_status ? `status: ${data.workspace_status}` : null,
+            ].filter(Boolean).join(' · ');
+            el.appendChild(details);
+            return el;
+        },
+        WorkspaceGitState: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            const h2 = document.createElement('h2');
+            h2.textContent = 'Workspace Git State';
+            el.appendChild(h2);
+            const badge = document.createElement('div');
+            badge.className = `badge severity-${data.safe_to_commit ? 'success' : 'attention'}`;
+            badge.textContent = data.safe_to_commit ? 'safe to commit' : 'not ready';
+            el.appendChild(badge);
+            const details = document.createElement('div');
+            details.className = 'muted';
+            details.textContent = [
+                data.branch ? `branch: ${data.branch}` : null,
+                data.head ? `HEAD: ${data.head}` : null,
+                typeof data.dirty === 'boolean' ? `dirty: ${data.dirty}` : null,
+                typeof data.dirty_files_count === 'number' ? `dirty files: ${data.dirty_files_count}` : null,
+                data.reason ? `reason: ${data.reason}` : null,
+            ].filter(Boolean).join(' · ');
+            el.appendChild(details);
+            return el;
+        },
+        WorkspaceLaneSummary: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            const h2 = document.createElement('h2');
+            h2.textContent = 'Workspace Lane Summary';
+            el.appendChild(h2);
+            const badge = document.createElement('div');
+            badge.className = `badge severity-${data.status === 'not_connected' ? 'idle' : 'info'}`;
+            badge.textContent = data.status || 'unknown';
+            el.appendChild(badge);
+            const p = document.createElement('p');
+            p.className = 'muted';
+            p.textContent = data.message || '';
+            el.appendChild(p);
+            const summary = document.createElement('div');
+            summary.className = 'muted';
+            summary.textContent = [
+                typeof data.workspace_records === 'number' ? `workspace records: ${data.workspace_records}` : null,
+                typeof data.lane_count === 'number' ? `lanes: ${data.lane_count}` : null,
+                typeof data.review_ready_lanes === 'number' ? `review-ready: ${data.review_ready_lanes}` : null,
+                data.next_action ? `next: ${data.next_action}` : null,
+            ].filter(Boolean).join(' · ');
+            el.appendChild(summary);
+            return el;
+        },
         EmptyStateCard: (id, data, actions) => {
             const el = document.createElement('div');
             el.className = 'widget';

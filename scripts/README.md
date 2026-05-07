@@ -31,6 +31,9 @@ This directory contains scripts for the OpenCode agent workflow system for the A
 ### 7. Governed Agent Lanes
 - **`rig_agent_worktree.py`** - Safe per-agent Git worktree helper for creating, attaching, prompting, checkpointing, and removing isolated lanes.
 
+### 8. Workspace Boundary
+- **`rig workspace status|lanes|projection|receipts|recommend`** - Read-only planning entrypoints for the workspace control plane. They are placeholders for the future workspace runtime and do not mutate lanes.
+
 ## Usage
 
 ### Starting a New Plan
@@ -149,6 +152,8 @@ python scripts/rig_agent_worktree.py remove gemini ui-entrypoint
 ```
 
 `start` creates an isolated lane, `attach` recognizes an existing lane without mutation, `prompt` prints guarded handoff text, `checkpoint` commits only selected files on non-main branches, `review` is read-only and reports readiness for promotion, `promote` is read-only planning only, `recommend` is the governed next-step policy layer above review/promote, and `remove` refuses dirty worktrees. Do not use `push`, `merge`, `rebase`, `reset`, `clean`, or `stash` in this workflow.
+
+Workspace entrypoints are intentionally smaller: they describe the workspace authority boundary and surface backend-authored placeholders until the full runtime lands. Use the lane helper for actual governed agent lane operations today.
 
 ### Syncing Agent Memory Into TD
 ```bash

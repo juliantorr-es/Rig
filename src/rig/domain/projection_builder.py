@@ -1,5 +1,6 @@
 from dataclasses import asdict
 from datetime import datetime, timezone
+import subprocess
 from typing import List, Optional
 import importlib
 from pathlib import Path
@@ -11,6 +12,78 @@ from rig.domain.receipts import get_receipt_store
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _git_capture(repo_root: Path, *args: str) -> str:
+    proc = subprocess.run(["git", "-C", str(repo_root), *args], capture_output=True, text=True, check=False)
+    return (proc.stdout or "").strip()
+
+
+def _git_status_entries(repo_root: Path) -> list[str]:
+    raw = _git_capture(repo_root, "status", "--porcelain=v1", "-z")
+    return [entry for entry in raw.split("\0") if entry]
+
+
+def _workspace_header_widget(repo_root: Path, active_ws: Optional[dict]) -> WidgetProjection:
+    branch = _git_capture(repo_root, "branch", "--show-current") or "HEAD"
+    head = _git_capture(repo_root, "rev-parse", "--short", "HEAD")
+    workspace_id = active_ws.get("workspace_id") if active_ws else None
+    workspace_status = active_ws.get("status") if active_ws else "no_active_workspace"
+    return WidgetProjection(
+        "WorkspaceHeader",
+        "workspace.header",
+        {
+            "repo_root": str(repo_root),
+            "workspace_id": workspace_id,
+            "workspace_status": workspace_status,
+            "branch": branch,
+            "head": head,
+            "authority_label": "Workspace control plane (future lane registry)",
+        },
+    )
+
+
+def _workspace_git_state_widget(repo_root: Path) -> WidgetProjection:
+    branch = _git_capture(repo_root, "branch", "--show-current") or "HEAD"
+    head = _git_capture(repo_root, "rev-parse", "--short", "HEAD")
+    dirty_entries = _git_status_entries(repo_root)
+    dirty = bool(dirty_entries)
+    dirty_files_count = len(dirty_entries)
+    safe_to_commit = not dirty and branch != "main"
+    reason = "Clean non-main workspace root" if safe_to_commit else (
+        "Workspace is dirty" if dirty else "Current branch is main"
+    )
+    return WidgetProjection(
+        "WorkspaceGitState",
+        "workspace.git_state",
+        {
+            "branch": branch,
+            "head": head,
+            "dirty": dirty,
+            "dirty_files_count": dirty_files_count,
+            "safe_to_commit": safe_to_commit,
+            "reason": reason,
+        },
+    )
+
+
+def _workspace_lane_summary_widget(workspace_records: int) -> WidgetProjection:
+    connected = False
+    return WidgetProjection(
+        "WorkspaceLaneSummary",
+        "workspace.lane_summary",
+        {
+            "status": "not_connected",
+            "lane_count": 0,
+            "active_lanes": 0,
+            "clean_lanes": 0,
+            "review_ready_lanes": 0,
+            "workspace_records": workspace_records,
+            "connected": connected,
+            "message": "Agent lane data is not connected to the workspace projection yet.",
+            "next_action": "Use scripts/rig_agent_worktree.py review/recommend from CLI until workspace integration lands.",
+        },
+    )
 
 def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[List[ChatMessage]] = None) -> UIProjection:
     from rig.domain.workspace import WorkspaceDomain
@@ -56,7 +129,7 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         chat = ChatProjection(messages=chat_history)
 
     if not active_ws:
-        return _build_empty_projection(revision, chat, jobs_count, workspaces_count, providers_count)
+        return _build_empty_projection(revision, chat, jobs_count, workspaces_count, providers_count, repo_root=repo_root)
 
     ws_id = active_ws["workspace_id"]
     status = active_ws.get("status", "unknown")
@@ -138,6 +211,9 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     widgets = {
         "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": f"Workspace: {ws_id}"}),
         "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": f"Status: {status}", "severity": "info" if status == "validated" else "attention"}),
+        "workspace.header": _workspace_header_widget(repo_root, active_ws),
+        "workspace.git_state": _workspace_git_state_widget(repo_root),
+        "workspace.lane_summary": _workspace_lane_summary_widget(len(workspaces)),
         "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
             "title": "Queue",
             "items": [
@@ -194,9 +270,9 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         shell={"title": "Rig", "subtitle": f"Workspace {ws_id}"},
         chat=chat,
         layout=ProjectionLayout({
-            "header": ["app.title", "next.gate"],
-            "sidebar": ["queue.summary"],
-            "main": ["workspace.info", "validator.stack"],
+            "header": ["app.title", "next.gate", "workspace.header"],
+            "sidebar": ["queue.summary", "workspace.git_state"],
+            "main": ["workspace.info", "workspace.lane_summary", "validator.stack"],
             "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["backend.status"]
         }),
@@ -215,7 +291,15 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         }
     )
 
-def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs, workspaces, providers) -> UIProjection:
+def _build_empty_projection(
+    revision: int,
+    chat: Optional[ChatProjection],
+    jobs,
+    workspaces,
+    providers,
+    repo_root: Optional[Path] = None,
+) -> UIProjection:
+    repo_root = repo_root or Path.cwd()
     return UIProjection(
         revision=revision,
         generated_at=utc_now(),
@@ -223,15 +307,18 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
         shell={"title": "Rig", "subtitle": "Local agent governance", "state": {"label": "No active workspace", "severity": "idle"}},
         chat=chat,
         layout=ProjectionLayout({
-            "header": ["app.title", "next.gate"],
-            "sidebar": ["queue.summary"],
-            "main": ["workspace.empty"],
+            "header": ["app.title", "next.gate", "workspace.header"],
+            "sidebar": ["queue.summary", "workspace.git_state"],
+            "main": ["workspace.empty", "workspace.lane_summary"],
             "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["backend.status"]
         }),
         widgets={
             "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": "Local agent governance"}),
             "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": "No active gate", "severity": "idle"}),
+            "workspace.header": _workspace_header_widget(repo_root, None),
+            "workspace.git_state": _workspace_git_state_widget(repo_root),
+            "workspace.lane_summary": _workspace_lane_summary_widget(workspaces),
             "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
                 "title": "Queue",
                 "items": [
@@ -242,7 +329,7 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
             }),
             "workspace.empty": WidgetProjection(
                 "EmptyStateCard", "workspace.empty",
-                {"title": "No workspace is active", "body": "Open or initialize a repository to begin governed work."},
+                {"title": "No workspace is active", "body": "Open or initialize a repository to begin governed work. Use the agent lane helper for current lane operations."},
                 actions=["intent.open_workspace", "intent.initialize_current_folder", "intent.refresh_projection"]
             ),
             "evidence.current": WidgetProjection("EvidenceCard", "evidence.current", {

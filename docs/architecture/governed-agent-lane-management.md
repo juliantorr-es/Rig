@@ -6,6 +6,8 @@ Rig manages isolated agent work through Git worktrees and task branches, then wr
 
 The current MVP is the `scripts/rig_agent_worktree.py` helper and its tests. It is the operational lane controller today. The future product shape is a Rig CLI namespace that exposes the same ideas as first-class commands.
 
+Agent lanes are children of a Workspace control plane. The workspace docs define the authority boundary, while this spec defines the lane mechanics that plug into it.
+
 ## Non-goals
 
 - Not an IDE
@@ -29,6 +31,8 @@ An isolated unit of agent work tied to:
 - lane state
 
 An `AgentLane` is the governing concept behind a worktree, not the worktree itself.
+
+An AgentLane always belongs to a Workspace, even if the current helper only manages the lane layer directly.
 
 ### LaneCheckpoint
 
