@@ -1,0 +1,38 @@
+{
+  "include": [
+    "src/rig/cli/main.py",
+    "src/rig/commands_ui.py",
+    "src/rig/commands_window.py",
+    "src/rig/commands_doctor.py",
+    "src/rig/commands_execute.py",
+    "src/rig/commands_validate.py",
+    "src/rig/commands_workspace.py",
+    "src/rig/commands_runtime.py",
+    "src/rig/commands_model.py",
+    "src/rig/commands_system.py",
+    "src/rig/commands_agent_phase5.py",
+    "src/rig/commands_job.py",
+    "src/rig/commands_run.py",
+    "src/rig/commands_benchmark.py",
+    "src/rig/commands_provider.py",
+    "src/rig/commands_context.py",
+    "src/rig/commands_debug.py",
+    "src/rig/commands_release.py",
+    "src/rig/domain/intents",
+    "src/rig/domain/projections.py",
+    "src/rig/domain/projection_builder.py",
+    "src/rig/domain/receipts.py",
+    "src/rig/domain/workspace.py",
+    "src/rig/domain/intent_defs.py",
+    "src/rig_tools/ui_server.py",
+    "src/rig_tools/window_launcher.py"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/*.pyi"
+  ],
+  "reportGeneralTypeIssues": "none",
+  "pythonVersion": "3.14",
+  "typeCheckingMode": "basic"
+}

@@ -1,0 +1,2287 @@
+[
+  {
+    "path": "README.md",
+    "title": "Rig",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Primary project overview and entry point.",
+    "linked_paths": [
+      "docs/index.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "CONTEXT.md",
+    "title": "Rig Domain Context",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Canonical vocabulary and domain framing.",
+    "linked_paths": [
+      "docs/index.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "title": "Contributing",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Contributor workflow and expectations.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "CHANGELOG.md",
+    "title": "Changelog",
+    "doc_class": "report",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Release history and change record.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "SECURITY.md",
+    "title": "Security Policy",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Security intake and reporting policy.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "SUPPORT.md",
+    "title": "Support",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Support channels and guidance.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "CODE_OF_CONDUCT.md",
+    "title": "Code of Conduct",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Community conduct policy.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "UI_HARDENING_REPORT.md",
+    "title": "UI Hardening Report",
+    "doc_class": "report",
+    "current_status": "historical stabilization note",
+    "recommended_action": "convert_to_proof",
+    "rationale": "Evidence of a completed hardening pass rather than active work.",
+    "linked_paths": [
+      "docs/release/PUBLIC_ALPHA_CRITERIA.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": ".pipeline_stabilization_note.md",
+    "title": "Pipeline Stabilization Note",
+    "doc_class": "proof_or_receipt",
+    "current_status": "historical stabilization note",
+    "recommended_action": "convert_to_proof",
+    "rationale": "Ad hoc stabilization record; should be preserved as evidence, not task state.",
+    "linked_paths": [
+      "docs/proofs/rig-environment-stabilization-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/index.md",
+    "title": "Rig",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Docs landing page and architecture index.",
+    "linked_paths": [
+      "docs/roadmap/ROADMAP_INDEX.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/concepts.md",
+    "title": "Concepts",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Core concepts glossary.",
+    "linked_paths": [
+      "CONTEXT.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/config.md",
+    "title": "Config",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Configuration guidance.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/cli.md",
+    "title": "CLI",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Command-line usage guide.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/quickstart.md",
+    "title": "Quickstart",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "New-user setup guide.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/troubleshooting.md",
+    "title": "Troubleshooting",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Operational recovery guide.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/worktrees.md",
+    "title": "Worktrees",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Worktree workflow documentation.",
+    "linked_paths": [
+      "docs/architecture/execution-sandbox.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/receipts.md",
+    "title": "Receipts",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Evidence/receipt semantics.",
+    "linked_paths": [
+      "docs/proofs/rig-environment-stabilization-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/roadmap/ROADMAP_INDEX.md",
+    "title": "Roadmap Index",
+    "doc_class": "roadmap",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Navigation hub for roadmap/future capability docs.",
+    "linked_paths": [
+      "docs/roadmap/future-capabilities/rig-not-compiler-capability.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/roadmap/future-capabilities/rig-not-compiler-capability.md",
+    "title": "Rig Not-Compiler Capability",
+    "doc_class": "future_capability",
+    "current_status": "future",
+    "recommended_action": "keep_as_is",
+    "rationale": "Future deterministic cleanup capability; not active work.",
+    "linked_paths": [
+      "docs/proofs/rig-not-compiler-roadmap.md"
+    ],
+    "suspected_duplicates": [
+      "docs/proofs/rig-not-compiler-roadmap.md"
+    ],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/UI_DOCTRINE.md",
+    "title": "Rig UI Doctrine",
+    "doc_class": "architecture_explanation",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "UI strategy and product direction.",
+    "linked_paths": [
+      "docs/AGENTS.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/architecture/governance-engine.md",
+    "title": "Governance Engine Architecture",
+    "doc_class": "architecture_explanation",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Governance authority and legality model.",
+    "linked_paths": [
+      "docs/AGENTS.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/architecture/proposal-lifecycle.md",
+    "title": "Proposal Lifecycle Module (Future Implementation)",
+    "doc_class": "future_capability",
+    "current_status": "future",
+    "recommended_action": "convert_to_roadmap",
+    "rationale": "Describes future implementation, not current behavior.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/execution-sandbox.md",
+    "title": "Execution Sandbox Architecture (Managed Execution)",
+    "doc_class": "architecture_explanation",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Isolated execution model and transaction semantics.",
+    "linked_paths": [
+      "docs/worktrees.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/architecture/ui-projections.md",
+    "title": "Projection-backed UI Architecture",
+    "doc_class": "architecture_explanation",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "UI data flow and projection model.",
+    "linked_paths": [
+      "docs/AGENTS.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/architecture/ADR_BENCHMARKING_ARCHITECTURE.md",
+    "title": "ADR: Rig-Native Benchmarking Architecture",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Architecture decision record.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/architecture/ADR_CANDIDATE_DECODER.md",
+    "title": "ADR: CandidateDecoder Architecture",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Architecture decision record.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/AGENTS.md",
+    "title": "Agent Rules & Architectural Doctrine",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Repository-level doctrine and operating rules.",
+    "linked_paths": [
+      "README.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_ARCHITECTURE_LAB.md",
+    "title": "Context Pack: Architecture Lab (Provider Arena)",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Context pack for architecture exploration and lab work.",
+    "linked_paths": [
+      "docs/architecture/UI_DOCTRINE.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_CANDIDATE_DECODER.md",
+    "title": "Context Pack: CandidateDecoder Implementation Guide",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Implementation guidance for candidate decoder work.",
+    "linked_paths": [
+      "docs/architecture/ADR_CANDIDATE_DECODER.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_EVIDENCE_RAIL.md",
+    "title": "Context Pack: Evidence Rail & Receipt Inspection",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Guidance for receipts and evidence inspection.",
+    "linked_paths": [
+      "docs/receipts.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_EXECUTION.md",
+    "title": "Context Pack: Git Worktree Execution",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Execution and worktree context pack.",
+    "linked_paths": [
+      "docs/worktrees.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_GOVERNANCE.md",
+    "title": "Context Pack: Governance Engine Architecture",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Governance context pack.",
+    "linked_paths": [
+      "docs/architecture/governance-engine.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_MODEL_QUALIFICATION.md",
+    "title": "Context Pack: Model Qualification & Benchmark",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Benchmarking and qualification guidance.",
+    "linked_paths": [
+      "docs/architecture/ADR_BENCHMARKING_ARCHITECTURE.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_MODEL_QUALIFICATION_CODING.md",
+    "title": "Context Pack: Coding-Specific Model Qualification",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Coding-specific qualification guidance.",
+    "linked_paths": [
+      "docs/architecture/CONTEXT_PACK_MODEL_QUALIFICATION.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_PACKAGED_APP.md",
+    "title": "Context Pack: Packaged Application Support",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Packaging/application context pack.",
+    "linked_paths": [
+      "packaging/"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_PROMPT_LAB.md",
+    "title": "Context Pack: Rig Prompt Lab",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Prompt experimentation context pack.",
+    "linked_paths": [
+      "docs/proofs/"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_PYTHON_DEV_CHECK.md",
+    "title": "Context Pack: Python Dev-Check Pipeline",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Python validation pipeline context pack.",
+    "linked_paths": [
+      "docs/proofs/rig-environment-stabilization-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/architecture/CONTEXT_PACK_SERVER_SECURITY.md",
+    "title": "Context Pack: Local Server & WebSocket Security",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Security context for local server and websocket surfaces.",
+    "linked_paths": [
+      "SECURITY.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/migration/rig-repo-migration.md",
+    "title": "Rig Repository Migration",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Migration decision/history note.",
+    "linked_paths": [
+      "docs/migration/rig_tools-core-migration-plan.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/migration/rig_tools-core-migration-plan.md",
+    "title": "rig_tools Core Migration Plan",
+    "doc_class": "active_task",
+    "current_status": "historical plan",
+    "recommended_action": "convert_to_td",
+    "rationale": "Looks like a planning note; should be normalized into TD if still actionable.",
+    "linked_paths": [
+      "docs/migration/rig-repo-migration.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/release/KNOWN_LIMITATIONS.md",
+    "title": "Known Limitations",
+    "doc_class": "report",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Release caveats and known limits.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/release/PUBLIC_ALPHA_CRITERIA.md",
+    "title": "Public Alpha Criteria",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Release readiness criteria.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/release/RELEASE_CHECKLIST.md",
+    "title": "Release Checklist",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Release execution checklist.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-environment-stabilization-2026-05-06.md",
+    "title": "Rig Environment Stabilization",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Evidence for stabilization milestone.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-not-compiler-roadmap.md",
+    "title": "Rig Not-Compiler Roadmap Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "convert_to_proof",
+    "rationale": "Evidence artifact that mirrors roadmap intent.",
+    "linked_paths": [
+      "docs/roadmap/future-capabilities/rig-not-compiler-capability.md"
+    ],
+    "suspected_duplicates": [
+      "docs/roadmap/future-capabilities/rig-not-compiler-capability.md"
+    ],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-1-2026-05-06.md",
+    "title": "Rig Productization Phase 1 Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-3-2026-05-06.md",
+    "title": "Rig Productization Phase 3 Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-4-2026-05-06.md",
+    "title": "Rig Productization Phase 4 Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-5-2026-05-06.md",
+    "title": "Rig Productization Phase 5 Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-6a-2026-05-06.md",
+    "title": "Rig Productization Phase 6A Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-6b-2026-05-06.md",
+    "title": "Rig Productization Phase 6B Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-7-2026-05-06.md",
+    "title": "Rig Productization Phase 7 Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-8b-gridline-2026-05-06.md",
+    "title": "Rig Productization Phase 8B Gridline Interface Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-8b-tui-chat-2026-05-06.md",
+    "title": "Rig Productization Phase 8B TUI Chat Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "deferred legacy area",
+    "recommended_action": "keep_as_is",
+    "rationale": "Proof mentions legacy TUI work; preserve, do not revive.",
+    "linked_paths": [],
+    "suspected_duplicates": [
+      "docs/dev/rig/TUI_AGENT_CHAT.md"
+    ],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-8c-ui-scaffolding-2026-05-06.md",
+    "title": "Rig Productization Phase 8C UI Scaffolding Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-productization-phase-9-2026-05-06.md",
+    "title": "Rig Productization Phase 9 Release Candidate Infrastructure Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-provider-connect-cloud-api-harness-2026-05-06.md",
+    "title": "Rig Provider Connect & Cloud API Harness Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/proofs/rig-python-3-14-installer-recipes-2026-05-06.md",
+    "title": "Rig Python 3.14 Installer Recipes Proof",
+    "doc_class": "proof_or_receipt",
+    "current_status": "evidence record",
+    "recommended_action": "keep_as_is",
+    "rationale": "Phase proof artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/LEGACY_QUEUE_MIGRATION.md",
+    "title": "Legacy Queue Migration",
+    "doc_class": "active_task",
+    "current_status": "deferred legacy area",
+    "recommended_action": "convert_to_td",
+    "rationale": "Contains migration work for deferred/legacy queue handling.",
+    "linked_paths": [
+      "docs/roadmap/ROADMAP_INDEX.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/CREDENTIAL_STORAGE.md",
+    "title": "Credential Storage",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Design/reference note for credential storage.",
+    "linked_paths": [
+      "SECURITY.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/TUI_QUEUE_PROJECTION.md",
+    "title": "TUI Queue Projection",
+    "doc_class": "legacy_or_archival",
+    "current_status": "deferred legacy area",
+    "recommended_action": "archive",
+    "rationale": "Legacy TUI projection note.",
+    "linked_paths": [
+      "docs/proofs/rig-productization-phase-8b-tui-chat-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/PUBLIC_PRODUCT_HARDENING.md",
+    "title": "Public Product Hardening",
+    "doc_class": "report",
+    "current_status": "current",
+    "recommended_action": "convert_to_proof",
+    "rationale": "Stabilization/hardening note with evidence orientation.",
+    "linked_paths": [
+      "docs/release/PUBLIC_ALPHA_CRITERIA.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/GOVERNED_APPLY.md",
+    "title": "Governed Apply",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Behavioral contract for governed apply flow.",
+    "linked_paths": [
+      "docs/architecture/governance-engine.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/TUI_AGENT_CHAT.md",
+    "title": "TUI Agent Chat",
+    "doc_class": "legacy_or_archival",
+    "current_status": "deferred legacy area",
+    "recommended_action": "archive",
+    "rationale": "Legacy TUI note; keep only as archival reference.",
+    "linked_paths": [
+      "docs/proofs/rig-productization-phase-8b-tui-chat-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/XDG_CONFIG_MODEL.md",
+    "title": "XDG Config Model",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Configuration model reference.",
+    "linked_paths": [
+      "docs/config.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/DEBUG_BUNDLE_CONTRACT.md",
+    "title": "Debug Bundle Contract",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Debug bundle contract/reference.",
+    "linked_paths": [
+      "docs/schemas/rig.debug_bundle_manifest.v1.schema.json"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/CLI_CONSOLIDATION.md",
+    "title": "CLI Consolidation",
+    "doc_class": "active_task",
+    "current_status": "deferred or historical plan",
+    "recommended_action": "convert_to_td",
+    "rationale": "Task-shaped note; should become TD if still active.",
+    "linked_paths": [
+      "docs/cli.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/CLI_SURFACE_AUDIT.md",
+    "title": "CLI Surface Audit",
+    "doc_class": "report",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Audit report over CLI surface.",
+    "linked_paths": [
+      "docs/cli.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/REVIEW_BUNDLES.md",
+    "title": "Review Bundles",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Reference for review bundle structure.",
+    "linked_paths": [
+      "docs/schemas/rig.review_bundle.v1.schema.json"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/PRODUCT_SHELL.md",
+    "title": "Product Shell",
+    "doc_class": "architecture_explanation",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "High-level product shell model.",
+    "linked_paths": [
+      "docs/architecture/UI_DOCTRINE.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/PROVIDER_CONNECT.md",
+    "title": "Provider Connect",
+    "doc_class": "active_task",
+    "current_status": "deferred or historical plan",
+    "recommended_action": "convert_to_td",
+    "rationale": "Task-shaped provider connectivity note.",
+    "linked_paths": [
+      "docs/proofs/rig-provider-connect-cloud-api-harness-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/ORCHESTRATION_QUEUE.md",
+    "title": "Orchestration Queue",
+    "doc_class": "active_task",
+    "current_status": "deferred or historical plan",
+    "recommended_action": "convert_to_td",
+    "rationale": "Queue implementation note; likely should be task-tracked.",
+    "linked_paths": [
+      "docs/schemas/rig.orchestration_job.v1.schema.json"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/POLICY_GATES.md",
+    "title": "Policy Gates",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Policy/decision reference.",
+    "linked_paths": [
+      "docs/architecture/governance-engine.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/LOCAL_RUNTIME_BENCHMARKS.md",
+    "title": "Local Runtime Benchmarks",
+    "doc_class": "report",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Benchmark report/reference note.",
+    "linked_paths": [
+      "docs/architecture/ADR_BENCHMARKING_ARCHITECTURE.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/JOB_STORE_DURABILITY.md",
+    "title": "Job Store Durability",
+    "doc_class": "active_task",
+    "current_status": "deferred or historical plan",
+    "recommended_action": "convert_to_td",
+    "rationale": "Durability work should be TD-tracked if still in flight.",
+    "linked_paths": [
+      "docs/schemas/rig.state_store.v1.schema.json"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/SCAFFOLDING_INVENTORY.md",
+    "title": "Scaffolding Inventory",
+    "doc_class": "report",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Inventory/report of scaffolding status.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/BATTERIES_INCLUDED_INSTALL_RECIPES.md",
+    "title": "Batteries-Included Install Recipes",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Install guidance/reference.",
+    "linked_paths": [
+      "packaging/pipx.md",
+      "packaging/uv.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/PYTHON_314_POLICY.md",
+    "title": "Python 3.14 Policy",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Version policy decision record.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/CLOUD_API_HARNESS.md",
+    "title": "Cloud API Harness",
+    "doc_class": "active_task",
+    "current_status": "deferred or historical plan",
+    "recommended_action": "convert_to_td",
+    "rationale": "Harness work note should be normalized if actionable.",
+    "linked_paths": [
+      "docs/proofs/rig-provider-connect-cloud-api-harness-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/GRIDLINE_INTERFACE.md",
+    "title": "Gridline Interface",
+    "doc_class": "legacy_or_archival",
+    "current_status": "deferred legacy area",
+    "recommended_action": "archive",
+    "rationale": "Legacy UI surface note.",
+    "linked_paths": [
+      "docs/proofs/rig-productization-phase-8b-gridline-2026-05-06.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/AGENT_PROPOSALS.md",
+    "title": "Agent Proposals",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Reference for proposal structure/behavior.",
+    "linked_paths": [
+      "docs/schemas/rig.agent_proposal.v1.schema.json"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/CLI_PACKAGING.md",
+    "title": "CLI Packaging",
+    "doc_class": "how_to",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Packaging guide for CLI distribution.",
+    "linked_paths": [
+      "packaging/pipx.md",
+      "packaging/uv.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/RUNTIME_REGISTRY.md",
+    "title": "Runtime Registry",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Runtime registry reference.",
+    "linked_paths": [
+      "docs/schemas/rig.runtime_manifest.v1.schema.json"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/PUBLIC_COMMAND_CONTRACT.md",
+    "title": "Public Command Contract",
+    "doc_class": "decision_record",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "External command contract.",
+    "linked_paths": [
+      "docs/cli.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/dev/rig/TUI_DECOMPOSITION.md",
+    "title": "TUI Decomposition",
+    "doc_class": "legacy_or_archival",
+    "current_status": "deferred legacy area",
+    "recommended_action": "archive",
+    "rationale": "Legacy TUI decomposition note.",
+    "linked_paths": [
+      "docs/dev/rig/TUI_AGENT_CHAT.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/dev/rig/TUI_SLASH_COMMANDS.md",
+    "title": "TUI Slash Commands",
+    "doc_class": "legacy_or_archival",
+    "current_status": "deferred legacy area",
+    "recommended_action": "archive",
+    "rationale": "Legacy TUI command note.",
+    "linked_paths": [
+      "docs/dev/rig/TUI_AGENT_CHAT.md"
+    ],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": false
+  },
+  {
+    "path": "docs/schemas/rig.docs_normalization_plan.v1.schema.json",
+    "title": "rig.docs_normalization_plan.v1",
+    "doc_class": "reference",
+    "current_status": "schema",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema for docs normalization planning artifacts.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/proof-artifact.schema.json",
+    "title": "proof-artifact.schema.json",
+    "doc_class": "reference",
+    "current_status": "schema",
+    "recommended_action": "keep_as_is",
+    "rationale": "Proof artifact schema.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-task.schema.json",
+    "title": "td-task",
+    "doc_class": "reference",
+    "current_status": "schema",
+    "recommended_action": "keep_as_is",
+    "rationale": "TD task schema.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/anigma-diagnostic-bundle.schema.json",
+    "title": "anigma-diagnostic-bundle.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/anigma-diagnostic-index.schema.json",
+    "title": "anigma-diagnostic-index.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/anigma-pipeline-profile.schema.json",
+    "title": "anigma-pipeline-profile.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/anigma-pipeline-result.schema.json",
+    "title": "anigma-pipeline-result.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/anigma.architecture_sentinel.v1.schema.json",
+    "title": "anigma.architecture_sentinel.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/anigma.remediation_loop.v1.schema.json",
+    "title": "anigma.remediation_loop.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/chunk-storage-receipt.schema.json",
+    "title": "chunk-storage-receipt.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/file-role-index.schema.json",
+    "title": "file-role-index.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/governance-runtime-index.schema.json",
+    "title": "governance-runtime-index.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/module-role-index.schema.json",
+    "title": "module-role-index.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/proof-artifact.schema.json",
+    "title": "proof-artifact.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/repo-atlas.schema.json",
+    "title": "repo-atlas.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.action.v1.schema.json",
+    "title": "rig.action.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.action_definition.v1.schema.json",
+    "title": "rig.action_definition.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.action_result.v1.schema.json",
+    "title": "rig.action_result.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.affected.v1.schema.json",
+    "title": "rig.affected.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.agent_discovery.v1.schema.json",
+    "title": "rig.agent_discovery.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.agent_plan.v1.schema.json",
+    "title": "rig.agent_plan.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.agent_proposal.v1.schema.json",
+    "title": "rig.agent_proposal.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.agent_run.v1.schema.json",
+    "title": "rig.agent_run.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.apply_receipt.v1.schema.json",
+    "title": "rig.apply_receipt.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.architecture_projection.v1.schema.json",
+    "title": "rig.architecture_projection.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.architecture_projection_summary.v1.schema.json",
+    "title": "rig.architecture_projection_summary.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.archive_manifest.v1.schema.json",
+    "title": "rig.archive_manifest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.auto_policy.v1.schema.json",
+    "title": "rig.auto_policy.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.bootstrap_walkthrough.v1.schema.json",
+    "title": "rig.bootstrap_walkthrough.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.cache_metadata.v1.schema.json",
+    "title": "rig.cache_metadata.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.checkpoint.v1.schema.json",
+    "title": "rig.checkpoint.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.command_plan.v1.schema.json",
+    "title": "rig.command_plan.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.context_pack.v1.schema.json",
+    "title": "rig.context_pack.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.context_packet.v1.schema.json",
+    "title": "rig.context_packet.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.contract_audit.v1.schema.json",
+    "title": "rig.contract_audit.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.coupling_index.v1.schema.json",
+    "title": "rig.coupling_index.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.debug_bundle_manifest.v1.schema.json",
+    "title": "rig.debug_bundle_manifest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.diff_review.v1.schema.json",
+    "title": "rig.diff_review.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.doctor_report.v1.schema.json",
+    "title": "rig.doctor_report.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.duckdb_manifest.v1.schema.json",
+    "title": "rig.duckdb_manifest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.embedding_index.v1.schema.json",
+    "title": "rig.embedding_index.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.event.v1.schema.json",
+    "title": "rig.event.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.execution_receipt.v1.schema.json",
+    "title": "rig.execution_receipt.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.gc_plan.v1.schema.json",
+    "title": "rig.gc_plan.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.gc_run.v1.schema.json",
+    "title": "rig.gc_run.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.git_commit_plan.v1.schema.json",
+    "title": "rig.git_commit_plan.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.intent_decode_result.v1.schema.json",
+    "title": "rig.intent_decode_result.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.local_llm_summary.v1.schema.json",
+    "title": "rig.local_llm_summary.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.local_patch.v1.schema.json",
+    "title": "rig.local_patch.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.loop_plan.v1.schema.json",
+    "title": "rig.loop_plan.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.loop_policy.v1.schema.json",
+    "title": "rig.loop_policy.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.loop_run.v1.schema.json",
+    "title": "rig.loop_run.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.loop_step.v1.schema.json",
+    "title": "rig.loop_step.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.memory_contract.v1.schema.json",
+    "title": "rig.memory_contract.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.model_behavior_observation.v1.schema.json",
+    "title": "rig.model_behavior_observation.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.model_catalog.v1.schema.json",
+    "title": "rig.model_catalog.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.model_download.v1.schema.json",
+    "title": "rig.model_download.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.orchestration_job.v1.schema.json",
+    "title": "rig.orchestration_job.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.orchestration_receipt.v1.schema.json",
+    "title": "rig.orchestration_receipt.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.os_sentinel.v1.schema.json",
+    "title": "rig.os_sentinel.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.patch_validation.v1.schema.json",
+    "title": "rig.patch_validation.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.policy_decision.v1.schema.json",
+    "title": "rig.policy_decision.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.productization_report.v1.schema.json",
+    "title": "rig.productization_report.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.project_adapter.v1.schema.json",
+    "title": "rig.project_adapter.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.project_blueprint.v1.schema.json",
+    "title": "rig.project_blueprint.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.project_digest.v1.schema.json",
+    "title": "rig.project_digest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.project_profile.v1.schema.json",
+    "title": "rig.project_profile.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.projection_manifest.v1.schema.json",
+    "title": "rig.projection_manifest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.prompt_experiment.v1.schema.json",
+    "title": "rig.prompt_experiment.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.prompt_regression_case.v1.schema.json",
+    "title": "rig.prompt_regression_case.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.prompt_trace.v1.schema.json",
+    "title": "rig.prompt_trace.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.proposal_candidate.v1.schema.json",
+    "title": "rig.proposal_candidate.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.proposal_swarm.v1.schema.json",
+    "title": "rig.proposal_swarm.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.provider_manifest.v1.schema.json",
+    "title": "rig.provider_manifest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.queue.v1.schema.json",
+    "title": "rig.queue.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.release_readiness.v1.schema.json",
+    "title": "rig.release_readiness.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.result.v1.schema.json",
+    "title": "rig.result.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.review_bundle.v1.schema.json",
+    "title": "rig.review_bundle.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.runtime_manifest.v1.schema.json",
+    "title": "rig.runtime_manifest.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.scheduler_job.v1.schema.json",
+    "title": "rig.scheduler_job.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.scheduler_run.v1.schema.json",
+    "title": "rig.scheduler_run.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.session_review_bundle.v1.schema.json",
+    "title": "rig.session_review_bundle.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.settings.v1.schema.json",
+    "title": "rig.settings.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.solution_bias_profile.v1.schema.json",
+    "title": "rig.solution_bias_profile.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.solution_ranking.v1.schema.json",
+    "title": "rig.solution_ranking.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.state_store.v1.schema.json",
+    "title": "rig.state_store.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.structural_finding.v1.schema.json",
+    "title": "rig.structural_finding.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.structural_report.v1.schema.json",
+    "title": "rig.structural_report.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.swift_diagnostics.v1.schema.json",
+    "title": "rig.swift_diagnostics.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.system_benchmark.v1.schema.json",
+    "title": "rig.system_benchmark.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.system_pressure.v1.schema.json",
+    "title": "rig.system_pressure.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.textual_validation.v1.schema.json",
+    "title": "rig.textual_validation.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.tool_intent.v1.schema.json",
+    "title": "rig.tool_intent.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.validation_result.v1.schema.json",
+    "title": "rig.validation_result.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.vault_export.v1.schema.json",
+    "title": "rig.vault_export.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.vault_note.v1.schema.json",
+    "title": "rig.vault_note.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.window_session.v1.schema.json",
+    "title": "rig.window_session.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.workspace.v1.schema.json",
+    "title": "rig.workspace.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/rig.worktree.v1.schema.json",
+    "title": "rig.worktree.v1.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/roadmap-phase.schema.json",
+    "title": "roadmap-phase.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/runtime-receipt.schema.json",
+    "title": "runtime-receipt.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-artifact-common.schema.json",
+    "title": "td-artifact-common.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-change-map.schema.json",
+    "title": "td-change-map.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-decision.schema.json",
+    "title": "td-decision.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-epic.schema.json",
+    "title": "td-epic.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-proof-artifact.schema.json",
+    "title": "td-proof-artifact.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-research.schema.json",
+    "title": "td-research.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/td-timeline-event.schema.json",
+    "title": "td-timeline-event.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/tier-boundary-violations.schema.md",
+    "title": "tier-boundary-violations.schema.md",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/validator-result.schema.json",
+    "title": "validator-result.schema.json",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  },
+  {
+    "path": "docs/schemas/validator-results.schema.md",
+    "title": "validator-results.schema.md",
+    "doc_class": "reference",
+    "current_status": "current",
+    "recommended_action": "keep_as_is",
+    "rationale": "Schema/reference artifact.",
+    "linked_paths": [],
+    "suspected_duplicates": [],
+    "source_of_truth_candidate": true
+  }
+]
