@@ -40,6 +40,7 @@ except ImportError:
     HAS_YAML = False
 
 from rig_tools import policy, system_pressure, model_manager, kanban_board, task_graph, tui_views, orchestration, provider_registry
+from rig_tools.tui_theme import RIG_GLOBAL_CSS
 from rig_tools.tui_state import load_tui_state, save_tui_state, clamp_mode
 from rig_tools.tui_actions import ActionRegistry, ActionDefinition, CommandPlan
 from rig_tools.tui_events import render_tui_event, render_command_result, render_human_event_line, event_semantic_class, bauhaus_marker_for_status
@@ -498,7 +499,7 @@ def build_app(repo_root: Path, *, mode: str = "safe", refresh_seconds: int = 2):
         focus_mode = reactive(False)
         tail_enabled = reactive(True)
 
-        CSS = """
+        CSS = RIG_GLOBAL_CSS + """
         Screen { layout: vertical; background: $surface; }
         #header { height: 3; background: $surface-darken-1; color: $text; padding: 0 1; border-bottom: solid $primary; }
         #header-brand { width: 18; text-style: bold; color: $accent; }

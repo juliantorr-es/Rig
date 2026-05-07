@@ -3,6 +3,7 @@
 Use `rig --help` for the product shell.
 
 Rig requires Python 3.14 or newer.
+The TUI uses the Gridline Interface layout language: CSS grid for macro geometry, typed Python containers for semantic regions, and the native Textual footer for bindings.
 
 Common commands:
 

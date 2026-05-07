@@ -20,3 +20,5 @@ If `rig doctor queue` reports malformed jobs, repair them deliberately with `rig
 If legacy queue state is detected, migrate it explicitly with `rig doctor repair --migrate-legacy-queue`.
 
 If provider connect fails, confirm the provider is supported and then retry with the correct key or OAuth flow.
+
+If the TUI looks unstyled or the footer bindings are missing, verify you are running the Gridline Interface path from `rig tui` and that Textual is installed in the active Python 3.14 environment.
