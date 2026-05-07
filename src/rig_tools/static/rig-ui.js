@@ -259,6 +259,171 @@
     }
 
     const widgetRenderers = {
+        WorkspaceHeader: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            const h2 = document.createElement('h2');
+            h2.textContent = 'Workspace Identity';
+            el.appendChild(h2);
+            
+            const createField = (label, value, isCode) => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '4px';
+                const l = document.createElement('span');
+                l.className = 'muted';
+                l.style.marginRight = '8px';
+                l.textContent = label + ':';
+                const v = document.createElement('span');
+                if (isCode) {
+                    const code = document.createElement('code');
+                    code.textContent = value;
+                    v.appendChild(code);
+                } else {
+                    v.textContent = value;
+                }
+                div.appendChild(l);
+                div.appendChild(v);
+                return div;
+            };
+
+            el.appendChild(createField('Repository', data.repository, true));
+            el.appendChild(createField('Branch', data.branch, true));
+            el.appendChild(createField('HEAD', data.head, true));
+            el.appendChild(createField('Dirty state', data.dirty_state, false));
+            el.appendChild(createField('Status', data.workspace_status, false));
+            el.appendChild(createField('Authority', data.authority, false));
+            return el;
+        },
+        GitStateCard: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            const h2 = document.createElement('h2');
+            h2.textContent = 'Git Discipline';
+            el.appendChild(h2);
+
+            const div = document.createElement('div');
+            div.style.marginBottom = '4px';
+            const b = document.createElement('div');
+            b.textContent = 'Branch: ' + (data.branch || '');
+            const h = document.createElement('div');
+            h.textContent = 'HEAD: ' + (data.head || '');
+            div.appendChild(b);
+            div.appendChild(h);
+            el.appendChild(div);
+
+            const dfTitle = document.createElement('div');
+            dfTitle.className = 'muted';
+            dfTitle.textContent = 'Dirty files:';
+            el.appendChild(dfTitle);
+            
+            if (data.dirty_files && data.dirty_files.length > 0) {
+                const ul = document.createElement('ul');
+                ul.style.margin = '4px 0 12px 16px';
+                ul.style.padding = '0';
+                data.dirty_files.forEach(f => {
+                    const li = document.createElement('li');
+                    li.textContent = f;
+                    ul.appendChild(li);
+                });
+                el.appendChild(ul);
+            } else {
+                const noDF = document.createElement('div');
+                noDF.textContent = 'None';
+                noDF.style.marginBottom = '12px';
+                el.appendChild(noDF);
+            }
+
+            const safeDiv = document.createElement('div');
+            const safeLabel = document.createElement('span');
+            safeLabel.textContent = 'Safe to commit: ';
+            const safeVal = document.createElement('span');
+            safeVal.className = data.safe_to_commit ? 'severity-success' : 'severity-danger';
+            safeVal.textContent = data.safe_to_commit ? 'Yes' : 'No';
+            safeDiv.appendChild(safeLabel);
+            safeDiv.appendChild(safeVal);
+            el.appendChild(safeDiv);
+            
+            if (!data.safe_to_commit && data.safe_to_commit_reason) {
+                const r = document.createElement('div');
+                r.className = 'muted';
+                r.style.fontSize = '0.8rem';
+                r.textContent = data.safe_to_commit_reason;
+                el.appendChild(r);
+            }
+
+            return el;
+        },
+        NextSafeActionCard: (id, data) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            el.style.borderLeft = '4px solid var(--primary)';
+            const h2 = document.createElement('h2');
+            h2.textContent = 'Next Safe Action';
+            el.appendChild(h2);
+
+            const actionDiv = document.createElement('div');
+            actionDiv.style.fontWeight = 'bold';
+            actionDiv.style.marginBottom = '8px';
+            actionDiv.textContent = data.action;
+            el.appendChild(actionDiv);
+
+            if (data.command) {
+                const cmdDiv = document.createElement('div');
+                const code = document.createElement('code');
+                code.textContent = data.command;
+                cmdDiv.appendChild(code);
+                cmdDiv.style.marginBottom = '8px';
+                el.appendChild(cmdDiv);
+            }
+
+            const whyDiv = document.createElement('div');
+            whyDiv.className = 'muted';
+            whyDiv.textContent = 'Why: ' + data.why;
+            el.appendChild(whyDiv);
+
+            return el;
+        },
+        IntentButtonRow: (id, data, actions) => {
+            const el = document.createElement('div');
+            el.className = 'widget';
+            if (data.title) {
+                const h2 = document.createElement('h2');
+                h2.textContent = data.title;
+                el.appendChild(h2);
+            }
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'actions';
+            
+            (actions || []).forEach(actionId => {
+                const intent = projection.intents[actionId];
+                if (!intent) return;
+                
+                const btnContainer = document.createElement('div');
+                btnContainer.style.marginBottom = '8px';
+                
+                const btn = document.createElement('button');
+                btn.onclick = () => window.sendRigIntent(actionId);
+                if (!intent.enabled) {
+                    btn.disabled = true;
+                }
+                btn.textContent = intent.label || actionId;
+                btnContainer.appendChild(btn);
+                
+                if (!intent.enabled && intent.disabled_reason) {
+                    const reason = document.createElement('div');
+                    reason.className = 'muted';
+                    reason.style.fontSize = '0.8rem';
+                    reason.style.marginTop = '4px';
+                    reason.textContent = 'Reason: ' + intent.disabled_reason;
+                    btnContainer.appendChild(reason);
+                }
+                
+                actionsDiv.appendChild(btnContainer);
+            });
+            el.appendChild(actionsDiv);
+            return el;
+        },
         AppTitle: (id, data) => {
             const el = document.createElement('div');
             const title = document.createElement('div');

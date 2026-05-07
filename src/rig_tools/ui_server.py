@@ -76,20 +76,20 @@ class UIServer:
                     f"Repository path received: {path}. "
                     "Dynamic workspace switching is not available in this build."
                 ),
-                "status": "workspace_path_received",
+                "status": "path_received",
                 "workspace_path": str(path),
             }
 
         if intent.kind == "rig.intent.open_workspace":
             return {
                 "accepted": False,
-                "reason": "Repository selection requires a path. Enter a local repository path in the UI.",
+                "reason": "Repository selection requires a path. Enter a manual path or use browser dialog.",
                 "status": "workspace_path_required",
             }
         if intent.kind == "rig.intent.initialize_current_folder":
             return {
                 "accepted": False,
-                "reason": "Repository initialization requires a path. Enter a local repository path in the UI.",
+                "reason": "Repository initialization requires a path. Enter a manual path, use browser dialog, or use terminal.",
                 "status": "workspace_path_required",
             }
 

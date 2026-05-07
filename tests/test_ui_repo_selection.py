@@ -115,17 +115,17 @@ class TestUintServerStubHandlers:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             server = UIServer(Path(tmpdir), "test_token")
-            
+
             intent = Intent(
                 kind="rig.intent.open_workspace",
                 intent_id="test-1",
-                target={"workspace_path": "/test/path"},
+                target={"workspace_path": tmpdir},
                 observed_projection_revision=1,
                 client={"kind": "pywebview"}
             )
-            
+
             result = server._stub_handler(intent)
-            
+
             assert result["accepted"] is False
             assert "workspace_path" in result or "path" in result["reason"].lower()
             assert result.get("status") == "path_received"

@@ -8,6 +8,7 @@ from rig.domain.projections import (
     ChatProjection, ChatMessage, ValidatorItem
 )
 from rig.domain.receipts import get_receipt_store
+from rig.domain.git_helper import get_git_info
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -135,8 +136,24 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
                 state=state
             ))
 
+    git_info = get_git_info(repo_root)
+
     widgets = {
-        "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": f"Workspace: {ws_id}"}),
+        "workspace.header": WidgetProjection("WorkspaceHeader", "workspace.header", {
+            "repository": str(repo_root),
+            "branch": git_info["branch"],
+            "head": git_info["head"],
+            "dirty_state": f"{len(git_info['dirty_files'])} uncommitted changes" if git_info["dirty"] else "clean",
+            "workspace_status": status,
+            "authority": "local backend projection"
+        }),
+        "git.state": WidgetProjection("GitStateCard", "git.state", {
+            "branch": git_info["branch"],
+            "head": git_info["head"],
+            "dirty_files": git_info["dirty_files"],
+            "safe_to_commit": not git_info["dirty"],
+            "safe_to_commit_reason": "Working tree is dirty" if git_info["dirty"] else "Working tree clean"
+        }),
         "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": f"Status: {status}", "severity": "info" if status == "validated" else "attention"}),
         "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
             "title": "Queue",
@@ -153,11 +170,19 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "items": [asdict(i) for i in val_items],
             "run_in_progress": run_in_progress,
             "running_validator_id": running_validator_id
-        }, actions=["intent.run_validators"]),
+        }),
+        "intent.buttons": WidgetProjection("IntentButtonRow", "intent.buttons", {
+            "title": "Available Actions"
+        }, actions=["intent.run_validators", "intent.apply_patch", "intent.open_workspace"]),
         "workspace.info": WidgetProjection("EmptyStateCard", "workspace.info", {
             "title": f"Workspace {ws_id}",
             "body": f"Current status: {status}. Ready for validation or review."
         }, actions=["intent.refresh_projection", "intent.run_validators"]),
+        "next.action": WidgetProjection("NextSafeActionCard", "next.action", {
+            "action": "Run validators" if run_validators_enabled else "Review or apply workspace",
+            "command": "rig ui --run-validators" if run_validators_enabled else "rig proposal apply",
+            "why": run_validators_disabled_reason or "Validators have not been run on this state."
+        }),
         "evidence.current": WidgetProjection("EvidenceCard", "evidence.current", {
             "title": "Evidence",
             "state": {"label": "Available" if val_path else "None", "severity": "info" if val_path else "idle"},
@@ -194,9 +219,9 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         shell={"title": "Rig", "subtitle": f"Workspace {ws_id}"},
         chat=chat,
         layout=ProjectionLayout({
-            "header": ["app.title", "next.gate"],
-            "sidebar": ["queue.summary"],
-            "main": ["workspace.info", "validator.stack"],
+            "header": ["workspace.header", "next.gate", "intent.buttons"],
+            "sidebar": ["git.state", "queue.summary", "next.action"],
+            "main": ["validator.stack", "workspace.info"],
             "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["backend.status"]
         }),
@@ -223,14 +248,21 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
         shell={"title": "Rig", "subtitle": "Local agent governance", "state": {"label": "No active workspace", "severity": "idle"}},
         chat=chat,
         layout=ProjectionLayout({
-            "header": ["app.title", "next.gate"],
+            "header": ["workspace.header", "next.gate"],
             "sidebar": ["queue.summary"],
             "main": ["workspace.empty"],
             "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["backend.status"]
         }),
         widgets={
-            "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": "Local agent governance"}),
+            "workspace.header": WidgetProjection("WorkspaceHeader", "workspace.header", {
+                "repository": "None",
+                "branch": "N/A",
+                "head": "N/A",
+                "dirty_state": "N/A",
+                "workspace_status": "No active workspace",
+                "authority": "local backend projection"
+            }),
             "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": "No active gate", "severity": "idle"}),
             "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
                 "title": "Queue",
@@ -267,13 +299,13 @@ def _build_empty_projection(revision: int, chat: Optional[ChatProjection], jobs,
                 "rig.intent.open_workspace",
                 "Open Repository",
                 False,
-                disabled_reason="Select or enter a repository path before continuing.",
+                disabled_reason="Repository path required. Enter manual path below or use native browser dialog.",
             ),
             "intent.initialize_current_folder": IntentProjection(
                 "rig.intent.initialize_current_folder",
                 "Initialize",
                 False,
-                disabled_reason="Repository path is required before initialization.",
+                disabled_reason="Repository path required. Enter manual path below or use browser.",
             )
         }
     )
