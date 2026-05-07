@@ -118,6 +118,10 @@ def projection(helpers):
                 "type": "WorkspaceLaneSummary",
                 "actions": ["intent.refresh_projection"],
             },
+            "workspace.command_progress": {
+                "type": "CommandProgressCard",
+                "actions": ["intent.refresh_projection"],
+            },
         },
         "intents": ["intent.refresh_projection"],
         "message": "Workspace projection is currently a backend-authored placeholder; agent lane integration is future work.",

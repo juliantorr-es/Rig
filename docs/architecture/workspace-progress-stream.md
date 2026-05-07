@@ -8,19 +8,38 @@ The first implemented slice uses the existing WebSocket path and emits `progress
 
 ## Event Model
 
-### OperationProgressEvent
+### ProgressEvent
+
+Progress events are normalized before they leave the backend.
 
 Fields:
 
 - `event_id`
 - `operation_id`
-- `workspace_id`
-- `lane_id`
-- `kind`
-- `status`
+- `parent_operation_id`
+- `command`
+- `intent`
+- `phase`
 - `message`
+- `level`
+- `status`
+- `sequence`
 - `timestamp`
-- `payload`
+- `workspace_id`
+- `workspace_path`
+- `receipt_candidate`
+- `receipt_kind`
+- `evidence_refs`
+- `metadata`
+
+Notes:
+
+- `receipt_candidate` is a marker only; it is not evidence.
+- `receipt_kind` is reserved for future receipt-backed progress.
+- `evidence_refs` are inert until receipt-backed progress exists.
+- `metadata` is for non-authoritative details only.
+
+Malformed payloads should be rejected at construction time.
 
 ### WebSocket Shape
 
@@ -30,11 +49,11 @@ Progress events are sent inside the existing UI message envelope:
 {
   "schema_version": "rig.ui.message.v1",
   "kind": "progress_event",
-  "event": { "...": "OperationProgressEvent" }
+  "event": { "...": "ProgressEvent" }
 }
 ```
 
-## Event Kinds
+## Event Phases
 
 - `operation.started`
 - `operation.log`
@@ -43,25 +62,15 @@ Progress events are sent inside the existing UI message envelope:
 - `operation.error`
 - `operation.completed`
 - `workspace.projection.refreshed`
-- `lane.attach.started`
-- `lane.attach.completed`
-- `lane.review.started`
-- `lane.review.completed`
-- `lane.recommend.started`
-- `lane.recommend.completed`
-- `lane.promote_plan.started`
-- `lane.promote_plan.completed`
-- `lane.checkpoint.dry_run.started`
-- `lane.checkpoint.dry_run.completed`
-- `lane.checkpoint.commit.completed`
+- `workspace.status.refreshed`
 - `validator.started`
 - `validator.output`
 - `validator.completed`
-- `receipt.created`
 
 Implemented initial read-only operation:
 
 - `rig.intent.refresh_projection`
+- `rig.intent.workspace_status`
 
 This operation emits progress telemetry for:
 
@@ -69,6 +78,7 @@ This operation emits progress telemetry for:
 - `operation.progress`
 - `operation.completed`
 - `workspace.projection.refreshed`
+- `workspace.status.refreshed`
 
 ## Transport Guidance
 
@@ -85,4 +95,8 @@ Prefer the existing WebSocket transport for browser-to-backend intentions and ba
 - progress events must not mutate state by themselves
 - progress events should be stable enough to support receipts and later JSON export
 - the frontend keeps a bounded in-memory event buffer
+- the frontend groups events by `operation_id`
+- the frontend orders events by `sequence` and `timestamp`
+- history is bounded per operation and across operations
 - `CommandProgressCard` is a dumb renderer for backend-authored progress payloads
+- the workspace projection declares a `workspace.command_progress` region for transient command telemetry

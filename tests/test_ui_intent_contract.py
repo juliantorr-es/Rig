@@ -36,6 +36,7 @@ class TestProjectionIntentContract:
             # Known intents that should have handlers:
             known_intents = {
                 "intent.refresh_projection",
+                "intent.workspace_status",
                 "intent.chat.submit",
                 "intent.run_validators",
                 "intent.open_workspace",
@@ -113,6 +114,7 @@ class TestProjectionIntentContract:
                 "rig.intent.open_workspace",
                 "rig.intent.initialize_current_folder",
                 "rig.intent.refresh_projection",
+                "rig.intent.workspace_status",
                 "rig.intent.chat.submit",
                 "rig.intent.run_validators",
                 "rig.intent.apply_patch",

@@ -16,7 +16,7 @@ from rig.domain.projections import ChatMessage
 logger = logging.getLogger(__name__)
 
 # Safe intents that can be accepted even with stale projection revisions
-SAFE_INTENTS = {"rig.intent.refresh_projection"}
+SAFE_INTENTS = {"rig.intent.refresh_projection", "rig.intent.workspace_status"}
 
 
 class UIServer:
@@ -35,11 +35,13 @@ class UIServer:
         self.revision = 1
         self.chat_history: List[ChatMessage] = []
         self._next_stream_sequence: Dict[str, int] = {}
+        self._next_progress_sequence: Dict[str, int] = {}
         
         # Register handlers
         self.intent_handler.register("rig.intent.open_workspace", self._stub_handler)
         self.intent_handler.register("rig.intent.initialize_current_folder", self._stub_handler)
         self.intent_handler.register("rig.intent.refresh_projection", self.handle_refresh)
+        self.intent_handler.register("rig.intent.workspace_status", self.handle_workspace_status)
         self.intent_handler.register("rig.intent.chat.submit", self.handle_chat_submit)
         self.intent_handler.register("rig.intent.run_validators", self.handle_run_validators)
         self.intent_handler.register("rig.intent.apply_patch", self._handle_unsupported_intent)
@@ -127,50 +129,107 @@ class UIServer:
             "intent_kind": intent.kind,
         }
 
+    def _emit_progress(self, *, operation_id: str, command: str, phase: str, status: str, message: str, level: str = "info", intent: Optional[str] = None, workspace_id: Optional[str] = None, workspace_path: Optional[str] = None, parent_operation_id: Optional[str] = None, receipt_candidate: bool = False, receipt_kind: Optional[str] = None, evidence_refs: Optional[List[str]] = None, metadata: Optional[Dict[str, Any]] = None) -> None:
+        event = build_progress_event(
+            operation_id=operation_id,
+            command=command,
+            phase=phase,
+            status=status,
+            message=message,
+            level=level,
+            sequence=self._get_next_progress_sequence(operation_id),
+            intent=intent,
+            workspace_id=workspace_id,
+            workspace_path=workspace_path,
+            parent_operation_id=parent_operation_id,
+            receipt_candidate=receipt_candidate,
+            receipt_kind=receipt_kind,
+            evidence_refs=evidence_refs or [],
+            metadata=metadata or {},
+        )
+        self._schedule_send(event.to_envelope())
+
+    def _get_next_progress_sequence(self, operation_id: str) -> int:
+        self._next_progress_sequence[operation_id] = self._next_progress_sequence.get(operation_id, 0) + 1
+        return self._next_progress_sequence[operation_id]
+
     def handle_refresh(self, intent: Intent) -> Dict[str, Any]:
         operation_id = intent.intent_id or f"refresh-{self.revision}"
-        self._schedule_send({
-            "kind": "progress_event",
-            "event": build_progress_event(
-                operation_id=operation_id,
-                kind="operation.started",
-                status="running",
-                message="Refreshing workspace projection.",
-                workspace_id=str(self.repo_root),
-            ).to_dict(),
-        })
-        self._schedule_send({
-            "kind": "progress_event",
-            "event": build_progress_event(
-                operation_id=operation_id,
-                kind="operation.progress",
-                status="running",
-                message="Building backend-authored projection.",
-                workspace_id=str(self.repo_root),
-            ).to_dict(),
-        })
-        self._schedule_send({
-            "kind": "progress_event",
-            "event": build_progress_event(
-                operation_id=operation_id,
-                kind="operation.completed",
-                status="completed",
-                message="Workspace projection refreshed.",
-                workspace_id=str(self.repo_root),
-                payload={"revision": self.revision + 1},
-            ).to_dict(),
-        })
-        self._schedule_send({
-            "kind": "progress_event",
-            "event": build_progress_event(
-                operation_id=operation_id,
-                kind="workspace.projection.refreshed",
-                status="completed",
-                message="Projection broadcast refreshed.",
-                workspace_id=str(self.repo_root),
-                payload={"revision": self.revision + 1},
-            ).to_dict(),
-        })
+        workspace_id = str(self.repo_root)
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.refresh_projection",
+            phase="operation.started",
+            status="running",
+            message="Refreshing workspace projection.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+        )
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.refresh_projection",
+            phase="operation.progress",
+            status="running",
+            message="Building backend-authored projection.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+        )
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.refresh_projection",
+            phase="operation.completed",
+            status="completed",
+            message="Workspace projection refreshed.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+            metadata={"revision": self.revision + 1},
+        )
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.refresh_projection",
+            phase="workspace.projection.refreshed",
+            status="completed",
+            message="Projection broadcast refreshed.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+            metadata={"revision": self.revision + 1},
+        )
+        return {"accepted": True}
+
+    def handle_workspace_status(self, intent: Intent) -> Dict[str, Any]:
+        operation_id = intent.intent_id or f"workspace-status-{self.revision}"
+        workspace_id = str(self.repo_root)
+        projection = build_projection(self.repo_root, revision=self.revision, chat_history=self.chat_history)
+        current_branch = projection.shell.get("subtitle", "")
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.status",
+            phase="operation.started",
+            status="running",
+            message="Reading current workspace status.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+        )
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.status",
+            phase="operation.progress",
+            status="running",
+            message=f"Workspace projection screen: {projection.screen}.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+            metadata={"screen": projection.screen, "current_branch": current_branch},
+        )
+        self._emit_progress(
+            operation_id=operation_id,
+            command="workspace.status",
+            phase="operation.completed",
+            status="completed",
+            message="Workspace status read complete.",
+            workspace_id=workspace_id,
+            intent=intent.kind,
+            metadata={"revision": self.revision, "screen": projection.screen},
+        )
         return {"accepted": True}
 
     def handle_run_validators(self, intent: Intent) -> Dict[str, Any]:

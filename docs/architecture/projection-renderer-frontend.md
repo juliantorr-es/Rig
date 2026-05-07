@@ -107,7 +107,10 @@ The frontend keeps the existing WebSocket-based projection/intent loop.
 - `progress_event` messages are live telemetry
 - receipts and refreshed projections are durable authority
 - the frontend retains a bounded in-memory progress buffer
+- progress events are grouped by `operation_id`
+- progress events are ordered by `sequence` and `timestamp`
 - `CommandProgressCard` renders backend-authored progress payloads only
+- `workspace.command_progress` is the projection-declared lane for transient command telemetry
 
 Future progress events can be added without changing the doctrine.
 

@@ -25,8 +25,14 @@ def test_websocket_routes_progress_events_to_store():
 def test_progress_store_caps_retained_events():
     path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "progress-store.js"
     content = path.read_text(encoding="utf-8")
-    assert "MAX_PROGRESS_EVENTS" in content
-    assert "slice(-MAX_PROGRESS_EVENTS)" in content
+    assert "MAX_OPERATIONS" in content
+    assert "MAX_EVENTS_PER_OPERATION" in content
+    assert "operationOrder" in content
+    assert "operationMap" in content
+    assert "getProgressOperations" in content
+    assert "sort(" in content
+    assert "slice(-MAX_EVENTS_PER_OPERATION)" in content
+    assert "slice(-MAX_OPERATIONS)" in content
 
 
 def test_command_progress_card_renderer_is_dumb():
@@ -34,6 +40,8 @@ def test_command_progress_card_renderer_is_dumb():
     content = path.read_text(encoding="utf-8")
     assert "renderCommandProgressCard" in content
     assert "operation_id" in content
+    assert "phase" in content
     assert "message" in content
     assert "status" in content
-    assert "command" not in content.lower() or "command-progress" in content.lower()
+    assert "history" in content
+    assert "receipt_candidate" not in content.lower() or "status" in content.lower()

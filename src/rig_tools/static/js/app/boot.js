@@ -2,7 +2,7 @@ import { RigLog } from './logging.js';
 import { clearProjection, getProjection, setProjection } from './projection-store.js';
 import { createIntentDispatcher } from './intent-dispatch.js';
 import { connectWebSocket } from './websocket.js';
-import { appendProgressEvent, clearProgress } from './progress-store.js';
+import { appendProgressEvent, clearProgress, getProgressOperations } from './progress-store.js';
 import { buildWidgetRegistry } from '../widgets/registry.js';
 import { renderRoot } from './render-root.js';
 
@@ -183,21 +183,21 @@ export function bootRigUI() {
   }
 
   function renderProgress(events) {
-    const footer = document.getElementById('footer');
-    if (!footer) return;
-    let progressContainer = document.getElementById('progress');
-    if (!progressContainer) {
-      progressContainer = document.createElement('div');
-      progressContainer.id = 'progress';
-      footer.appendChild(progressContainer);
+    const widgetHost = document.getElementById('workspace.command_progress');
+    if (!widgetHost) return;
+    widgetHost.innerHTML = '';
+    const operations = events && events.length ? events : getProgressOperations();
+    if (!operations || operations.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No active command progress yet.';
+      widgetHost.appendChild(empty);
+      return;
     }
-    progressContainer.innerHTML = '';
-    if (!events || events.length === 0) return;
-    const latest = events.slice(-3);
-    latest.forEach(event => {
+    operations.slice(0, 3).forEach(operation => {
       const renderer = widgetRegistry.CommandProgressCard || widgetRegistry._fallback;
-      const widgetEl = renderer(`progress.${event.operation_id}`, event, []);
-      if (widgetEl) progressContainer.appendChild(widgetEl);
+      const widgetEl = renderer(`progress.${operation.operation_id}`, operation, []);
+      if (widgetEl) widgetHost.appendChild(widgetEl);
     });
   }
 

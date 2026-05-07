@@ -13,6 +13,7 @@ export function renderRoot({ projection, widgetRegistry, pendingIntents, renderC
       const widget = projection().widgets[widgetId];
       const renderer = widgetRegistry[widget.type] || widgetRegistry._fallback;
       const widgetEl = renderer(widgetId, widget.data, widget.actions);
+      if (widgetEl) widgetEl.id = widgetId;
       if (widgetEl) el.appendChild(widgetEl);
     });
   });

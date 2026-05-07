@@ -85,6 +85,24 @@ def _workspace_lane_summary_widget(workspace_records: int) -> WidgetProjection:
         },
     )
 
+
+def _workspace_command_progress_widget() -> WidgetProjection:
+    return WidgetProjection(
+        "CommandProgressCard",
+        "workspace.command_progress",
+        {
+            "command": "",
+            "phase": "operation.log",
+            "status": "unknown",
+            "level": "info",
+            "message": "No active command progress yet.",
+            "sequence": 0,
+            "timestamp": utc_now(),
+            "events": [],
+            "metadata": {},
+        },
+    )
+
 def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[List[ChatMessage]] = None) -> UIProjection:
     from rig.domain.workspace import WorkspaceDomain
     from rig_tools.core.io import read_json
@@ -239,10 +257,11 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "state": {"label": "Available" if val_path else "None", "severity": "info" if val_path else "idle"},
             "body": f"Evidence for {ws_id}."
         }),
-        "evidence.receipts": WidgetProjection("ReceiptList", "evidence.receipts", {
-            "title": "Receipts",
-            "receipts": [r.to_projection() for r in recent_receipts] if recent_receipts else []
-        }),
+            "evidence.receipts": WidgetProjection("ReceiptList", "evidence.receipts", {
+                "title": "Receipts",
+                "receipts": [r.to_projection() for r in recent_receipts] if recent_receipts else []
+            }),
+            "workspace.command_progress": _workspace_command_progress_widget(),
         "backend.status": WidgetProjection("BackendStatus", "backend.status", {
             "title": "Native bridge",
             "body": "pywebview · WebSocket streaming",
@@ -274,11 +293,12 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "sidebar": ["queue.summary", "workspace.git_state"],
             "main": ["workspace.info", "workspace.lane_summary", "validator.stack"],
             "inspector": ["evidence.current", "evidence.receipts"],
-            "footer": ["backend.status"]
+            "footer": ["workspace.command_progress", "backend.status"]
         }),
         widgets=widgets,
         intents={
             "intent.refresh_projection": IntentProjection("rig.intent.refresh_projection", "Refresh", True),
+            "intent.workspace_status": IntentProjection("rig.intent.workspace_status", "Workspace Status", True),
             "intent.run_validators": IntentProjection(
                 "rig.intent.run_validators",
                 "Run Validators",
@@ -311,7 +331,7 @@ def _build_empty_projection(
             "sidebar": ["queue.summary", "workspace.git_state"],
             "main": ["workspace.empty", "workspace.lane_summary"],
             "inspector": ["evidence.current", "evidence.receipts"],
-            "footer": ["backend.status"]
+            "footer": ["workspace.command_progress", "backend.status"]
         }),
         widgets={
             "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": "Local agent governance"}),
@@ -341,6 +361,7 @@ def _build_empty_projection(
                 "title": "Receipts",
                 "receipts": []
             }),
+            "workspace.command_progress": _workspace_command_progress_widget(),
             "backend.status": WidgetProjection("BackendStatus", "backend.status", {
                 "title": "Native bridge",
                 "body": "pywebview · WebSocket streaming",
@@ -349,6 +370,7 @@ def _build_empty_projection(
         },
         intents={
             "intent.refresh_projection": IntentProjection("rig.intent.refresh_projection", "Refresh", True),
+            "intent.workspace_status": IntentProjection("rig.intent.workspace_status", "Workspace Status", True),
             "intent.chat.submit": IntentProjection("rig.intent.chat.submit", "Send", True),
             "intent.open_workspace": IntentProjection(
                 "rig.intent.open_workspace",
