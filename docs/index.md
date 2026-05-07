@@ -12,6 +12,6 @@ Phase 6 adds governed orchestration jobs that stop at human gates instead of mut
 - [UI Doctrine](architecture/UI_DOCTRINE.md) — Rig UI strategy and model.
 - [Governance Engine](architecture/governance-engine.md) — Central authority for action legality.
 - [Proposal Lifecycle](architecture/proposal-lifecycle.md) — Future plan for proposal state management.
+- [PublicOps Architecture](architecture/public-ops.md) — Future public collaboration surface architecture.
 - [Execution Sandbox](architecture/execution-sandbox.md) — Managed execution and isolation.
 - [UI Projections](architecture/ui-projections.md) — Unidirectional data flow for TUIs and Web UIs.
-

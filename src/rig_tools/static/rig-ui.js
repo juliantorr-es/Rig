@@ -33,24 +33,66 @@
                 pendingIntents.clear();
                 render();
             } else if (msg.kind === 'intent_result') {
-                console.log('Intent result:', msg.data);
+                RigLog.debug('IntentResult', 'Received intent result', {
+                    accepted: msg.data.accepted,
+                    intent_kind: msg.data.intent_kind,
+                    reason: msg.data.reason,
+                    status: msg.data.status
+                });
                 const data = msg.data;
                 if (!data.accepted) {
-                    showError(`Action rejected: ${data.reason || 'Unknown reason'}`);
+                    // Show error with more detail for unsupported intents
+                    const reason = data.reason || 'Unknown reason';
+                    const status = data.status || '';
+                    const displayReason = status === 'unsupported' 
+                        ? `Not available: ${reason}` 
+                        : `Rejected: ${reason}`;
+                    showError(displayReason);
                 }
-                // Clear pending intent for this intent kind
+                // Clear pending intent for this intent kind and reset any stuck buttons
                 for (const [actionId, pending] of pendingIntents.entries()) {
                     if (projection.intents && projection.intents[actionId] && 
                         projection.intents[actionId].kind === msg.data.intent_kind) {
                         pendingIntents.delete(actionId);
+                        // Reset button state
+                        const btn = document.querySelector(`button[onclick="window.sendRigIntent('${actionId}')"]`);
+                        if (btn) {
+                            btn.disabled = false;
+                            // Restore original label from projection
+                            const intentRef = projection.intents[actionId];
+                            btn.textContent = intentRef ? (intentRef.label || actionId) : actionId;
+                        }
                         break;
                     }
                 }
             } else if (msg.kind === 'stream_chunk') {
                 handleStreamChunk(msg.data);
             } else if (msg.kind === 'error') {
-                showError(`Server error: ${msg.message}`);
+                RigLog.warn('ServerError', 'Received error message', {
+                    message: msg.message,
+                    intent_id: msg.intent_id,
+                    intent_kind: msg.intent_kind,
+                    status: msg.status
+                });
+                // Extract more detail if available
+                const detail = msg.intent_kind 
+                    ? `Intent '${msg.intent_kind}': ${msg.message}`
+                    : `Server error: ${msg.message}`;
+                showError(detail);
+                
+                // Reset any stuck buttons when we get an error
                 pendingIntents.clear();
+                // Try to reset all intent buttons to their original state
+                if (projection && projection.intents) {
+                    Object.keys(projection.intents).forEach(actionId => {
+                        const btn = document.querySelector(`button[onclick="window.sendRigIntent('${actionId}')"]`);
+                        if (btn) {
+                            btn.disabled = false;
+                            const intentRef = projection.intents[actionId];
+                            btn.textContent = intentRef ? (intentRef.label || actionId) : actionId;
+                        }
+                    });
+                }
             } else if (msg.kind === 'event') {
                 handleEvent(msg.data);
             }

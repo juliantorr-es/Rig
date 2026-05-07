@@ -41,6 +41,8 @@ class UIServer:
         self.intent_handler.register("rig.intent.refresh_projection", self.handle_refresh)
         self.intent_handler.register("rig.intent.chat.submit", self.handle_chat_submit)
         self.intent_handler.register("rig.intent.run_validators", self.handle_run_validators)
+        self.intent_handler.register("rig.intent.apply_patch", self._handle_unsupported_intent)
+        self.intent_handler.register("rig.intent.approve_gate", self._handle_unsupported_intent)
 
     def _stub_handler(self, intent: Intent) -> Dict[str, Any]:
         target = intent.target or {}
@@ -95,6 +97,47 @@ class UIServer:
             "accepted": False,
             "reason": f"Intent '{intent.kind}' not implemented in this phase.",
             "status": "not_implemented",
+        }
+
+    def _handle_unsupported_intent(self, intent: Intent) -> Dict[str, Any]:
+        """Handler for intents that are.reserved by governance but not yet implemented from UI.
+        
+        Returns a structured refusal that the frontend can display.
+        Does NOT mutate files or state.
+        """
+        logger.info(
+            "Unsupported intent received from UI",
+            extra={
+                "intent_id": intent.intent_id,
+                "intent_kind": intent.kind,
+                "status": "unsupported",
+            }
+        )
+        
+        # Map known reserved intents to specific messages
+        intent_messages = {
+            "rig.intent.apply_patch": (
+                "Patch application is not available from the UI yet. "
+                "Run validation and use the governed CLI apply path: `rig proposal apply`."
+            ),
+            "rig.intent.approve_gate": (
+                "Gate approval is not available from the UI yet. "
+                "Use the governed CLI to approve: `rig gate approve`."
+            ),
+        }
+        
+        message = intent_messages.get(
+            intent.kind,
+            f"Intent '{intent.kind}' is reserved by governance but not yet available from the UI. "
+            "Use the governed CLI for this action."
+        )
+        
+        return {
+            "accepted": False,
+            "reason": message,
+            "status": "unsupported",
+            "intent_id": intent.intent_id,
+            "intent_kind": intent.kind,
         }
 
     def handle_refresh(self, intent: Intent) -> Dict[str, Any]:
@@ -568,8 +611,18 @@ class UIServer:
                 await ws.send_json({
                     "schema_version": "rig.ui.message.v1",
                     "kind": "error",
-                    "message": f"Unknown intent kind: {intent.kind}"
+                    "intent_id": intent.intent_id,
+                    "intent_kind": intent.kind,
+                    "message": f"Unknown intent kind: {intent.kind}",
+                    "status": "unknown_intent"
                 })
+                logger.warning(
+                    "Unknown intent received",
+                    extra={
+                        "intent_id": intent.intent_id,
+                        "intent_kind": intent.kind,
+                    }
+                )
                 return
             
             intent_proj = current_projection.intents[intent_key]
@@ -579,8 +632,19 @@ class UIServer:
                 await ws.send_json({
                     "schema_version": "rig.ui.message.v1",
                     "kind": "error",
-                    "message": intent_proj.disabled_reason or f"Intent '{intent.kind}' is currently disabled."
+                    "intent_id": intent.intent_id,
+                    "intent_kind": intent.kind,
+                    "message": intent_proj.disabled_reason or f"Intent '{intent.kind}' is currently disabled.",
+                    "status": "intent_disabled"
                 })
+                logger.info(
+                    "Disabled intent rejected",
+                    extra={
+                        "intent_id": intent.intent_id,
+                        "intent_kind": intent.kind,
+                        "reason": intent_proj.disabled_reason
+                    }
+                )
                 return
             
             # Check for stale projection revision (unless it's a safe intent)
@@ -588,8 +652,20 @@ class UIServer:
                 await ws.send_json({
                     "schema_version": "rig.ui.message.v1",
                     "kind": "error",
-                    "message": f"Stale projection revision {intent.observed_projection_revision}. Current revision is {self.revision}. Please refresh."
+                    "intent_id": intent.intent_id,
+                    "intent_kind": intent.kind,
+                    "message": f"Stale projection revision {intent.observed_projection_revision}. Current revision is {self.revision}. Please refresh.",
+                    "status": "stale_revision"
                 })
+                logger.info(
+                    "Stale intent rejected",
+                    extra={
+                        "intent_id": intent.intent_id,
+                        "intent_kind": intent.kind,
+                        "observed_revision": intent.observed_projection_revision,
+                        "current_revision": self.revision
+                    }
+                )
                 return
             
             # dispatch to handler

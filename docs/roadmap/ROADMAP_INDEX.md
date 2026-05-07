@@ -121,3 +121,4 @@ This page is the navigational index for the project documentation set.
 ## Future Capabilities
 
 - [Rig Not-Compiler Capability](future-capabilities/rig-not-compiler-capability.md)
+- [PublicOps Architecture](../architecture/public-ops.md)
