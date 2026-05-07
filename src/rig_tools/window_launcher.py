@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import logging
+import tempfile
 import shutil
 import socket
 import subprocess
 import sys
 import time
 import threading
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -48,12 +51,23 @@ def _set_macos_app_name(name: str) -> bool:
     if sys.platform != "darwin":
         return False
     try:
-        from Foundation import NSProcessInfo
+        from Foundation import NSBundle, NSProcessInfo
 
         process_info = NSProcessInfo.processInfo()
         if hasattr(process_info, "setProcessName_"):
             process_info.setProcessName_(name)
-            return True
+        bundle = NSBundle.mainBundle()
+        info = bundle.infoDictionary() if bundle is not None else None
+        if info is not None:
+            try:
+                info["CFBundleName"] = name
+            except Exception:
+                pass
+            try:
+                info["CFBundleDisplayName"] = name
+            except Exception:
+                pass
+        return True
     except Exception:
         pass
     try:
@@ -63,8 +77,23 @@ def _set_macos_app_name(name: str) -> bool:
         if hasattr(app, "setApplicationName_"):
             app.setApplicationName_(name)
             return True
+        if hasattr(app, "setTitle_"):
+            app.setTitle_(name)
+            return True
     except Exception:
         pass
+    return False
+
+
+def _wait_for_http(url: str, timeout_seconds: float = 20.0) -> bool:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1.0) as response:
+                if 200 <= getattr(response, "status", 200) < 500:
+                    return True
+        except (urllib.error.URLError, TimeoutError, OSError):
+            time.sleep(0.2)
     return False
 
 
@@ -210,14 +239,38 @@ def open_window(
     session["server_pid"] = server_proc.pid
     session["status"] = "running"
     save_session(repo_root, session)
-    time.sleep(2)
+    ready = _wait_for_http(url, timeout_seconds=30.0)
+    if not ready:
+        warnings.append("Window server did not become ready before the window opened.")
 
     try:
         if use_webview:
             import webview
 
-            webview.create_window("Rig", url, width=1200, height=800)
-            webview.start()
+            window = webview.create_window(
+                "Rig",
+                html=(
+                    "<!doctype html><html><head><meta charset='utf-8'>"
+                    "<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;"
+                    "display:grid;place-items:center;height:100vh;margin:0;background:#f7f7f2;color:#111;}"
+                    ".card{border:1px solid #1a1a1a;padding:1rem 1.25rem;max-width:36rem;}"
+                    "h1{margin:0 0 .5rem 0;font-size:1.1rem;letter-spacing:.08em;text-transform:uppercase;}"
+                    "p{margin:0;line-height:1.5;}</style></head>"
+                    "<body><div class='card'><h1>Rig loading</h1>"
+                    "<p>The Gridline window is starting. If this message remains, the Textual web server did not respond.</p>"
+                    "</div></body></html>"
+                ),
+                width=1200,
+                height=800,
+            )
+
+            def _load_ready_window() -> None:
+                if _wait_for_http(url, timeout_seconds=10.0):
+                    window.load_url(url)
+                else:
+                    warnings.append("Textual web endpoint did not respond in time.")
+
+            webview.start(_load_ready_window)
         else:
             if get_pywebview() and threading.current_thread() is not threading.main_thread():
                 warnings.append("pywebview requires main thread; falling back to browser")
