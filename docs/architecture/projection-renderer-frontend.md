@@ -46,6 +46,7 @@ src/rig_tools/static/
       workspace-git-state.js
       workspace-lane-summary.js
       proposal-lifecycle-console.js
+      integrity-status-card.js
     components/
       dom.js
       badges.js

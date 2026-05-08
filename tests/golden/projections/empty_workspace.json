@@ -1,0 +1,263 @@
+{
+  "schema_version": "rig.ui.projection.v1",
+  "projection_id": "local-shell",
+  "revision": 1,
+  "generated_at": "GOLDEN_PLACEHOLDER",
+  "screen": "empty_workspace",
+  "shell": {
+    "title": "Rig",
+    "subtitle": "Local agent governance",
+    "state": {
+      "label": "No active workspace",
+      "severity": "idle"
+    }
+  },
+  "chat": null,
+  "layout": {
+    "regions": {
+      "header": ["app.title", "next.gate", "workspace.header"],
+      "sidebar": ["queue.summary", "workspace.git_state"],
+      "main": ["workspace.empty", "workspace.lane_summary"],
+      "inspector": ["evidence.current", "evidence.receipts"],
+      "footer": ["workspace.command_progress", "backend.status", "integrity.status"]
+    }
+  },
+  "widgets": {
+    "app.title": {
+      "type": "AppTitle",
+      "id": "app.title",
+      "data": {
+        "title": "Rig",
+        "subtitle": "Local agent governance"
+      },
+      "actions": []
+    },
+    "next.gate": {
+      "type": "GateBadge",
+      "id": "next.gate",
+      "data": {
+        "label": "No active gate",
+        "severity": "idle"
+      },
+      "actions": []
+    },
+    "workspace.header": {
+      "type": "WorkspaceHeader",
+      "id": "workspace.header",
+      "data": {
+        "repo_root": "GOLDEN_PLACEHOLDER",
+        "workspace_id": null,
+        "workspace_status": "unselected",
+        "workspace_path": null,
+        "branch": "GOLDEN_PLACEHOLDER",
+        "head": "GOLDEN_PLACEHOLDER",
+        "authority_label": "GOLDEN_PLACEHOLDER"
+      },
+      "actions": []
+    },
+    "workspace.git_state": {
+      "type": "WorkspaceGitState",
+      "id": "workspace.git_state",
+      "data": {
+        "repo_root": "GOLDEN_PLACEHOLDER",
+        "branch": "GOLDEN_PLACEHOLDER",
+        "head": "GOLDEN_PLACEHOLDER",
+        "dirty": false,
+        "dirty_files_count": 0,
+        "safe_to_commit": false,
+        "reason": "GOLDEN_PLACEHOLDER"
+      },
+      "actions": []
+    },
+    "queue.summary": {
+      "type": "MetricStack",
+      "id": "queue.summary",
+      "data": {
+        "title": "Queue",
+        "items": [
+          {
+            "label": "Jobs indexed",
+            "value": 0,
+            "severity": "info"
+          },
+          {
+            "label": "Active workspaces",
+            "value": 0,
+            "severity": "idle"
+          },
+          {
+            "label": "Providers available",
+            "value": 0,
+            "severity": "attention"
+          }
+        ]
+      },
+      "actions": []
+    },
+    "workspace.lane_summary": {
+      "type": "WorkspaceLaneSummary",
+      "id": "workspace.lane_summary",
+      "data": {
+        "status": "GOLDEN_PLACEHOLDER",
+        "lane_count": 0,
+        "active_lanes": 0,
+        "clean_lanes": 0,
+        "review_ready_lanes": 0,
+        "workspace_records": 0
+      },
+      "actions": []
+    },
+    "workspace.proposal_lifecycle": {
+      "type": "ProposalLifecycleConsole",
+      "id": "workspace.proposal_lifecycle",
+      "data": {
+        "lifecycle_id": "workspace.proposal_lifecycle",
+        "stage": "workspace_unselected",
+        "title": "Proposal Lifecycle Console",
+        "summary": "",
+        "workspace_path": null,
+        "current_gate": "A",
+        "allowed_actions": [],
+        "blocked_actions": [],
+        "next_safe_action": "",
+        "recommendation_state": {},
+        "proposal_state": {},
+        "validation_state": {},
+        "progress_state": {
+          "transient": true,
+          "source": "progress_event",
+          "receipt_candidate": "inert",
+          "auditability_state": {
+            "authoritative_events": [],
+            "advisory_only_events": [],
+            "authoritative_receipts": [],
+            "advisory_only_receipts": []
+          }
+        },
+        "auditability_state": {
+          "authoritative_events": [],
+          "advisory_only_events": [],
+          "authoritative_receipts": [],
+          "advisory_only_receipts": []
+        },
+        "warnings": []
+      },
+      "actions": []
+    },
+    "workspace.empty": {
+      "type": "EmptyStateCard",
+      "id": "workspace.empty",
+      "data": {
+        "title": "No workspace is active",
+        "body": "Open or initialize a repository to begin governed work. Use the agent lane helper for current lane operations."
+      },
+      "actions": [
+        "intent.open_workspace",
+        "intent.initialize_current_folder",
+        "intent.refresh_projection"
+      ]
+    },
+    "evidence.current": {
+      "type": "EvidenceCard",
+      "id": "evidence.current",
+      "data": {
+        "title": "Evidence",
+        "state": {
+          "label": "No active workspace",
+          "severity": "idle"
+        },
+        "body": "Evidence appears after Rig opens a governed workspace."
+      },
+      "actions": []
+    },
+    "evidence.receipts": {
+      "type": "ReceiptList",
+      "id": "evidence.receipts",
+      "data": {
+        "title": "Receipts",
+        "receipts": []
+      },
+      "actions": []
+    },
+    "workspace.command_progress": {
+      "type": "CommandProgressCard",
+      "id": "workspace.command_progress",
+      "data": {
+        "title": "GOLDEN_PLACEHOLDER",
+        "state": {
+          "label": "GOLDEN_PLACEHOLDER",
+          "severity": "idle"
+        },
+        "body": "GOLDEN_PLACEHOLDER",
+        "progress": "GOLDEN_PLACEHOLDER"
+      },
+      "actions": []
+    },
+    "backend.status": {
+      "type": "BackendStatus",
+      "id": "backend.status",
+      "data": {
+        "title": "Native bridge",
+        "body": "pywebview · WebSocket streaming",
+        "revision": 1
+      },
+      "actions": []
+    },
+    "integrity.status": {
+      "type": "IntegrityStatusCard",
+      "id": "integrity.status",
+      "data": {
+        "title": "Integrity Status",
+        "status": "clean",
+        "score": 1.0,
+        "total_violations": 0,
+        "contract_violations": 0,
+        "authority_mismatch_count": 0,
+        "receipt_backing_failure_count": 0,
+        "audit_backing_failure_count": 0,
+        "stale_receipt_detected": false,
+        "orphaned_receipt_detected": false,
+        "orphaned_audit_detected": false,
+        "next_integrity_action": "No integrity issues detected"
+      },
+      "actions": []
+    }
+  },
+  "intents": {
+    "intent.refresh_projection": {
+      "kind": "rig.intent.refresh_projection",
+      "label": "Refresh",
+      "enabled": true,
+      "target": null,
+      "disabled_reason": null
+    },
+    "intent.workspace_status": {
+      "kind": "rig.intent.workspace_status",
+      "label": "Workspace Status",
+      "enabled": true,
+      "target": null,
+      "disabled_reason": null
+    },
+    "intent.chat.submit": {
+      "kind": "rig.intent.chat.submit",
+      "label": "Send",
+      "enabled": true,
+      "target": null,
+      "disabled_reason": null
+    },
+    "intent.open_workspace": {
+      "kind": "rig.intent.open_workspace",
+      "label": "Open Repository",
+      "enabled": false,
+      "target": null,
+      "disabled_reason": "Select or enter a repository path manually before continuing."
+    },
+    "intent.initialize_current_folder": {
+      "kind": "rig.intent.initialize_current_folder",
+      "label": "Initialize",
+      "enabled": false,
+      "target": null,
+      "disabled_reason": "Repository path is required before initialization from the browser or manual path."
+    }
+  }
+}

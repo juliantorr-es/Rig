@@ -15,3 +15,5 @@ build/
 .build/rig/
 .rig/tmp/
 .rig/cache/
+
+.rig/

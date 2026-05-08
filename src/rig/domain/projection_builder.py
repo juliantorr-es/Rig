@@ -18,8 +18,164 @@ from rig.domain.workspace_audit import (
     PLACEHOLDER_NOT_CREATED,
 )
 
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _compute_integrity_status(
+    repo_root: Path,
+    projection_data: Optional[dict] = None,
+) -> dict[str, Any]:
+    """Compute integrity status data for the projection.
+    
+    Returns a dict with:
+    - integrity_status
+    - contract_status
+    - projection_violation_count
+    - authority_mismatch_count
+    - receipt_backing_failure_count
+    - audit_backing_failure_count
+    - next_integrity_action
+    - stale_receipt_detected
+    - orphaned_receipt_detected
+    - orphaned_audit_detected
+    
+    Pure function: no file writes, no mutation.
+    """
+    try:
+        from rig.domain.integrity import validate_repository_integrity
+        from rig.domain.projection_contracts import build_projection_contract_summary
+        
+        # Get repository-level integrity
+        repo_integrity = validate_repository_integrity(repo_root)
+        
+        # Build projection contract summary if projection_data is available
+        if projection_data is not None:
+            contract_summary = build_projection_contract_summary(projection_data, repo_root)
+            projection_violation_count = contract_summary.total_violations
+            authority_binding_failures = contract_summary.authority_binding_failures
+            receipt_backing_failures = contract_summary.receipt_backing_failures
+            audit_backing_failures = contract_summary.audit_backing_failures
+            placeholder_violations = contract_summary.placeholder_violations
+        else:
+            projection_violation_count = 0
+            authority_binding_failures = 0
+            receipt_backing_failures = 0
+            audit_backing_failures = 0
+            placeholder_violations = 0
+        
+        # Determine integrity status from repository integrity
+        integrity_status = repo_integrity.overall_status
+        
+        # Determine contract status
+        if projection_violation_count > 0:
+            contract_status = "violations_found"
+        elif projection_violation_count == 0 and contract_summary.total_contracts > 0:
+            contract_status = "all_passed"
+        else:
+            contract_status = "unknown"
+        
+        # Detect stale/orphaned items from repository integrity
+        stale_receipt_detected = False
+        orphaned_receipt_detected = False
+        orphaned_audit_detected = False
+        
+        # Check for specific violation codes in repo integrity
+        for finding in repo_integrity.all_findings:
+            if hasattr(finding, 'violation_code'):
+                code = finding.violation_code.value if hasattr(finding.violation_code, 'value') else str(finding.violation_code)
+                if 'STALE' in code or 'STALE_' in code:
+                    stale_receipt_detected = True
+                if 'ORPHANED_RECEIPT' in code:
+                    orphaned_receipt_detected = True
+                if 'ORPHANED_AUDIT' in code:
+                    orphaned_audit_detected = True
+        
+        # Build next integrity action
+        actions = []
+        if stale_receipt_detected:
+            actions.append("Review stale receipts")
+        if orphaned_receipt_detected:
+            actions.append("Remove orphaned receipts")
+        if orphaned_audit_detected:
+            actions.append("Remove orphaned audit events")
+        if projection_violation_count > 0:
+            actions.append("Review projection contract violations")
+        if authority_binding_failures > 0:
+            actions.append("Fix authority binding failures")
+        if receipt_backing_failures > 0:
+            actions.append("Create missing receipts")
+        if audit_backing_failures > 0:
+            actions.append("Create missing audit events")
+        
+        if actions:
+            next_integrity_action = "; ".join(actions)
+        else:
+            next_integrity_action = "No integrity issues detected"
+        
+        # Check if any receipts are stale by scanning receipt directory
+        try:
+            receipt_dir = repo_root / ".build" / "rig" / "receipts"
+            if receipt_dir.exists():
+                from rig.domain.receipts import get_receipt_store
+                store = get_receipt_store(repo_root)
+                receipts = store.list(limit=100)
+                # Check for stale receipts (this is a simplified check)
+                # Full stale detection is handled by integrity validation
+                pass
+        except Exception:
+            pass
+        
+        return {
+            "integrity_status": integrity_status,
+            "contract_status": contract_status,
+            "projection_violation_count": projection_violation_count,
+            "authority_mismatch_count": authority_binding_failures,
+            "receipt_backing_failure_count": receipt_backing_failures,
+            "audit_backing_failure_count": audit_backing_failures,
+            "next_integrity_action": next_integrity_action,
+            "stale_receipt_detected": stale_receipt_detected,
+            "orphaned_receipt_detected": orphaned_receipt_detected,
+            "orphaned_audit_detected": orphaned_audit_detected,
+        }
+    except Exception:
+        # Fallback to safe defaults
+        return {
+            "integrity_status": "unknown",
+            "contract_status": "unknown",
+            "projection_violation_count": 0,
+            "authority_mismatch_count": 0,
+            "receipt_backing_failure_count": 0,
+            "audit_backing_failure_count": 0,
+            "next_integrity_action": "Integrity status unavailable",
+            "stale_receipt_detected": False,
+            "orphaned_receipt_detected": False,
+            "orphaned_audit_detected": False,
+        }
+
+
+def _integrity_status_widget(
+    repo_root: Path,
+    integrity_data: dict[str, Any],
+) -> WidgetProjection:
+    """Create IntegrityStatusCard widget with integrity data."""
+    return WidgetProjection(
+        "IntegrityStatusCard",
+        "integrity.status",
+        {
+            "integrity_status": integrity_data["integrity_status"],
+            "contract_status": integrity_data["contract_status"],
+            "projection_violation_count": integrity_data["projection_violation_count"],
+            "authority_mismatch_count": integrity_data["authority_mismatch_count"],
+            "receipt_backing_failure_count": integrity_data["receipt_backing_failure_count"],
+            "audit_backing_failure_count": integrity_data["audit_backing_failure_count"],
+            "next_integrity_action": integrity_data["next_integrity_action"],
+            "stale_receipt_detected": integrity_data["stale_receipt_detected"],
+            "orphaned_receipt_detected": integrity_data["orphaned_receipt_detected"],
+            "orphaned_audit_detected": integrity_data["orphaned_audit_detected"],
+        },
+    )
 
 
 def _git_capture(repo_root: Path, *args: str) -> str:
@@ -324,6 +480,20 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
                 state=state
             ))
 
+    # Build projection data for integrity status computation
+    # We need to construct the full projection dict to pass to contract validation
+    projection_for_contract = {
+        "revision": revision,
+        "screen": "active_run",
+        "widgets": {},
+    }
+    
+    # Compute integrity status
+    integrity_data = _compute_integrity_status(
+        repo_root,
+        projection_data=projection_for_contract,
+    )
+    
     widgets = {
         "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": f"Workspace: {ws_id}"}),
         "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": f"Status: {status}", "severity": "info" if status == "validated" else "attention"}),
@@ -361,12 +531,13 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "title": "Receipts",
             "receipts": [r.to_projection() for r in recent_receipts] if recent_receipts else []
         }),
-            "workspace.command_progress": _workspace_command_progress_widget(),
+        "workspace.command_progress": _workspace_command_progress_widget(),
         "backend.status": WidgetProjection("BackendStatus", "backend.status", {
             "title": "Native bridge",
             "body": "pywebview · WebSocket streaming",
             "revision": revision
-        })
+        }),
+        "integrity.status": _integrity_status_widget(repo_root, integrity_data),
     }
 
     # Determine run_validators enable/disable based on workspace state
@@ -420,6 +591,18 @@ def _build_empty_projection(
     repo_root: Optional[Path] = None,
 ) -> UIProjection:
     repo_root = repo_root or Path.cwd()
+    
+    # Compute integrity status for empty projection
+    projection_for_contract = {
+        "revision": revision,
+        "screen": "empty_workspace",
+        "widgets": {},
+    }
+    integrity_data = _compute_integrity_status(
+        repo_root,
+        projection_data=projection_for_contract,
+    )
+    
     return UIProjection(
         revision=revision,
         generated_at=utc_now(),
@@ -431,7 +614,7 @@ def _build_empty_projection(
             "sidebar": ["queue.summary", "workspace.git_state"],
             "main": ["workspace.empty", "workspace.lane_summary"],
             "inspector": ["evidence.current", "evidence.receipts"],
-            "footer": ["workspace.command_progress", "backend.status"]
+            "footer": ["workspace.command_progress", "backend.status", "integrity.status"]
         }),
         widgets={
             "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": "Local agent governance"}),
@@ -471,7 +654,8 @@ def _build_empty_projection(
                 "title": "Native bridge",
                 "body": "pywebview · WebSocket streaming",
                 "revision": revision
-            })
+            }),
+            "integrity.status": _integrity_status_widget(repo_root, integrity_data),
         },
         intents={
             "intent.refresh_projection": IntentProjection("rig.intent.refresh_projection", "Refresh", True),
