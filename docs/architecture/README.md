@@ -68,9 +68,19 @@ Use these paths to navigate the documentation based on your role or interest.
 4. [protected-branch-governance.md](protected-branch-governance.md) — Branch protection policy
 5. [review-governance.md](review-governance.md) — Review and approval flow
 
+### 🧭 Operational Substrate Canonicalization
+1. [operational-substrate.md](operational-substrate.md) — Rig layered above Git/GitHub
+2. [workspace-as-substrate.md](workspace-as-substrate.md) — Workspace as governed environment
+3. [agent-operational-model.md](agent-operational-model.md) — Rig-native agent flow
+4. [operational-event-substrate.md](operational-event-substrate.md) — Stream-oriented runtime contracts
+5. [execution-substrate-pluralism.md](execution-substrate-pluralism.md) — Backend pluralism and routing
+6. [native-operational-shell.md](native-operational-shell.md) — Native macOS supervision
+7. [operational-governance-principles.md](operational-governance-principles.md) — Canonical operating principles
+
 ### 🧪 Research Contributor (Doctrine & Future)
-1. [visual-execution-doctrine.md](visual-execution-doctrine.md) — Foundational philosophy
-2. [governance-replay.md](governance-replay.md) — Replay theory
+1. [operational-coherence.md](operational-coherence.md) — The Project Vision
+2. [visual-execution-doctrine.md](visual-execution-doctrine.md) — Foundational philosophy
+3. [governance-replay.md](governance-replay.md) — Replay theory
 3. [public-ops.md](public-ops.md) — Future public operations
 4. [experiential-runtime-learning.md](experiential-runtime-learning.md) — Research on runtime learning
 

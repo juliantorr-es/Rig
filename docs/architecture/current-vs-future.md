@@ -9,6 +9,7 @@ This document clarifies the implementation status of various Rig subsystems. It 
 | Classification | Meaning |
 |----------------|---------|
 | **Implemented** | Active in the runtime, tested, and ready for operational use. |
+| **Operational Activation** | Systems currently being rolled out and enforced in the CI/CD pipeline. |
 | **Canonical Doctrine** | Established philosophy and rules that govern existing and future systems. |
 | **Experimental** | Partially implemented or available as a prototype/CLI helper. |
 | **Planned** | Approved architecture and contracts, but implementation has not started. |
@@ -19,6 +20,7 @@ This document clarifies the implementation status of various Rig subsystems. It 
 
 ### 2.1 Core Governance & Integrity
 - **Implemented**: `GovernanceEngine` (basic legality), `IntegrityEngine` (finding generation), `ReceiptEnvelope` (v1), `AuditEvent` logging.
+- **Operational Activation**: Mandatory GitHub status checks for replay and integrity (P0 rollout).
 - **Canonical Doctrine**: "Deny by Default", "Everything Leaves a Receipt", "Trust Level Hierarchy".
 - **Planned**: Advanced multi-actor signing for receipts, formal gate proofs.
 
@@ -29,6 +31,7 @@ This document clarifies the implementation status of various Rig subsystems. It 
 
 ### 2.3 Replay & Determinism
 - **Implemented**: `replay_workspace_from_fs`, deterministic state reconstruction, determinism validation tests.
+- **Operational Activation**: Replay determinism verification as a required CI gate.
 - **Canonical Doctrine**: "Deterministic Reconstruction from Receipts", "Historical Truth Sovereignty".
 - **Planned**: Cross-workspace replay integrity checks.
 
@@ -39,7 +42,7 @@ This document clarifies the implementation status of various Rig subsystems. It 
 - **Future Capability**: Advanced interactive topology manipulation (governed).
 
 ### 2.5 Operational Trust & Pipeline
-- **Implemented**: `preproduction-governance.md` gates (basic), `protected-branch-governance.md`.
+- **Operational Activation**: `preproduction-governance.md` gates, `protected-branch-governance.md`, GitHub Actions validation workflows.
 - **Planned**: `Integration Soak` automation, formal `Review Bundle` receipts.
 - **Future Capability**: `PublicOps` (governed collaboration with external SaaS).
 
