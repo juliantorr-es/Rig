@@ -61,7 +61,8 @@ jobs:
 
       - name: Operational integrity
         run: |
-          python -m rig doctor
+          python -m rig doctor workspace --json --strict
+          python -m rig doctor projections --json --strict
           python -m rig ui --help
 
       - name: Browser boot smoke
