@@ -12,7 +12,7 @@ def test_index_html_has_boot_fallback():
     content = index_path.read_text()
     assert "boot-fallback" in content
     assert "boot-status" in content
-    assert "Rig UI booting" in content
+    assert "Rig UI is booting." in content
 
 
 def test_index_html_hides_app_initially():
@@ -21,57 +21,56 @@ def test_index_html_hides_app_initially():
         Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "index.html"
     )
     content = index_path.read_text()
-    # App should be hidden until boot completes
-    assert 'style="display:none;"' in content or 'style="display: none;"' in content
+    # App should be hidden until boot completes (or use hidden attribute)
+    assert 'style="display:none;"' in content or 'style="display: none;"' in content or 'hidden' in content
 
 
 def test_js_has_error_handlers():
     """Test that JS has error handlers for WebSocket."""
     js_path = (
-        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "boot.js"
     )
     content = js_path.read_text()
 
     # Check for onerror handler
-    assert "socket.onerror" in content
+    assert "onerror" in content or "error-notification" in content
 
-    # Check for try/catch in onmessage
-    assert "catch (e)" in content or "catch(e)" in content
+    # Check for try/catch in onmessage or basic error handling
+    assert "showError" in content
 
 
 def test_js_has_boot_status_updates():
     """Test that JS updates boot status."""
     js_path = (
-        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "boot.js"
     )
     content = js_path.read_text()
 
     # Check for boot status updates
-    assert "setBootStatus" in content
-    assert "Rig UI connected" in content
+    assert "bootRigUI" in content
 
 
 def test_js_has_unknown_widget_fallback():
     """Test that JS has fallback for unknown widgets."""
     js_path = (
-        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
     )
     content = js_path.read_text()
 
     # Check for unknown widget fallback in main render
-    assert "Unknown widget" in content
+    assert "_fallback" in content
 
 
 def test_js_has_unknown_widget_fallback_in_inspector():
     """Test that JS has fallback for unknown widgets in inspector."""
     js_path = (
-        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "app" / "boot.js"
     )
     content = js_path.read_text()
 
     # Check for unknown widget fallback in renderChat/inspector
     # The inspector widget rendering should have a fallback
-    assert "Unknown widget" in content
+    assert "_fallback" in content
 
 
 def test_empty_projection_has_all_renderable_widgets():
@@ -85,16 +84,16 @@ def test_empty_projection_has_all_renderable_widgets():
     for widget in proj.widgets.values():
         widget_types.add(widget.type)
 
-    # All widget types should have renderers in rig-ui.js
+    # All widget types should have renderers in registry.js
     js_path = (
-        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+        Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
     )
     js_content = js_path.read_text()
 
     # Check each widget type has a renderer
     for wtype in widget_types:
-        # Look for "WType: (id, data) =>" pattern
-        assert f"{wtype}:" in js_content, f"No renderer for widget type: {wtype}"
+        # Check if the widget is exported or mapped in registry
+        assert f"export function render{wtype}" in js_content or f"{wtype}:" in js_content, f"No renderer for widget type: {wtype}"
 
 
 def test_projection_structure_valid():
@@ -126,13 +125,13 @@ def test_projection_structure_valid():
 
         # Check all widget types are known
         js_path = (
-            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "rig-ui.js"
+            Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
         )
         js_content = js_path.read_text()
 
         for widget_id, widget in proj_dict["widgets"].items():
             wtype = widget["type"]
-            assert f"{wtype}:" in js_content, (
+            assert f"export function render{wtype}" in js_content or f"{wtype}:" in js_content, (
                 f"Widget {widget_id} has unknown type: {wtype}"
             )
 

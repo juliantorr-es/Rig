@@ -1,0 +1,8 @@
+# Governance routing rehearsal owners.
+# This file exists to make CODEOWNER review requests observable on synthetic PRs.
+
+/docs/architecture/ @juliantorr-es
+/.github/workflows/ @juliantorr-es
+/tests/test_replay.py @juliantorr-es
+/tests/test_ui_frontend_logic.py @juliantorr-es
+/src/rig/domain/projection_builder.py @juliantorr-es
