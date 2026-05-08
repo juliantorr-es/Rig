@@ -53,6 +53,26 @@ from rig.domain.workspace_audit import (
     PLACEHOLDER_NO_RECEIPT,
 )
 
+# Canonical receipt envelope support (Phase 2)
+from rig.domain.receipt_envelope import (
+    ReceiptEnvelope as CanonicalReceiptEnvelope,
+    ReceiptActor as CanonicalReceiptActor,
+    ReceiptSubject as CanonicalReceiptSubject,
+    ReceiptInput,
+    ReceiptOutput,
+    ReceiptDecision,
+    ReceiptEvidence,
+    build_receipt_envelope,
+    write_receipt,
+    # Phase 4: Validation receipt integration
+    build_validation_receipt,
+    build_gate_decision_receipt,
+    # Phase 5: Review bundle formalization
+    build_review_bundle_receipt,
+    # Apply receipt helper
+    build_apply_receipt,
+)
+
 
 WORKSPACE_STATUSES = ["planned", "active", "blocked", "executed", "validated", "review_ready", "applied"]
 ALLOWED_TRANSITIONS = {
@@ -193,6 +213,89 @@ class WorkspaceDomain:
         }
         receipt_path = self._save_audit_receipt(create_receipt, receipt_id)
         
+        # --- Canonical Receipt: Create formal ReceiptEnvelope ---
+        canonical_actor = CanonicalReceiptActor(
+            actor_id="cli",
+            actor_kind="cli",
+            display_name="CLI",
+            is_human=True,
+            is_authoritative=True,
+        )
+        canonical_subject = CanonicalReceiptSubject.workspace(workspace_id)
+        canonical_decision = ReceiptDecision.allowed(
+            f"ws_create_{workspace_id}_decision",
+            "Workspace creation allowed by Rig authority",
+        )
+        
+        # Build inputs
+        canonical_inputs = [
+            ReceiptInput.of(
+                input_id=f"task_{workspace_id}",
+                input_kind="task",
+                reference="",
+                summary=task,
+            ),
+            ReceiptInput.of(
+                input_id=f"base_commit_{workspace_id}",
+                input_kind="base_commit",
+                reference=base_commit,
+                hash=base_commit,
+            ),
+            ReceiptInput.of(
+                input_id=f"parent_branch_{workspace_id}",
+                input_kind="parent_branch",
+                reference=parent_branch,
+                summary=parent_branch,
+            ),
+        ]
+        
+        # Build outputs
+        canonical_outputs = [
+            ReceiptOutput.of(
+                output_id=workspace_id,
+                output_kind="workspace",
+                reference=str(self.workspace_path(workspace_id)),
+                status="success",
+            ),
+            ReceiptOutput.of(
+                output_id=branch,
+                output_kind="branch",
+                reference=branch,
+                status="success",
+            ),
+            ReceiptOutput.of(
+                output_id=str(worktree_path),
+                output_kind="worktree",
+                reference=str(worktree_path),
+                status="success",
+            ),
+        ]
+        
+        # Build the canonical envelope
+        canonical_envelope = build_receipt_envelope(
+            receipt_type="workspace_create",
+            receipt_id=receipt_id,
+            workspace_id=workspace_id,
+            actor=canonical_actor,
+            subject=canonical_subject,
+            decision=canonical_decision,
+            inputs=canonical_inputs,
+            outputs=canonical_outputs,
+            related_receipt_ids=[],
+            related_audit_event_ids=[],
+            summary=f"Workspace {workspace_id} created with task: {task}",
+            authoritative=True,
+            created_at=utc_now(),
+        )
+        
+        # Write canonical receipt (alongside legacy receipt for backward compat)
+        canonical_receipt_path = self.receipt_dir / f"{receipt_id}_canonical.json"
+        canonical_write_result = write_receipt(
+            self.repo_root,
+            canonical_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
         # Create and save audit event
         audit_event = AuditEvent.for_workspace_creation(
             workspace_id=workspace_id,
@@ -210,7 +313,7 @@ class WorkspaceDomain:
             authoritative=True,
         )
         
-        # Update payload with audit info
+        # Update payload with audit info (including canonical receipt)
         payload = {
             "workspace_id": workspace_id,
             "repo_root": str(self.repo_root),
@@ -222,6 +325,7 @@ class WorkspaceDomain:
             "status": "planned",
             "status_history": [{"status": "planned", "at": utc_now()}],
             "receipt_paths": [str(receipt_path)],
+            "canonical_receipt_paths": [canonical_write_result.receipt_path] if canonical_write_result.status == "success" else [],
             "audit_event_ids": [audit_event.event_id],
             "authoritative": True,
         }
@@ -253,6 +357,64 @@ class WorkspaceDomain:
         }
         receipt_path = self._save_audit_receipt(transition_receipt, receipt_id)
         
+        # --- Canonical Receipt: Create formal ReceiptEnvelope ---
+        canonical_actor = CanonicalReceiptActor.cli()
+        canonical_subject = CanonicalReceiptSubject.workspace(workspace_id)
+        canonical_decision = ReceiptDecision.allowed(
+            f"ws_trans_{workspace_id}_{old}_to_{new_status}_decision",
+            f"Workspace transition from {old} to {new_status} allowed by Rig authority",
+        )
+        
+        # Build inputs
+        canonical_inputs = [
+            ReceiptInput.of(
+                input_id=f"workspace_{workspace_id}",
+                input_kind="workspace",
+                reference=str(self.workspace_path(workspace_id)),
+                summary=workspace_id,
+            ),
+            ReceiptInput.of(
+                input_id=f"old_status_{old}",
+                input_kind="old_status",
+                reference=old,
+                summary=f"Previous status: {old}",
+            ),
+        ]
+        
+        # Build outputs
+        canonical_outputs = [
+            ReceiptOutput.of(
+                output_id=f"new_status_{new_status}",
+                output_kind="new_status",
+                reference=new_status,
+                status="success",
+            ),
+        ]
+        
+        # Build the canonical envelope
+        canonical_envelope = build_receipt_envelope(
+            receipt_type="workspace_transition",
+            receipt_id=receipt_id,
+            workspace_id=workspace_id,
+            actor=canonical_actor,
+            subject=canonical_subject,
+            decision=canonical_decision,
+            inputs=canonical_inputs,
+            outputs=canonical_outputs,
+            related_receipt_ids=[],
+            related_audit_event_ids=[],
+            summary=f"Workspace {workspace_id} transitioned: {old} -> {new_status}",
+            authoritative=True,
+            created_at=utc_now(),
+        )
+        
+        # Write canonical receipt
+        canonical_write_result = write_receipt(
+            self.repo_root,
+            canonical_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
         # Create and save audit event
         audit_event = AuditEvent.for_workspace_transition(
             workspace_id=workspace_id,
@@ -274,6 +436,13 @@ class WorkspaceDomain:
         existing_events = list(record.payload.get("audit_event_ids") or [])
         existing_receipts.append(str(receipt_path))
         existing_events.append(audit_event.event_id)
+        
+        # Add canonical receipt path
+        existing_canonical_receipts = list(record.payload.get("canonical_receipt_paths") or [])
+        if canonical_write_result.status == "success":
+            existing_canonical_receipts.append(canonical_write_result.receipt_path)
+        record.payload["canonical_receipt_paths"] = existing_canonical_receipts
+        
         record.payload["receipt_paths"] = existing_receipts
         record.payload["audit_event_ids"] = existing_events
         
@@ -337,6 +506,8 @@ class WorkspaceDomain:
             results.append(result)
             if proc.returncode != 0 and validator.get("required", False):
                 status = "failed"
+        
+        # Build payload for legacy validation.json
         payload = {
             "schema_version": "rig.validation_result.v1",
             "workspace_id": workspace_id,
@@ -350,8 +521,77 @@ class WorkspaceDomain:
         }
         path = self.validation_result_path(workspace_id)
         write_json(path, payload)
+        
+        # --- Phase 4: Create canonical validation receipt ---
+        # Build the validation result dict for the receipt builder
+        full_validation_result = {
+            "schema_version": "rig.validation_result.v1",
+            "workspace_id": workspace_id,
+            "workspace_branch": record.payload.get("branch"),
+            "worktree_path": str(worktree),
+            "started_at": started,
+            "finished_at": utc_now(),
+            "status": status,
+            "validators": results,
+            "authoritative": True,
+        }
+        
+        # Build canonical validation receipt
+        canonical_validation_envelope = build_validation_receipt(
+            workspace_id=workspace_id,
+            validation_result=full_validation_result,
+            started_at=started,
+            finished_at=utc_now(),
+            authoritative=True,
+        )
+        
+        # Write canonical receipt
+        canonical_validation_write_result = write_receipt(
+            self.repo_root,
+            canonical_validation_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
+        # --- Create gate decision receipt for validation gate ---
+        if status == "passed":
+            gate_decision_envelope = build_gate_decision_receipt(
+                workspace_id=workspace_id,
+                gate_name="validation_gate",
+                decision="allowed",
+                reason="All required validators passed",
+                related_receipt_ids=[canonical_validation_envelope.receipt_id],
+                authoritative=True,
+            )
+        else:
+            gate_decision_envelope = build_gate_decision_receipt(
+                workspace_id=workspace_id,
+                gate_name="validation_gate",
+                decision="blocked",
+                reason="One or more required validators failed",
+                related_receipt_ids=[canonical_validation_envelope.receipt_id],
+                authoritative=True,
+            )
+        
+        # Write gate decision receipt
+        canonical_gate_write_result = write_receipt(
+            self.repo_root,
+            gate_decision_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
+        # Update record with canonical receipt info
+        canonical_receipt_paths = record.payload.get("canonical_receipt_paths", [])
+        if canonical_validation_write_result.status == "success":
+            canonical_receipt_paths.append(canonical_validation_write_result.receipt_path)
+        if canonical_gate_write_result.status == "success":
+            canonical_receipt_paths.append(canonical_gate_write_result.receipt_path)
+        
+        record.payload["canonical_receipt_paths"] = canonical_receipt_paths
         record.payload["validation_result_path"] = str(path)
         record.payload["validation_status"] = status
+        record.payload["validation_receipt_id"] = canonical_validation_envelope.receipt_id
+        record.payload["validation_gate_decision_id"] = gate_decision_envelope.receipt_id
+        
         if status == "failed":
             record.payload["status"] = "blocked"
         else:
@@ -371,6 +611,9 @@ class WorkspaceDomain:
         validation_path = self.validation_result_path(workspace_id)
         validation = read_json(validation_path) if validation_path.exists() else self.generate_validation_result(workspace_id)
         changed = git(worktree, "status", "--porcelain=v1").stdout.splitlines()
+        
+        started = utc_now()
+        
         review = {
             "schema_version": "rig.review_bundle.v1",
             "workspace_id": workspace_id,
@@ -395,6 +638,67 @@ class WorkspaceDomain:
         )
         (bundle_dir / "diff.patch").write_text(patch.stdout, encoding="utf-8")
         write_json(bundle_dir / "validation.json", validation)
+        
+        # --- Phase 5: Create canonical review bundle receipt ---
+        canonical_review_envelope = build_review_bundle_receipt(
+            workspace_id=workspace_id,
+            review_bundle=review,
+            started_at=started,
+            finished_at=utc_now(),
+            authoritative=True,
+        )
+        
+        # Write canonical receipt
+        canonical_review_write_result = write_receipt(
+            self.repo_root,
+            canonical_review_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
+        # --- Create gate decision receipt for apply gate ---
+        apply_eligible = self.apply_eligibility(workspace_id)
+        validation_status = validation.get("status", "unknown")
+        
+        if apply_eligible and validation_status == "passed":
+            apply_gate_decision_envelope = build_gate_decision_receipt(
+                workspace_id=workspace_id,
+                gate_name="apply_gate",
+                decision="allowed",
+                reason="All gates passed - ready for apply",
+                related_receipt_ids=[canonical_review_envelope.receipt_id],
+                authoritative=True,
+            )
+        else:
+            blockers = review.get("known_blockers", ["validation or receipt gate failed"])
+            blocker_reason = "; ".join(blockers) if blockers else "unknown blocker"
+            apply_gate_decision_envelope = build_gate_decision_receipt(
+                workspace_id=workspace_id,
+                gate_name="apply_gate",
+                decision="blocked",
+                reason=f"Apply blocked: {blocker_reason}",
+                related_receipt_ids=[canonical_review_envelope.receipt_id],
+                authoritative=True,
+            )
+        
+        # Write apply gate decision receipt
+        canonical_apply_gate_write_result = write_receipt(
+            self.repo_root,
+            apply_gate_decision_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
+        # Update record with canonical receipt info
+        canonical_receipt_paths = record.payload.get("canonical_receipt_paths", [])
+        if canonical_review_write_result.status == "success":
+            canonical_receipt_paths.append(canonical_review_write_result.receipt_path)
+        if canonical_apply_gate_write_result.status == "success":
+            canonical_receipt_paths.append(canonical_apply_gate_write_result.receipt_path)
+        
+        record.payload["canonical_receipt_paths"] = canonical_receipt_paths
+        record.payload["review_bundle_receipt_id"] = canonical_review_envelope.receipt_id
+        record.payload["apply_gate_decision_id"] = apply_gate_decision_envelope.receipt_id
+        self.save_workspace(record.payload)
+        
         return review
     
     def load_execution_receipt(self, workspace_id: str) -> dict[str, Any] | None:
@@ -463,6 +767,89 @@ class WorkspaceDomain:
         }
         write_json(self.apply_receipt_path(workspace_id), apply_payload)
         
+        # --- Canonical Receipt: Create formal ReceiptEnvelope ---
+        canonical_actor = CanonicalReceiptActor.cli()
+        canonical_subject = CanonicalReceiptSubject.workspace(workspace_id)
+        canonical_decision = ReceiptDecision.allowed(
+            f"ws_apply_{workspace_id}_decision",
+            "Workspace apply allowed by Rig authority",
+        )
+        
+        # Build inputs
+        canonical_inputs = [
+            ReceiptInput.of(
+                input_id=f"workspace_{workspace_id}",
+                input_kind="workspace",
+                reference=str(self.workspace_path(workspace_id)),
+                summary=workspace_id,
+            ),
+            ReceiptInput.of(
+                input_id=f"main_before_{main_before}",
+                input_kind="main_before",
+                reference=main_before,
+                hash=main_before,
+            ),
+            ReceiptInput.of(
+                input_id=f"workspace_branch_{branch}",
+                input_kind="workspace_branch",
+                reference=branch,
+                summary=branch,
+            ),
+        ]
+        
+        # Build outputs
+        canonical_outputs = [
+            ReceiptOutput.of(
+                output_id=f"main_after_{main_after}",
+                output_kind="main_after",
+                reference=main_after,
+                hash=main_after,
+                status="success",
+            ),
+            ReceiptOutput.of(
+                output_id=receipt_id,
+                output_kind="apply_receipt",
+                reference=str(self.apply_receipt_path(workspace_id)),
+                status="success",
+            ),
+        ]
+        
+        # Build evidence
+        review_bundle_path = self.review_path(workspace_id) / "review.json"
+        canonical_evidence = [
+            ReceiptEvidence.file(
+                evidence_id=f"review_bundle_{workspace_id}",
+                reference=str(review_bundle_path),
+                hash=apply_payload["review_bundle_hash"],
+                mime_type="application/json",
+            ),
+        ]
+        
+        # Build the canonical envelope
+        canonical_envelope = build_receipt_envelope(
+            receipt_type="workspace_apply",
+            receipt_id=receipt_id,
+            workspace_id=workspace_id,
+            actor=canonical_actor,
+            subject=canonical_subject,
+            decision=canonical_decision,
+            inputs=canonical_inputs,
+            outputs=canonical_outputs,
+            evidence=canonical_evidence,
+            related_receipt_ids=apply_payload.get("validation_receipt_ids", []),
+            related_audit_event_ids=[],
+            summary=f"Workspace {workspace_id} applied to main branch",
+            authoritative=True,
+            created_at=utc_now(),
+        )
+        
+        # Write canonical receipt
+        canonical_write_result = write_receipt(
+            self.repo_root,
+            canonical_envelope,
+            receipt_dir=self.receipt_dir,
+        )
+        
         # --- Audit Trail: Create apply audit event ---
         audit_event = AuditEvent.for_workspace_apply(
             workspace_id=workspace_id,
@@ -478,6 +865,16 @@ class WorkspaceDomain:
         existing_events.append(audit_event.event_id)
         record.payload["audit_event_ids"] = existing_events
         
+        # Add canonical receipt path
+        existing_canonical_receipts = list(record.payload.get("canonical_receipt_paths") or [])
+        if canonical_write_result.status == "success":
+            existing_canonical_receipts.append(canonical_write_result.receipt_path)
+        record.payload["canonical_receipt_paths"] = existing_canonical_receipts
+        
         record.payload["status"] = "applied"
         self.save_workspace(record.payload)
+        
+        # Add canonical envelope to return value for testability
+        apply_payload["canonical_receipt_envelope"] = canonical_envelope.to_dict()
+        
         return apply_payload
