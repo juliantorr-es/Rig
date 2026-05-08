@@ -31,6 +31,21 @@
  * - Runtime topology connectors
  */
 
+export function normalizeRuntimeEventEnvelope(envelope = {}) {
+  if (!envelope || typeof envelope !== 'object') {
+    return null;
+  }
+  return {
+    schema_version: envelope.schema_version || envelope.schemaVersion || 'rig.runtime_event.v1',
+    event_family: envelope.event_family || envelope.eventFamily || 'runtime.lifecycle',
+    event_type: envelope.event_type || envelope.eventType || 'event',
+    event_id: envelope.event_id || envelope.eventId || '',
+    sequence: Number.isFinite(envelope.sequence) ? envelope.sequence : 0,
+    timestamp: envelope.timestamp || '',
+    payload: envelope.payload && typeof envelope.payload === 'object' ? envelope.payload : {}
+  };
+}
+
 // SVG Primitive: Replay Sweep
 // =============================================================================
 

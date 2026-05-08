@@ -51,7 +51,8 @@ import {
   rect,
   clamp,
   mapRange,
-  MotionUtils
+  MotionUtils,
+  normalizeRuntimeEventEnvelope
 } from '../svg-runtime-instrumentation.js';
 
 /** Runtime Stream Card Widget
@@ -77,6 +78,7 @@ export function renderRuntimeStreamCard(id, data, context) {
     maxSequence: data.max_sequence || 100,
     channel: data.channel || 'assistant'
   };
+  const runtimeEnvelope = normalizeRuntimeEventEnvelope(data.runtime_event || data.event_envelope);
 
   // Title and stream info
   const header = document.createElement('div');
@@ -88,6 +90,13 @@ export function renderRuntimeStreamCard(id, data, context) {
   const titleEl = document.createElement('h2');
   titleEl.textContent = data.title || 'Runtime Stream';
   header.appendChild(titleEl);
+
+  if (runtimeEnvelope) {
+    const eventBadge = document.createElement('div');
+    eventBadge.className = 'badge severity-info';
+    eventBadge.textContent = `${runtimeEnvelope.event_family} · ${runtimeEnvelope.event_type}`;
+    header.appendChild(eventBadge);
+  }
 
   // Stream status badge
   if (data.status) {

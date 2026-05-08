@@ -60,7 +60,8 @@ import {
   point,
   rect,
   size,
-  MotionUtils
+  MotionUtils,
+  normalizeRuntimeEventEnvelope
 } from '../svg-runtime-instrumentation.js';
 
 import { RuntimeInstrumentationState } from '../runtime-instrumentation.js';
@@ -98,6 +99,8 @@ const TOPOLOGY_ANIMATION = {
   replaySweep: '250ms',
   integrityFlash: '150ms'
 };
+
+const normalizeTopologyEnvelope = normalizeRuntimeEventEnvelope;
 
 // =============================================================================
 // Topology Node Model
@@ -471,7 +474,7 @@ export function renderRuntimeTopologyPanel(id, data, context) {
   }
 
   // Create header
-  const header = _createPanelHeader(data.title || 'Runtime Topology');
+  const header = _createPanelHeader(data.title || 'Runtime Topology', normalizeRuntimeEventEnvelope(data.runtime_event || data.event_envelope));
   container.appendChild(header);
 
   // Create SVG container
@@ -535,7 +538,7 @@ export function renderRuntimeTopologyPanel(id, data, context) {
 // =============================================================================
 
 /** Create panel header */
-function _createPanelHeader(title) {
+function _createPanelHeader(title, runtimeEnvelope = null) {
   const header = document.createElement('div');
   header.className = 'widget-header topology-header';
   header.style.display = 'flex';
@@ -553,6 +556,13 @@ function _createPanelHeader(title) {
   titleEl.style.fontWeight = '600';
   titleEl.style.color = 'var(--color-foreground, #E0E0E0)';
   header.appendChild(titleEl);
+
+  if (runtimeEnvelope) {
+    const eventBadge = document.createElement('div');
+    eventBadge.className = 'badge severity-info';
+    eventBadge.textContent = `${runtimeEnvelope.event_family} · ${runtimeEnvelope.event_type}`;
+    header.appendChild(eventBadge);
+  }
 
   // Status indicator
   const statusEl = document.createElement('div');
