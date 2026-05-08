@@ -75,6 +75,77 @@ git rev-parse --short HEAD
 - Do **not** assume ownership of pre-existing changes.
 - Do **not** run broad formatters or autofix on pre-existing dirty files.
 
+### User-Owned Dirt / Modified File Discipline
+
+Pre-existing dirty files are protected work. Agents must patch forward from the current working tree, not restore backward to `HEAD` and rebuild their preferred version.
+
+For automation or scripted inspection, prefer the stable porcelain format:
+```bash
+git status --porcelain=v1 --branch
+```
+
+#### Hard rule
+If a file is already modified when the task begins, agents must **not** restore it, reset it, check it out from `HEAD`, overwrite it wholesale, or recreate it from scratch just to get a clean base.
+
+Do **not** use any of these to clear user-owned dirt:
+```bash
+git restore path/to/file
+git checkout -- path/to/file
+git reset --hard
+git clean -fd
+git stash
+```
+
+#### Required behavior when a dirty file must be edited
+If the current task requires editing a file that was already dirty at task start:
+
+1. Inspect the existing diff first.
+2. Identify which hunks are pre-existing user or other-agent work.
+3. Apply the smallest forward patch needed for the current task.
+4. Preserve unrelated existing hunks exactly.
+5. Do not normalize, reformat, reorder, or rewrite unrelated sections.
+6. Stage only task-owned hunks when staging is explicitly authorized.
+7. Report that the file had pre-existing modifications.
+
+Use patch-forward workflows such as:
+```bash
+git diff -- path/to/file
+git add -p path/to/file
+```
+Only use `git add -p` when staging is allowed by the current task and policy.
+
+#### Forbidden "two steps back, one step forward" behavior
+Agents must not revert a dirty file to `HEAD` and then re-apply their own changes. That destroys or obscures user work and makes review unreliable.
+
+Correct behavior:
+```text
+existing dirty file
+→ inspect existing hunks
+→ preserve unrelated hunks
+→ apply minimal new hunks
+→ stage only task-owned hunks if authorized
+→ report remaining user-owned dirt
+```
+
+Incorrect behavior:
+```text
+existing dirty file
+→ restore/reset/checkout/stash
+→ re-add agent changes
+→ accidentally drop or rewrite user/other-agent work
+```
+
+#### Stop condition
+If task hunks cannot be cleanly separated from pre-existing dirty hunks, agents must stop and report:
+
+- the affected file
+- the pre-existing hunks
+- the needed task hunks
+- why they cannot be safely separated
+- the safest proposed next step
+
+Do not restore the file. Do not overwrite the file. Do not keep editing through the conflict.
+
 ### Final report MUST separate:
 - Files dirty **before** the task
 - Files **changed** by the agent
@@ -122,6 +193,13 @@ git rev-parse --short HEAD
 2. Summarize **exactly** what will be included
 3. If tool/system rules still forbid committing, provide exact user-run commands instead
 4. Never claim the user did not ask if they did ask
+
+### Git Guard for Agent Sessions
+
+- Agent shells should place the Rig Git guard first in `PATH` so destructive commands are blocked before they reach the real Git binary.
+- If the guard blocks a command, stop immediately and report the blocked command and reason.
+- Do not bypass the guard by calling absolute Git paths directly.
+- The guard enforces the patch-forward policy for dirty files.
 
 ---
 
@@ -223,6 +301,10 @@ Safe to commit: yes/no
 
 Also include:
 - Current branch and HEAD
+- Files dirty before the task
+- Files intentionally left unstaged
+- Whether any pre-existing dirty files were touched
+- Whether partial staging was used
 
 ---
 
