@@ -1,18 +1,61 @@
 name: release-check
+
+# Release validation workflow
+# Runs release checklist validation on push and PR
+
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+
+# Minimal permissions - only need to read for checks
+permissions:
+  contents: read
+
 jobs:
   release-check:
+    name: Release Check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - run: python -m pip install -e .[dev]
-      - run: python -m rig release check --json | tee release-check.json
-      - uses: actions/upload-artifact@v4
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+      
+      - name: Install dev dependencies
+        run: python -m pip install -e ".[dev]"
+      
+      - name: Run release check
+        run: python -m rig release check --json | tee release-check.json
+      
+      - name: Validate release check output
+        run: |
+          # Verify the output is valid JSON
+          python -m json.tool release-check.json > /dev/null
+          
+          # Check that the output contains expected fields
+          if ! grep -q "validation_status" release-check.json; then
+            echo "ERROR: release-check.json missing validation_status"
+            exit 1
+          fi
+          
+          echo "Release check completed successfully"
+      
+      - name: Upload release check artifact
+        if: always()  # Upload even on failure for debugging
+        uses: actions/upload-artifact@v4
         with:
           name: release-check-json
           path: release-check.json
+          retention-days: 7  # Keep for 7 days only

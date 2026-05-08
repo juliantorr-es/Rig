@@ -1,0 +1,139 @@
+# Dependabot Configuration for Rig
+#
+# Security-focused dependency updates with minimal noise.
+#
+# Doctrine:
+# - Security updates enabled
+# - Minimal daily checks (low noise)
+# - No version updates (too noisy for alpha)
+# - GitHub Actions updates enabled
+# - Review required for all updates
+#
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-security-updates
+
+version: 2
+updates:
+
+  # GitHub Actions dependency updates
+  # Enable updates for GitHub Actions to keep CI secure
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "juliantorr-es"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+      - "github-actions"
+    assignees:
+      - "juliantorr-es"
+
+  # Python dependencies - security updates only
+  # During alpha, we only accept security updates to minimize disruption
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "UTC"
+    # Security updates only - no version updates during alpha
+    open-pull-requests-limit: 10
+    # Only get notifications for direct dependencies (not dev)
+    # This reduces noise while still catching critical security issues
+    allow:
+      - dependency-type: "direct"
+    # Security advisories with these severity levels
+    # Critical and High only to reduce noise
+    ignore:
+      - dependency-type: "development"
+      - dependency-name: "*"
+        update-types: ["version-update"]
+    reviewers:
+      - "juliantorr-es"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+      - "pip"
+    assignees:
+      - "juliantorr-es"
+
+  # Python dependencies - dev group (security only)
+  # Separate for dev dependencies to allow different handling
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "development"
+    ignore:
+      - dependency-type: "direct"
+      - dependency-name: "*"
+        update-types: ["version-update"]
+    reviewers:
+      - "juliantorr-es"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+      - "dev-deps"
+      - "pip"
+    assignees:
+      - "juliantorr-es"
+
+# Configuration Notes:
+#
+# 1. Why security-only during alpha?
+#    - Rig is in active development (0.1.0a1)
+#    - Version updates may introduce breaking changes
+#    - We manually control when to upgrade dependencies
+#    - Security updates are critical and should be applied promptly
+#
+# 2. Why separate GitHub Actions updates?
+#    - Keep CI infrastructure secure
+#    - Actions may have different update cadence than Python deps
+#    - Security fixes in actions are important
+#
+# 3. Review requirements:
+#    - All dependabot PRs require maintainer review
+#    - Security updates should be prioritized
+#    - Version updates (when enabled) must pass all validation
+#
+# 4. Validation for dependency updates:
+#    Before merging any dependency update:
+#    - Run: bash scripts/check.sh
+#    - Run: python -m pytest tests/test_replay.py -v
+#    - Run: python -m pytest tests/test_integrity.py -v
+#    - Run: python -m rig doctor all
+#    - Verify: No breaking changes to core governance
+#    - Verify: Replay determinism maintained
+#    - Verify: Projection contracts maintained
+#
+# 5. Emergency security updates:
+#    If a critical security vulnerability is found:
+#    - Dependabot will create a PR automatically
+#    - PR will be labeled with security severity
+#    - Maintainer will review and merge promptly
+#    - Release will be made if needed
+#
+# 6. Manual dependency checking:
+#    You can also manually check for dependency vulnerabilities:
+#    - Install pip-audit: python -m pip install pip-audit
+#    - Run: pip-audit
+#    - Or use: pip-audit --vulnerabilities

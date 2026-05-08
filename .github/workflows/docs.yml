@@ -1,14 +1,52 @@
 name: docs
+
+# Documentation build workflow
+# Runs on push and PR to verify docs build correctly
+
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+
+# Minimal permissions - only need to read for docs
+permissions:
+  contents: read
+
 jobs:
   docs:
+    name: Documentation Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - run: python -m pip install -e .[docs]
-      - run: python -m mkdocs build
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+      
+      - name: Install docs dependencies
+        run: python -m pip install -e ".[docs]"
+      
+      - name: Build documentation
+        run: python -m mkdocs build
+      
+      - name: Verify HTML output exists
+        run: |
+          if [ ! -d "site" ]; then
+            echo "ERROR: Documentation build failed - no site directory"
+            exit 1
+          fi
+          if [ ! -f "site/index.html" ]; then
+            echo "ERROR: Documentation build failed - no index.html"
+            exit 1
+          fi
+          echo "Documentation built successfully"
