@@ -590,6 +590,26 @@ class TestIntegrityStatusCardWidget:
         assert "IntegrityStatusCard:" in content
 
 
+class TestAuditTrailCardWidget:
+    """Tests for AuditTrailCard frontend widget."""
+
+    def test_audit_trail_card_file_exists(self):
+        widget_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "audit-trail-card.js"
+        assert widget_path.exists()
+
+    def test_audit_trail_card_has_render_function(self):
+        widget_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "audit-trail-card.js"
+        content = widget_path.read_text(encoding="utf-8")
+        assert "renderAuditTrailCard" in content
+        assert "export function renderAuditTrailCard" in content
+
+    def test_audit_trail_card_registered_in_registry(self):
+        registry_path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
+        content = registry_path.read_text(encoding="utf-8")
+        assert "AuditTrailCard:" in content
+        assert "renderAuditTrailCard" in content
+
+
 class TestProjectionBuilderIntegration:
     """Tests for projection builder integration with contracts."""
 

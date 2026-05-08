@@ -120,7 +120,13 @@ export function bootRigUI() {
     widgetIds.forEach(widgetId => {
       const widget = getProjection().widgets[widgetId];
       const renderer = widgetRegistry[widget.type] || widgetRegistry._fallback;
-      const widgetEl = renderer(widgetId, widget.data, widget.actions);
+      let widgetEl = null;
+      try {
+        widgetEl = renderer(widgetId, widget.data, widget.actions);
+      } catch (error) {
+        console.error(`Failed to render inspector widget ${widgetId} (${widget.type}):`, error);
+        widgetEl = widgetRegistry._fallback(widget);
+      }
       if (widgetEl) widgetsDiv.appendChild(widgetEl);
     });
     container.appendChild(widgetsDiv);
@@ -196,13 +202,21 @@ export function bootRigUI() {
     }
     operations.slice(0, 3).forEach(operation => {
       const renderer = widgetRegistry.CommandProgressCard || widgetRegistry._fallback;
-      const widgetEl = renderer(`progress.${operation.operation_id}`, operation, []);
+      let widgetEl = null;
+      try {
+        widgetEl = renderer(`progress.${operation.operation_id}`, operation, []);
+      } catch (error) {
+        console.error('Failed to render command progress widget:', error);
+        widgetEl = widgetRegistry._fallback(operation);
+      }
       if (widgetEl) widgetHost.appendChild(widgetEl);
     });
   }
 
   function onMessage(msg) {
+    console.log('[DEBUG-boot] Received message:', msg.kind);
     if (msg.kind === 'projection') {
+      console.log('[DEBUG-boot] Processing projection revision:', msg.data?.revision);
       setProjection(msg.data);
       pendingIntents.clear();
       
@@ -210,11 +224,22 @@ export function bootRigUI() {
       const fallback = document.getElementById('boot-fallback');
       const status = document.getElementById('boot-status');
       const app = document.getElementById('app');
+      console.log('[DEBUG-boot] Transitioning UI elements:', { fallback: !!fallback, status: !!status, app: !!app });
       if (fallback) fallback.hidden = true;
       if (status) status.hidden = true;
-      if (app) app.hidden = false;
+      if (app) {
+        app.hidden = false;
+        console.log('[DEBUG-boot] App element unhidden');
+      }
 
-      render();
+      console.log('[DEBUG-boot] Calling initial render()');
+      try {
+        render();
+        console.log('[DEBUG-boot] Initial render() complete');
+      } catch (e) {
+        console.error('[DEBUG-boot] Render failed:', e);
+        showError('Render failed: ' + e.message);
+      }
     } else if (msg.kind === 'intent_result') {
       dispatcher.handleIntentResult(msg.data);
     } else if (msg.kind === 'progress_event') {

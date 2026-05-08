@@ -162,6 +162,29 @@ def test_runtime_widgets_consume_density_governance():
     assert "SvgStatefulLoader" in status_content
 
 
+def test_widget_registry_includes_integrity_and_audit_trail_cards():
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "registry.js"
+    content = path.read_text(encoding="utf-8")
+    assert "import { renderAuditTrailCard } from './audit-trail-card.js';" in content
+    assert "AuditTrailCard:" in content
+    assert "IntegrityStatusCard:" in content
+    assert "renderIntegrityStatusCard" in content
+    assert "renderAuditTrailCard" in content
+
+
+def test_legacy_widget_renderers_are_es_module_exports():
+    integrity = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "integrity-status-card.js"
+    audit = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "audit-trail-card.js"
+
+    integrity_content = integrity.read_text(encoding="utf-8")
+    audit_content = audit.read_text(encoding="utf-8")
+
+    assert "export function renderIntegrityStatusCard" in integrity_content
+    assert "return container;" in integrity_content
+    assert "export function renderAuditTrailCard" in audit_content
+    assert "return container;" in audit_content
+
+
 def test_architecture_readme_points_to_extension_path():
     path = Path(__file__).parent.parent / "docs" / "architecture" / "README.md"
     content = path.read_text(encoding="utf-8")

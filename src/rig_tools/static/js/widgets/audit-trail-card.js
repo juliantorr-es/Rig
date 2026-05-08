@@ -20,7 +20,7 @@
  * - next_missing_audit_action: string
  */
 
-function renderAuditTrailCard(element, data) {
+export function renderAuditTrailCard(id, data, actions) {
   const container = document.createElement('div');
   container.className = 'rig-card audit-trail-card';
 
@@ -142,11 +142,7 @@ function renderAuditTrailCard(element, data) {
     container.appendChild(warning);
   }
 
-  // Clear existing content and append
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
-  }
-  element.appendChild(container);
+  return container;
 }
 
 // Register widget

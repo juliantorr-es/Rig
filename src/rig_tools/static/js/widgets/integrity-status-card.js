@@ -22,7 +22,7 @@
  * - orphaned_audit_detected: boolean (optional)
  */
 
-function renderIntegrityStatusCard(element, data) {
+export function renderIntegrityStatusCard(id, data, actions) {
   const container = document.createElement('div');
   container.className = 'rig-card integrity-status-card';
 
@@ -198,11 +198,7 @@ function renderIntegrityStatusCard(element, data) {
   advisoryNote.textContent = 'Integrity validation is advisory. Rig remains the authority.';
   container.appendChild(advisoryNote);
 
-  // Clear existing content and append
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
-  }
-  element.appendChild(container);
+  return container;
 }
 
 // Register widget

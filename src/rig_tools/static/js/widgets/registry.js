@@ -10,6 +10,7 @@ import { renderCommandProgressCard } from './command-progress-card.js';
 import { renderProposalLifecycleConsole } from './proposal-lifecycle-console.js';
 import { renderFundingSummaryCard } from './funding-summary-card.js';
 import { renderIntegrityStatusCard } from './integrity-status-card.js';
+import { renderAuditTrailCard } from './audit-trail-card.js';
 import { renderReplayTimelineCard } from './replay-timeline-card.js';
 
 export function buildWidgetRegistry(context) {
@@ -81,6 +82,7 @@ export function buildWidgetRegistry(context) {
     ProposalLifecycleConsole: (id, data) => renderProposalLifecycleConsole(id, data),
     FundingSummaryCard: (id, data) => renderFundingSummaryCard(id, data),
     IntegrityStatusCard: (id, data) => renderIntegrityStatusCard(id, data),
+    AuditTrailCard: (id, data) => renderAuditTrailCard(id, data),
     LogStream: (id, data) => renderLogStream(id, data, context.globalLogs(), context.truncateText),
     CommandProgressCard: (id, data) => renderCommandProgressCard(id, data),
     ReplayTimelineCard: (id, data) => renderReplayTimelineCard(id, data),
