@@ -56,6 +56,26 @@ The guard can also be called directly:
 python3.14 /Users/user/Developer/GitHub/Rig/scripts/rig_git_guard.py status --short --branch
 ```
 
+## Using Vibe Safely
+
+Prefer the repo-supported launcher so Vibe always starts with the Rig Git guard first in `PATH`:
+
+```bash
+/Users/user/Developer/GitHub/Rig/scripts/rig_vibe
+/Users/user/Developer/GitHub/Rig/scripts/rig_vibe --agent <name>
+/Users/user/Developer/GitHub/Rig/scripts/rig_vibe --doctor
+```
+
+Optional shell function:
+
+```zsh
+vibe() {
+  /Users/user/Developer/GitHub/Rig/scripts/rig_vibe "$@"
+}
+```
+
+This avoids fragile aliases and PATH drift when launching Vibe from an agent shell.
+
 ## Test Commands
 
 These should work:
@@ -84,4 +104,3 @@ git reset --hard
 ## Limitation
 
 The wrapper only guards commands that pass through the wrapper process. It cannot intercept a caller that bypasses PATH and invokes an absolute Git binary directly. Agents must still obey AGENTS.md and must not bypass the guard with absolute Git paths.
-

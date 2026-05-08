@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3.14 /Users/user/Developer/GitHub/Rig/scripts/rig_vibe_launcher.py "$@"
