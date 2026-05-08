@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Rig’s static frontend is a browser-native projection renderer. It consumes backend-authored `UIProjection` payloads, renders them with ES modules, and emits backend-defined intentions. It is not authoritative.
+Rig's static frontend is a browser-native projection renderer. It consumes backend-authored `UIProjection` payloads, renders them with ES modules, and emits backend-defined intentions. It is not authoritative.
 
 ## Doctrine
 
@@ -45,6 +45,7 @@ src/rig_tools/static/
       workspace-header.js
       workspace-git-state.js
       workspace-lane-summary.js
+      proposal-lifecycle-console.js
     components/
       dom.js
       badges.js
@@ -80,7 +81,7 @@ Current workspace-oriented widget types:
 - `WorkspaceHeader`
 - `WorkspaceGitState`
 - `WorkspaceLaneSummary`
-- `ProposalLifecycleConsole`
+- `ProposalLifecycleConsole` - renders enriched lifecycle data from `workspace.proposal_lifecycle` projection
 
 Existing UI widget types remain supported:
 
@@ -92,6 +93,7 @@ Existing UI widget types remain supported:
 - `GateBadge`
 - `AppTitle`
 - `CommandProgressCard`
+- `LogStream`
 
 Widget renderers must:
 
@@ -99,6 +101,59 @@ Widget renderers must:
 - degrade gracefully when optional fields are missing
 - render `disabled_reason` values exactly as authored by the backend
 - avoid inventing command strings or safety decisions
+
+## Proposal Lifecycle Console Widget
+
+The `ProposalLifecycleConsole` widget (`proposal-lifecycle-console.js`) renders the enriched `workspace.proposal_lifecycle` projection.
+
+### Contract
+
+The widget expects a projection payload containing:
+
+| Field | Type | Description |
+|---|---|---|
+| `lifecycle_id` | str | Always "workspace.proposal_lifecycle" |
+| `stage` | str | State-aware stage: "workspace_unselected", "workspace_ready", "gate_a_active", "recommendation_available", "proposal_pending", "validation_pending", "validation_passed", "validation_failed", "review_ready", "apply_blocked" |
+| `title` | str | "Proposal Lifecycle Console" |
+| `summary` | str | Human-readable summary of current state |
+| `workspace_path` | Optional[str] | Workspace path when available |
+| `current_gate` | str | Always "A" (Dogfood Gate A) |
+| `next_safe_action` | str | State-aware next safe action message |
+| `recommendation_state` | dict | RecommendationSummary with status, title, summary, source_surface, files, last_updated, next_action |
+| `proposal_state` | dict | ProposalSummary with status, title, summary, worktree_path, changed_files, next_action |
+| `validation_state` | dict | ValidationSummary with status, title, summary, surface, command, passed_count, failed_count, last_run_at, proof_status, next_action |
+| `progress_state` | dict | Always has transient=true, source="progress_event" |
+| `auditability_state` | dict | Always has progress_receipts="not_created", progress_receipt_plan="advisory_only", receipt_candidate="inert", evidence_refs="inert" |
+| `allowed_actions` | tuple | Gate A allowed actions |
+| `blocked_actions` | tuple | Gate A blocked actions (including apply_patch) |
+| `warnings` | tuple[str] | Includes "Progress telemetry is transient", "Apply remains blocked under Dogfood Gate A", etc. |
+
+### Rendering
+
+The widget renders:
+- Title from payload
+- Stage badge with state-aware severity
+- Summary text
+- Gate, workspace path, next safe action header line
+- Blocked apply note: "Apply remains blocked under Dogfood Gate A."
+- Recommendation state section with all fields
+- Proposal state section with all fields
+- Validation state section with all fields (including proof_status="not_proof")
+- Progress/auditability note
+- Allowed actions list
+- Blocked actions list
+- Warnings
+
+### Dumb Widget Contract
+
+The `ProposalLifecycleConsole` widget is **dumb**:
+- Renders projection data only
+- No fetching
+- No authority logic
+- No local persistence
+- No inference from frontend progress-store
+- Missing fields render empty or "Unknown"
+- Empty arrays render boring empty states
 
 ## WebSocket and Progress
 

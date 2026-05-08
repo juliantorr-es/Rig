@@ -1,0 +1,506 @@
+"""Governed PublicOps + Funding Intake spine.
+
+This module provides the normalized domain models and resolution helpers for
+the local-first, governed intake/funding substrate.
+
+Core doctrine:
+- Rig remains the authority.
+- External systems are connectors and presentation surfaces only.
+- All models are deterministic, serializable, side-effect free.
+- All state is advisory_only unless explicitly promoted by governance.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
+from typing import Any, Optional, Tuple
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle States
+# ---------------------------------------------------------------------------
+
+# Canonical funding/intake lifecycle states
+FUNDING_LIFECYCLE_STATES = (
+    "submitted",
+    "triaged",
+    "deduplicated",
+    "accepted",
+    "rejected",
+    "funding_open",
+    "funded",
+    "scheduled",
+    "implemented",
+    "validated",
+    "released",
+    "closed",
+)
+
+
+# Priority classes for acceleration requests
+PRIORITY_CLASSES = (
+    "standard",
+    "elevated",
+    "high",
+    "urgent",
+    "unscheduled",
+)
+
+
+# Public visibility states
+PUBLIC_VISIBILITY_STATES = (
+    "not_public",
+    "internal",
+    "public",
+)
+
+
+# ---------------------------------------------------------------------------
+# Placeholder constants (explicit, advisory_only)
+# ---------------------------------------------------------------------------
+
+PLACEHOLDER_UNFUNDED = "unfunded"
+PLACEHOLDER_ANONYMOUS = "anonymous"
+PLACEHOLDER_NOT_PUBLIC = "not_public"
+PLACEHOLDER_UNSCHEDULED = "unscheduled"
+PLACEHOLDER_ADVISORY_ONLY = "advisory_only"
+
+
+# ---------------------------------------------------------------------------
+# Normalized Domain Models
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class FundingPledge:
+    """A funding pledge from a sponsor.
+    
+    Deterministic, serializable, side-effect free.
+    Part of the advisory_only intake substrate.
+    """
+    pledge_id: str
+    sponsor_id: str
+    proposal_id: str
+    amount_usd: int  # cents for precision, but stored as int dollars for simplicity in v1
+    currency: str = "USD"
+    pledged_at: str = ""
+    status: str = "active"  # active, withdrawn, fulfilled
+    message: str = ""
+    is_anonymous: bool = False
+    
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class SponsorSummary:
+    """Summary of a sponsor/backer.
+    
+    Deterministic, serializable, side-effect free.
+    """
+    sponsor_id: str
+    name: str
+    handle: str = ""
+    avatar_url: str = ""
+    is_anonymous: bool = False
+    total_pledged_usd: int = 0
+    pledge_count: int = 0
+    first_pledge_at: Optional[str] = None
+    last_pledge_at: Optional[str] = None
+    
+    @classmethod
+    def anonymous(cls) -> "SponsorSummary":
+        """Create an anonymous sponsor placeholder."""
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        return cls(
+            sponsor_id=PLACEHOLDER_ANONYMOUS,
+            name=PLACEHOLDER_ANONYMOUS,
+            handle=PLACEHOLDER_ANONYMOUS,
+            is_anonymous=True,
+            total_pledged_usd=0,
+            pledge_count=0,
+            first_pledge_at=None,
+            last_pledge_at=None,
+        )
+    
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PublicIntakePacket:
+    """Normalized packet from external public intake sources.
+    
+    Produced by connectors (Google Forms, GitHub Issues, etc.).
+    Never mutates authority state directly.
+    Pure data model - deterministic, serializable, side-effect free.
+    """
+    packet_id: str
+    source: str  # e.g., "google_forms", "github_issues", "google_sheets"
+    source_id: str  # external ID in the source system
+    raw_payload: dict[str, Any] = field(default_factory=dict)
+    normalizes_to: str = ""  # normalized proposal ID if deduped
+    title: str = ""
+    description: str = ""
+    submitter_email: str = ""
+    submitter_name: str = ""
+    submitted_at: str = ""
+    tags: Tuple[str, ...] = ()
+    priority_class: str = "standard"
+    requested_funding_usd: int = 0
+    is_community_requested: bool = False
+    deduplication_key: Optional[str] = None
+    lifecycle_state: str = "submitted"
+    
+    # Metadata for audit trailing (advisory only, not authority)
+    sync_receipt_id: Optional[str] = None
+    imported_at: str = ""
+    dry_run: bool = False
+    
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PublicSyncReceipt:
+    """Receipt for a public intake synchronization operation.
+    
+    Generated by connectors during import.
+    Pure data - does not persist or create files itself.
+    """
+    receipt_id: str
+    operation: str  # e.g., "public_intake_import"
+    connector: str  # e.g., "google_forms", "github_issues"
+    start_time: str
+    end_time: str = ""
+    items_processed: int = 0
+    items_created: int = 0
+    items_updated: int = 0
+    items_skipped: int = 0
+    dry_run: bool = False
+    status: str = "completed"  # started, completed, failed
+    error_summary: str = ""
+    packet_ids: Tuple[str, ...] = ()
+    
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ProposalFundingState:
+    """Aggregated funding state for a proposal.
+    
+    Built from FundingPledge aggregates.
+    Deterministic, serializable, side-effect free.
+    advisory_only - does not grant merge rights or authority.
+    """
+    proposal_id: str
+    lifecycle_state: str = "submitted"
+    funding_status: str = PLACEHOLDER_UNFUNDED  # unfunded, partially_funded, funded
+    total_pledged_usd: int = 0
+    total_pledged_count: int = 0
+    sponsor_count: int = 0
+    sponsor_summaries: Tuple[SponsorSummary, ...] = ()
+    
+    # Public visibility
+    is_public: bool = False
+    public_visibility: str = PLACEHOLDER_NOT_PUBLIC
+    
+    # Priority/acceleration
+    priority_class: str = "standard"
+    requested_acceleration_class: str = "standard"
+    is_community_requested: bool = False
+    
+    # Timing
+    funding_opened_at: Optional[str] = None
+    funding_closed_at: Optional[str] = None
+    scheduled_for: Optional[str] = None
+    
+    # Metadata
+    last_updated: str = ""
+    
+    @classmethod
+    def unfunded(cls, proposal_id: str) -> "ProposalFundingState":
+        """Create an unfunded placeholder state."""
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        return cls(
+            proposal_id=proposal_id,
+            lifecycle_state="submitted",
+            funding_status=PLACEHOLDER_UNFUNDED,
+            total_pledged_usd=0,
+            total_pledged_count=0,
+            sponsor_count=0,
+            is_public=False,
+            public_visibility=PLACEHOLDER_NOT_PUBLIC,
+            priority_class="standard",
+            requested_acceleration_class="standard",
+            is_community_requested=False,
+            last_updated=now,
+        )
+    
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+# ---------------------------------------------------------------------------
+# Canonical Resolution Helpers
+# ---------------------------------------------------------------------------
+
+
+def resolve_funding_state(
+    lifecycle_state: str,
+    total_pledged_usd: int,
+    funding_goal_usd: Optional[int] = None,
+    is_funding_open: Optional[bool] = None,
+) -> str:
+    """Deterministically resolve funding status from lifecycle and pledge data.
+    
+    Returns one of: unfunded, partially_funded, funded, funding_open, funding_closed
+    Advisory only - does not change authority state.
+    """
+    # If lifecycle indicates funded state directly
+    if lifecycle_state in ("funded", "implemented", "validated", "released"):
+        return "funded"
+    
+    if lifecycle_state == "funding_open":
+        if is_funding_open is False:
+            return "funding_closed"
+        return "funding_open"
+    
+    if lifecycle_state in ("rejected", "closed"):
+        return "funding_closed"
+    
+    # Determine based on pledge totals
+    if total_pledged_usd <= 0:
+        return PLACEHOLDER_UNFUNDED
+    
+    if funding_goal_usd and funding_goal_usd > 0:
+        if total_pledged_usd >= funding_goal_usd:
+            return "funded"
+        else:
+            return "partially_funded"
+    
+    # No goal specified, any pledge means partially funded
+    if total_pledged_usd > 0:
+        return "partially_funded"
+    
+    return PLACEHOLDER_UNFUNDED
+
+
+def resolve_public_visibility(
+    lifecycle_state: str,
+    is_public: bool,
+   public_visibility_override: Optional[str] = None,
+) -> str:
+    """Deterministically resolve public visibility.
+    
+    Returns one of: not_public, internal, public
+    Advisory only.
+    """
+    if public_visibility_override:
+        if public_visibility_override in PUBLIC_VISIBILITY_STATES:
+            return public_visibility_override
+    
+    if is_public:
+        return "public"
+    
+    # Check lifecycle states that imply public
+    if lifecycle_state in ("funding_open", "funded", "scheduled", "implemented", "validated", "released"):
+        return "public"
+    
+    if lifecycle_state in ("accepted",):
+        return "internal"
+    
+    return PLACEHOLDER_NOT_PUBLIC
+
+
+def resolve_priority_class(
+    requested_class: str,
+    lifecycle_state: str,
+    is_community_requested: bool,
+    sponsor_count: int,
+) -> str:
+    """Deterministically resolve effective priority class.
+    
+    Returns one of: standard, elevated, high, urgent, unscheduled
+    Advisory only - does not grant merge rights.
+    """
+    # Validate requested class
+    if requested_class in PRIORITY_CLASSES and requested_class != "unscheduled":
+        # Community requested with sponsors gets elevated
+        if is_community_requested and sponsor_count >= 1:
+            # Bump but don't exceed requested
+            current_idx = PRIORITY_CLASSES.index(requested_class)
+            elevated_idx = max(0, min(len(PRIORITY_CLASSES) - 2, current_idx - 1))
+            return PRIORITY_CLASSES[elevated_idx]
+        return requested_class
+    
+    # Infer from lifecycle
+    if lifecycle_state in ("urgent",):
+        return "urgent"
+    if lifecycle_state in ("high",):
+        return "high"
+    if lifecycle_state in ("funded", "scheduled"):
+        return "elevated" if sponsor_count >= 2 else "standard"
+    
+    return "standard"
+
+
+# ---------------------------------------------------------------------------
+# Builders / Aggregators
+# ---------------------------------------------------------------------------
+
+
+def aggregate_funding_state(
+    proposal_id: str,
+    pledges: list[FundingPledge],
+    *,
+    lifecycle_state: str = "submitted",
+    is_public: bool = False,
+    public_visibility: Optional[str] = None,
+    priority_class: str = "standard",
+    requested_acceleration: str = "standard",
+    is_community_requested: bool = False,
+) -> ProposalFundingState:
+    """Build ProposalFundingState from a list of FundingPledge objects.
+    
+    Pure function - deterministic, side-effect free.
+    advisory_only aggregation.
+    """
+    total_pledged_usd = sum(p.amount_usd for p in pledges if p.status == "active")
+    total_pledged_count = len([p for p in pledges if p.status == "active"])
+    
+    # Deduplicate sponsors
+    sponsor_ids: set[str] = set()
+    sponsor_map: dict[str, SponsorSummary] = {}
+    for pledge in pledges:
+        if pledge.status != "active":
+            continue
+        sponsor_ids.add(pledge.sponsor_id)
+        if pledge.sponsor_id not in sponsor_map:
+            sponsor_map[pledge.sponsor_id] = SponsorSummary(
+                sponsor_id=pledge.sponsor_id,
+                name=f"Sponsor {pledge.sponsor_id}" if pledge.is_anonymous else (pledge.sponsor_id),
+                handle="",
+                is_anonymous=pledge.is_anonymous,
+                total_pledged_usd=0,
+                pledge_count=0,
+            )
+        sponsor_map[pledge.sponsor_id].total_pledged_usd += pledge.amount_usd
+        sponsor_map[pledge.sponsor_id].pledge_count += 1
+        if not sponsor_map[pledge.sponsor_id].first_pledge_at or pledge.pledged_at < sponsor_map[pledge.sponsor_id].first_pledge_at:
+            sponsor_map[pledge.sponsor_id].first_pledge_at = pledge.pledged_at
+        if not sponsor_map[pledge.sponsor_id].last_pledge_at or pledge.pledged_at > sponsor_map[pledge.sponsor_id].last_pledge_at:
+            sponsor_map[pledge.sponsor_id].last_pledge_at = pledge.pledged_at
+    
+    sponsor_summaries = tuple(sponsor_map.values())
+    
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    
+    funding_status = resolve_funding_state(
+        lifecycle_state=lifecycle_state,
+        total_pledged_usd=total_pledged_usd,
+    )
+    
+    public_visibility = resolve_public_visibility(
+        lifecycle_state=lifecycle_state,
+        is_public=is_public,
+        public_visibility_override=public_visibility,
+    )
+    
+    effective_priority = resolve_priority_class(
+        requested_class=priority_class,
+        lifecycle_state=lifecycle_state,
+        is_community_requested=is_community_requested,
+        sponsor_count=len(sponsor_ids),
+    )
+    
+    return ProposalFundingState(
+        proposal_id=proposal_id,
+        lifecycle_state=lifecycle_state,
+        funding_status=funding_status,
+        total_pledged_usd=total_pledged_usd,
+        total_pledged_count=total_pledged_count,
+        sponsor_count=len(sponsor_ids),
+        sponsor_summaries=sponsor_summaries,
+        is_public=is_public,
+        public_visibility=public_visibility,
+        priority_class=effective_priority,
+        requested_acceleration_class=requested_acceleration,
+        is_community_requested=is_community_requested,
+        last_updated=now,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Proposal Enrichment Support
+# ---------------------------------------------------------------------------
+
+
+def build_proposal_funding_enrichment(
+    proposal_id: str,
+    *,
+    intake_packets: Optional[list[PublicIntakePacket]] = None,
+    pledges: Optional[list[FundingPledge]] = None,
+    lifecycle_state: Optional[str] = None,
+    funding_goal_usd: Optional[int] = None,
+    override_params: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """Build funding enrichment payload for proposal lifecycle projections.
+    
+    Returns a dict with:
+    - pledge_totals: total USD and count
+    - sponsor_count: number of unique sponsors
+    - funding_status: resolved funding state
+    - public_visibility: resolved visibility
+    - requested_acceleration_class: from intake or override
+    - is_community_requested: from intake or override
+    
+    Pure function - deterministic, side-effect free.
+    advisory_only - does not change authority state.
+    """
+    # Aggregate pledges
+    effective_pledges = pledges or []
+    total_pledged_usd = sum(p.amount_usd for p in effective_pledges if p.status == "active")
+    total_pledged_count = len([p for p in effective_pledges if p.status == "active"])
+    sponsor_ids = {p.sponsor_id for p in effective_pledges if p.status == "active"}
+    
+    # Get intake data
+    effective_intake = intake_packets or []
+    intake_packet = effective_intake[0] if effective_intake else None
+    
+    # Resolve values
+    effective_lifecycle = lifecycle_state or (intake_packet.lifecycle_state if intake_packet else "submitted")
+    effective_goal = funding_goal_usd or (intake_packet.requested_funding_usd if intake_packet else 0)
+    effective_is_community = override_params.get("is_community_requested") if override_params else (intake_packet.is_community_requested if intake_packet else False)
+    effective_acceleration = override_params.get("requested_acceleration_class") if override_params else (intake_packet.priority_class if intake_packet else "standard")
+    
+    funding_status = resolve_funding_state(
+        lifecycle_state=effective_lifecycle,
+        total_pledged_usd=total_pledged_usd,
+        funding_goal_usd=effective_goal,
+    )
+    
+    public_visibility = resolve_public_visibility(
+        lifecycle_state=effective_lifecycle,
+        is_public=False,  # Will be overridden by actual proposal data
+        public_visibility_override=None,
+    )
+    
+    return {
+        "proposal_id": proposal_id,
+        "pledge_totals": {
+            "total_usd": total_pledged_usd,
+            "total_count": total_pledged_count,
+            "currency": "USD",
+        },
+        "sponsor_count": len(sponsor_ids),
+        "funding_status": funding_status,
+        "public_visibility": public_visibility,
+        "requested_acceleration_class": effective_acceleration,
+        "is_community_requested": effective_is_community,
+        "advisory_only": True,
+    }

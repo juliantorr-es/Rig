@@ -409,7 +409,8 @@ def test_widget_registry_includes_workspace_renderers():
     assert "_fallback" in content
 
 
-def test_proposal_lifecycle_projection_is_gate_a_shaped():
+def test_proposal_lifecycle_projection_is_gate_a_shaped_with_overrides():
+    """ProposalLifecycleProjection maintains Gate A shape when built with override params."""
     from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
 
     projection = build_proposal_lifecycle_projection(Path("/tmp/repo"), workspace_path="/tmp/repo", active_workspace=True)
@@ -528,7 +529,8 @@ def test_workspace_status_summary_read_only_does_not_create_build_dirs():
         assert summary.status == "unselected"
 
 
-def test_proposal_lifecycle_projection_is_gate_a_shaped():
+def test_proposal_lifecycle_projection_richely_enriched_from_workspace_summary():
+    """ProposalLifecycleProjection is richly enriched when built from WorkspaceStatusSummary with review_ready workspace."""
     from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
     from rig.domain.workspace_status import build_workspace_status_summary
 
@@ -559,9 +561,12 @@ def test_proposal_lifecycle_projection_is_gate_a_shaped():
     assert projection.current_gate == "A"
     assert any(action.id == "rig.intent.workspace_status" for action in projection.allowed_actions)
     assert any(action.id == "rig.intent.refresh_projection" for action in projection.allowed_actions)
-    assert projection.recommendation_state["status"] == "unknown"
-    assert projection.proposal_state["status"] == "not_created"
-    assert projection.validation_state["status"] == "not_run"
+    # With enrichment, recommendation should be "available" for review_ready workspace
+    assert projection.recommendation_state["status"] == "available"
+    # Proposal state should reflect workspace state
+    assert projection.proposal_state["status"] == "review_ready"
+    # Validation state should reflect workspace state
+    assert projection.validation_state["status"] == "passed"
     assert projection.auditability_state["progress_receipts"] == "not_created"
     assert projection.auditability_state["progress_receipt_plan"] == "advisory_only"
     assert projection.auditability_state["receipt_candidate"] == "inert"
@@ -629,3 +634,493 @@ def test_workspace_status_command_includes_workspace_summary():
         assert summary.status == "unselected"
         assert summary.workspace_id is None
         assert summary.selected is False
+
+
+# =============================================================================
+# Proposal Lifecycle Projection Enrichment Tests
+# =============================================================================
+
+
+def test_proposal_lifecycle_projection_unknown_recommendation_state():
+    """ProposalLifecycleProjection represents unknown recommendation state when no workspace."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+
+    projection = build_proposal_lifecycle_projection(
+        Path("/tmp/repo"),
+        active_workspace=False,
+    )
+
+    assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+    assert projection.stage == "workspace_unselected"
+    assert projection.current_gate == "A"
+    assert projection.recommendation_state["status"] == "unknown"
+    assert projection.proposal_state["status"] == "unknown"
+    assert projection.validation_state["status"] == "unknown"
+
+
+def test_proposal_lifecycle_projection_available_recommendation_state():
+    """ProposalLifecycleProjection represents available recommendation state when workspace supports it."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+        assert projection.stage == "review_ready"
+        assert projection.current_gate == "A"
+        assert projection.recommendation_state["status"] == "available"
+        assert projection.recommendation_state["title"] == "Recommendation available"
+        assert "Validation passed" in projection.recommendation_state["summary"]
+        assert projection.recommendation_state["source_surface"] == "workspace.recommend"
+
+
+def test_proposal_lifecycle_projection_not_run_validation_state():
+    """ProposalLifecycleProjection represents not_run validation state."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "planned",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "planned", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+        assert projection.stage == "gate_a_active"
+        # For "planned" status, validation_state.status should be "not_run"
+        assert projection.validation_state["status"] == "not_run"
+        assert projection.validation_state["proof_status"] == "not_proof"
+
+
+def test_proposal_lifecycle_projection_passed_validation_state():
+    """ProposalLifecycleProjection represents passed validation state when workspace supports it."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "validated",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "validated", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+        # validated status -> validation passed, proposal review_ready
+        assert projection.validation_state["status"] == "passed"
+        assert projection.validation_state["title"] == "Validation passed"
+        assert projection.validation_state["proof_status"] == "not_proof"
+        assert "Review proposed changes" in projection.validation_state["next_action"]
+
+
+def test_proposal_lifecycle_projection_failed_validation_state():
+    """ProposalLifecycleProjection represents failed validation state when workspace supports it."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "blocked",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "blocked", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+        assert projection.stage == "validation_failed"
+        assert projection.validation_state["status"] == "failed"
+        assert projection.validation_state["title"] == "Validation failed"
+        assert projection.validation_state["proof_status"] == "not_proof"
+        assert "Inspect validation failures" in projection.validation_state["next_action"]
+
+
+def test_lifecycle_stage_changes_based_on_state():
+    """Lifecycle stage changes based on recommendation/proposal/validation state."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        # Test workspace_unselected
+        empty_summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=empty_summary)
+        assert projection.stage == "workspace_unselected"
+        assert projection.next_safe_action == "Select or create a workspace before reviewing proposals."
+
+        # Test review_ready
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+        assert projection.stage == "review_ready"
+        assert "Review proposed changes" in projection.next_safe_action
+
+        # Test validation_failed
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "blocked",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "blocked", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+        assert projection.stage == "validation_failed"
+        assert "Inspect validation failures" in projection.next_safe_action
+
+
+def test_next_safe_action_changes_based_on_state():
+    """next_safe_action changes based on recommendation/proposal/validation state."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+
+        # Test validated (validation passed) -> next action is review
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "validated",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "validated", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+        assert "Review proposed changes" in projection.next_safe_action
+        assert "apply remains blocked" in projection.next_safe_action
+
+        # Test blocked (validation failed) -> next action is inspect failures
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "blocked",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "blocked", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+        assert "Inspect validation failures" in projection.next_safe_action
+
+        # Test planned (no validation) -> next action is run validation
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "planned",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "planned", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+        assert "Run read-only validation" in projection.next_safe_action or "Run review/recommend" in projection.next_safe_action
+
+
+def test_apply_remains_blocked_under_gate_a():
+    """Apply remains blocked under Gate A with clear note."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        # Check apply is blocked
+        blocked_ids = [a.id for a in projection.blocked_actions]
+        assert "rig.intent.apply_patch" in blocked_ids
+        assert any("Dogfood Gate A" in a.reason for a in projection.blocked_actions)
+        
+        # Check warnings include Gate A note
+        assert any("Apply remains blocked" in w for w in projection.warnings)
+        assert any("Gate A" in w for w in projection.warnings)
+
+
+def test_workspace_proposal_lifecycle_includes_enriched_data():
+    """workspace.proposal_lifecycle includes enriched data from workspace summary."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        # Check enriched data is present
+        assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+        assert projection.stage in ("workspace_unselected", "workspace_ready", "gate_a_active", "recommendation_available", "proposal_pending", "validation_pending", "validation_passed", "validation_failed", "review_ready", "apply_blocked")
+        assert projection.current_gate == "A"
+        assert projection.next_safe_action
+        assert projection.recommendation_state
+        assert "status" in projection.recommendation_state
+        assert "title" in projection.recommendation_state
+        assert "summary" in projection.recommendation_state
+        assert projection.proposal_state
+        assert "status" in projection.proposal_state
+        assert projection.validation_state
+        assert "status" in projection.validation_state
+        assert "proof_status" in projection.validation_state
+        assert projection.progress_state["transient"] is True
+        assert projection.auditability_state["progress_receipts"] == "not_created"
+
+
+def test_no_receipts_are_created():
+    """No receipts are created by proposal lifecycle projection."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        # The projection itself does not create receipts
+        # It only authors state in the projection payload
+        assert projection.auditability_state["progress_receipts"] == "not_created"
+        
+        # The build function is pure - it doesn't write files
+        # Check no receipts directory was created
+        receipt_dir = repo_root / ".build" / "rig" / "receipts"
+        assert not receipt_dir.exists()
+
+
+def test_no_progress_events_are_persisted():
+    """No progress events are persisted by proposal lifecycle projection."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        # Progress state marks telemetry as transient
+        assert projection.progress_state["transient"] is True
+        assert projection.progress_state["source"] == "progress_event"
+        
+        # No progress events directory is created
+        progress_dir = repo_root / ".build" / "rig" / "progress"
+        assert not progress_dir.exists()
+
+
+def test_receipt_candidate_remains_inert():
+    """receipt_candidate remains inert in proposal lifecycle projection."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.auditability_state["receipt_candidate"] == "inert"
+
+
+def test_evidence_refs_remains_inert():
+    """evidence_refs remains inert in proposal lifecycle projection."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps({
+                "workspace_id": "lane-1",
+                "task": "test",
+                "status": "review_ready",
+                "branch": "feature/test",
+                "worktree_path": str(repo_root),
+                "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+            }),
+            encoding="utf-8",
+        )
+
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.auditability_state["evidence_refs"] == "inert"
+
+
+def test_empty_projection_does_not_fake_active_workspace():
+    """Empty projection produces correct placeholder states without faking active workspace."""
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        # No workspace records
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+        assert projection.stage == "workspace_unselected"
+        assert projection.workspace_path is None
+        assert projection.proposal_state["status"] in ("not_created", "unknown")
+        assert projection.validation_state["status"] in ("not_run", "unknown")

@@ -36,6 +36,23 @@ from rig_tools.core import run_capture
 from rig_tools.core.io import read_json, write_json
 from rig_tools.core.filesystem import ensure_dir
 
+# Audit trail integration
+from rig.domain.workspace_audit import (
+    AuditAction,
+    AuditActor,
+    AuditEvent,
+    AuditSubject,
+    AuditSubjectKind,
+    AuditDecision,
+    AuditReceiptLink,
+    AuditReceiptStatus,
+    WorkspaceAuditTrail,
+    PLACEHOLDER_UNKNOWN,
+    PLACEHOLDER_ADVISORY_ONLY,
+    PLACEHOLDER_NOT_AUTHORITATIVE,
+    PLACEHOLDER_NO_RECEIPT,
+)
+
 
 WORKSPACE_STATUSES = ["planned", "active", "blocked", "executed", "validated", "review_ready", "applied"]
 ALLOWED_TRANSITIONS = {
@@ -93,7 +110,8 @@ class WorkspaceDomain:
         self.receipt_dir = self.build_root / "receipts"
         self.validation_dir = self.build_root / "validation"
         self.worktree_root = self.build_root / "worktrees"
-        for path in (self.workspace_dir, self.review_dir, self.receipt_dir, self.validation_dir, self.worktree_root):
+        self.audit_dir = self.build_root / "audit"
+        for path in (self.workspace_dir, self.review_dir, self.receipt_dir, self.validation_dir, self.worktree_root, self.audit_dir):
             ensure_dir(path)
     
     def workspace_path(self, workspace_id: str) -> Path:
@@ -107,6 +125,28 @@ class WorkspaceDomain:
     
     def validation_result_path(self, workspace_id: str) -> Path:
         return self.validation_dir / workspace_id / "validation.json"
+    
+    def audit_trail_path(self, workspace_id: str) -> Path:
+        """Path to workspace audit trail file."""
+        return self.audit_dir / f"{workspace_id}_audit.json"
+    
+    def audit_event_path(self, event_id: str) -> Path:
+        """Path to individual audit event file."""
+        return self.audit_dir / f"{event_id}.json"
+    
+    def _save_audit_event(self, event: AuditEvent) -> Path:
+        """Save an audit event to the filesystem. Returns the path."""
+        path = self.audit_event_path(event.event_id)
+        ensure_dir(path.parent)
+        write_json(path, event.to_dict())
+        return path
+    
+    def _save_audit_receipt(self, receipt: dict[str, Any], receipt_id: str) -> Path:
+        """Save an audit receipt. Returns the path."""
+        path = self.receipt_dir / f"{receipt_id}.json"
+        ensure_dir(path.parent)
+        write_json(path, receipt)
+        return path
     
     def load_workspace(self, workspace_id: str) -> Optional[WorkspaceRecord]:
         path = self.workspace_path(workspace_id)
@@ -135,6 +175,42 @@ class WorkspaceDomain:
         res = git(self.repo_root, "worktree", "add", "-b", branch, str(worktree_path), parent_branch)
         if res.returncode != 0:
             raise RuntimeError(res.stderr.strip() or "failed to create worktree")
+        
+        # --- Audit Trail: Create workspace creation receipt and event ---
+        receipt_id = f"ws_create_{workspace_id}"
+        create_receipt = {
+            "schema_version": "rig.workspace_create_receipt.v1",
+            "receipt_id": receipt_id,
+            "workspace_id": workspace_id,
+            "task": task,
+            "branch": branch,
+            "base_commit": base_commit,
+            "worktree_path": str(worktree_path),
+            "parent_branch": parent_branch,
+            "timestamp": utc_now(),
+            "status": "success",
+            "authoritative": True,
+        }
+        receipt_path = self._save_audit_receipt(create_receipt, receipt_id)
+        
+        # Create and save audit event
+        audit_event = AuditEvent.for_workspace_creation(
+            workspace_id=workspace_id,
+            actor=AuditActor.cli(),
+            receipt_id=receipt_id,
+        )
+        self._save_audit_event(audit_event)
+        
+        # Create receipt link
+        receipt_link = AuditReceiptLink.of(
+            event_id=audit_event.event_id,
+            receipt_id=receipt_id,
+            receipt_kind="workspace_create_receipt",
+            workspace_id=workspace_id,
+            authoritative=True,
+        )
+        
+        # Update payload with audit info
         payload = {
             "workspace_id": workspace_id,
             "repo_root": str(self.repo_root),
@@ -145,7 +221,8 @@ class WorkspaceDomain:
             "worktree_hash": self.compute_worktree_hash(worktree_path),
             "status": "planned",
             "status_history": [{"status": "planned", "at": utc_now()}],
-            "receipt_paths": [],
+            "receipt_paths": [str(receipt_path)],
+            "audit_event_ids": [audit_event.event_id],
             "authoritative": True,
         }
         self.save_workspace(payload)
@@ -161,10 +238,45 @@ class WorkspaceDomain:
         old = record.payload.get("status", "planned")
         if new_status not in ALLOWED_TRANSITIONS.get(old, set()):
             raise ValueError(f"invalid transition: {old} -> {new_status}")
+        
+        # --- Audit Trail: Create transition receipt and event ---
+        receipt_id = f"ws_trans_{workspace_id}_{old}_to_{new_status}"
+        transition_receipt = {
+            "schema_version": "rig.workspace_transition_receipt.v1",
+            "receipt_id": receipt_id,
+            "workspace_id": workspace_id,
+            "old_status": old,
+            "new_status": new_status,
+            "timestamp": utc_now(),
+            "status": "success",
+            "authoritative": True,
+        }
+        receipt_path = self._save_audit_receipt(transition_receipt, receipt_id)
+        
+        # Create and save audit event
+        audit_event = AuditEvent.for_workspace_transition(
+            workspace_id=workspace_id,
+            old_status=old,
+            new_status=new_status,
+            actor=AuditActor.cli(),
+            receipt_id=receipt_id,
+        )
+        self._save_audit_event(audit_event)
+        
+        # Update payload with audit info
         record.payload["status"] = new_status
         history = list(record.payload.get("status_history") or [])
         history.append({"status": new_status, "at": utc_now()})
         record.payload["status_history"] = history
+        
+        # Add audit info to workspace record
+        existing_receipts = list(record.payload.get("receipt_paths") or [])
+        existing_events = list(record.payload.get("audit_event_ids") or [])
+        existing_receipts.append(str(receipt_path))
+        existing_events.append(audit_event.event_id)
+        record.payload["receipt_paths"] = existing_receipts
+        record.payload["audit_event_ids"] = existing_events
+        
         self.save_workspace(record.payload)
         return record.payload
     
@@ -331,9 +443,11 @@ class WorkspaceDomain:
             self.save_workspace(record.payload)
             raise RuntimeError(merge.stderr.strip() or "merge failed")
         main_after = git(self.repo_root, "rev-parse", "HEAD").stdout.strip()
+        
+        receipt_id = uuid.uuid4().hex[:12]
         apply_payload = {
             "schema_version": "rig.apply_receipt.v1",
-            "receipt_id": uuid.uuid4().hex[:12],
+            "receipt_id": receipt_id,
             "workspace_id": workspace_id,
             "base_commit": record.payload.get("base_commit"),
             "workspace_branch": branch,
@@ -348,6 +462,22 @@ class WorkspaceDomain:
             "authoritative": True,
         }
         write_json(self.apply_receipt_path(workspace_id), apply_payload)
+        
+        # --- Audit Trail: Create apply audit event ---
+        audit_event = AuditEvent.for_workspace_apply(
+            workspace_id=workspace_id,
+            main_before=main_before,
+            main_after=main_after,
+            actor=AuditActor.cli(),
+            receipt_id=receipt_id,
+        )
+        self._save_audit_event(audit_event)
+        
+        # Add audit info to workspace record
+        existing_events = list(record.payload.get("audit_event_ids") or [])
+        existing_events.append(audit_event.event_id)
+        record.payload["audit_event_ids"] = existing_events
+        
         record.payload["status"] = "applied"
         self.save_workspace(record.payload)
         return apply_payload

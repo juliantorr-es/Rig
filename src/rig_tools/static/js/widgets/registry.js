@@ -8,6 +8,7 @@ import { renderWorkspaceLaneSummary } from './workspace-lane-summary.js';
 import { renderLogStream } from './log-stream.js';
 import { renderCommandProgressCard } from './command-progress-card.js';
 import { renderProposalLifecycleConsole } from './proposal-lifecycle-console.js';
+import { renderFundingSummaryCard } from './funding-summary-card.js';
 
 export function buildWidgetRegistry(context) {
   const registry = {
@@ -76,6 +77,7 @@ export function buildWidgetRegistry(context) {
     WorkspaceGitState: (id, data) => renderWorkspaceGitState(id, data),
     WorkspaceLaneSummary: (id, data) => renderWorkspaceLaneSummary(id, data),
     ProposalLifecycleConsole: (id, data) => renderProposalLifecycleConsole(id, data),
+    FundingSummaryCard: (id, data) => renderFundingSummaryCard(id, data),
     LogStream: (id, data) => renderLogStream(id, data, context.globalLogs(), context.truncateText),
     CommandProgressCard: (id, data) => renderCommandProgressCard(id, data),
   };

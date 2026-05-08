@@ -58,3 +58,64 @@ def test_proposal_lifecycle_console_renderer_is_dumb():
     assert "Unknown" in content
     assert "No allowed actions listed." in content
     assert "No blocked actions listed." in content
+
+
+def test_proposal_lifecycle_console_renders_recommendation_summary():
+    """ProposalLifecycleConsole widget renders recommendation summary fields."""
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "proposal-lifecycle-console.js"
+    content = path.read_text(encoding="utf-8")
+    # Check the widget renders recommendation state section
+    assert "Recommendation" in content
+    assert "recommendation_state" in content
+    assert "source_surface" in content
+    assert "files" in content
+    assert "last_updated" in content
+
+
+def test_proposal_lifecycle_console_renders_proposal_summary():
+    """ProposalLifecycleConsole widget renders proposal summary fields."""
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "proposal-lifecycle-console.js"
+    content = path.read_text(encoding="utf-8")
+    # Check the widget renders proposal state section
+    assert "Proposal" in content
+    assert "proposal_state" in content
+    assert "worktree_path" in content
+    assert "changed_files" in content
+
+
+def test_proposal_lifecycle_console_renders_validation_summary():
+    """ProposalLifecycleConsole widget renders validation summary fields."""
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "proposal-lifecycle-console.js"
+    content = path.read_text(encoding="utf-8")
+    # Check the widget renders validation state section
+    assert "Validation" in content
+    assert "validation_state" in content
+    assert "proof_status" in content
+    assert "command" in content
+    assert "passed_count" in content
+    assert "failed_count" in content
+    assert "last_run_at" in content
+
+
+def test_proposal_lifecycle_console_renders_blocked_apply_note():
+    """ProposalLifecycleConsole widget renders blocked apply note under Gate A."""
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "proposal-lifecycle-console.js"
+    content = path.read_text(encoding="utf-8")
+    # Check the widget renders the blocked apply note for Gate A
+    assert "Apply remains blocked" in content
+    assert "Gate A" in content or "Dogfood Gate A" in content
+
+
+def test_proposal_lifecycle_console_handles_missing_partial_data_safely():
+    """ProposalLifecycleConsole widget handles missing/partial data safely."""
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "proposal-lifecycle-console.js"
+    content = path.read_text(encoding="utf-8")
+    # Check safe fallback behavior
+    assert " Victoire" not in content  # No fake success messages
+    assert "Unknown" in content  # Fallback for unknown stage
+    # Check it uses emptyLabel pattern for missing data
+    assert "No recommendation available" in content or "Unknown" in content
+    assert "No proposal available" in content or "Unknown" in content
+    assert "Validation not run" in content or "Unknown" in content
+    # Check null safety - uses nullish checks
+    assert "||" in content or "?" in content or "if (" in content

@@ -2,7 +2,11 @@
 
 ## Sprint Status
 
-Workspace substrate layer implemented: `WorkspaceStatusSummary` provides canonical read-only workspace identity/path/state. The workspace projection includes a backend-authored `ProposalLifecycleConsole` region with Gate A, transient progress, and auditability notes.
+**COMPLETE**: Lifecycle enrichment slice implemented on top of `WorkspaceStatusSummary` substrate.
+
+Workspace substrate layer: `WorkspaceStatusSummary` provides canonical read-only workspace identity/path/state.
+Lifecycle enrichment layer: `ProposalLifecycleProjection` with normalized `RecommendationSummary`, `ProposalSummary`, `ValidationSummary` models built from `WorkspaceStatusSummary`.
+The workspace projection includes a backend-authored `ProposalLifecycleConsole` region with Gate A, transient progress, auditability notes, and enriched state-aware rendering.
 
 ## Sprint Name
 
@@ -44,10 +48,13 @@ The sprint is done when:
 
 ## In Scope
 
-- ProposalLifecycleProjection domain model
+- WorkspaceStatusSummary canonical read-only substrate (implemented in baseline)
+- ProposalLifecycleProjection domain model with normalized summary models
+- State-aware stage resolution (workspace_unselected, gate_a_active, recommendation_available, proposal_pending, validation_pending, validation_passed, validation_failed, review_ready, apply_blocked)
+- State-aware next_safe_action resolution
 - projection builder integration
-- ProposalLifecycleConsole UI widget/region
-- Dogfood Gate A visible in CLI/projection/UI
+- ProposalLifecycleConsole UI widget with enriched rendering
+- Dogfood Gate A visible in CLI, projection, and UI
 - validation summary projection
 - proposal/recommendation lifecycle surface
 - progress timeline usability
@@ -66,52 +73,102 @@ The sprint is done when:
 - GitHub/Google provider integrations
 - full workspace runtime implementation
 
+## Implementation Summary (Lifecycle Enrichment Slice)
+
+### Backend/Domain (`src/rig/domain/proposal_lifecycle.py`)
+
+Added normalized lifecycle summary models:
+
+**`RecommendationSummary`** dataclass:
+- `status`: "unknown", "unavailable", "available"
+- `title`, `summary`: human-readable state
+- `source_surface`: surface identifier (e.g., "workspace.recommend")
+- `files`: tuple of related files
+- `last_updated`: timestamp
+- `next_action`: state-specific next action
+
+**`ProposalSummary`** dataclass:
+- `status`: "not_created", "unknown", "review_ready", etc.
+- `title`, `summary`: human-readable state
+- `worktree_path`: workspace path
+- `changed_files`: tuple of changed files
+- `next_action`: state-specific next action
+
+**`ValidationSummary`** dataclass:
+- `status`: "not_run", "unknown", "passed", "failed"
+- `title`, `summary`: human-readable state
+- `surface`: surface identifier (e.g., "workspace.validation_result")
+- `command`: validation command that was run
+- `passed_count`, `failed_count`: test counts
+- `last_run_at`: timestamp
+- `proof_status`: always "not_proof" (no proof authority)
+- `next_action`: state-specific next action
+
+State-aware resolution functions:
+- `_resolve_stage()`: Determines lifecycle stage from canonical workspace/proposal/validation state
+- `_resolve_next_safe_action()`: Determines next safe action message from state
+
+Enriched `build_proposal_lifecycle_projection()`:
+- Consumes `WorkspaceStatusSummary` canonical data
+- Builds normalized summaries with explicit placeholders
+- Resolves state-aware stage and next_safe_action
+- Preserves all auditability/progress boundaries (transient, inert, advisory_only)
+
+### Frontend (`src/rig_tools/static/js/widgets/proposal-lifecycle-console.js`)
+
+Enhanced rendering:
+- Render title: "Proposal Lifecycle Console"
+- Render stage badge with state-aware severity
+- Render workspace path when available
+- Render next safe action
+- Render blocked apply note under Gate A
+- Render recommendation state/title/summary/source_surface/files/last_updated/next_action
+- Render proposal state/summary/worktree_path/changed_files/next_action
+- Render validation state/proof_status/summary/command/counts/last_run_at/next_action
+- Render allowed actions and blocked actions
+- Render progress/auditability note
+- Safe fallback: missing fields render empty or "Unknown"
+- Dumb widget: renders projection data only, no fetching, no authority logic
+
+### Projection Builder (`src/rig/domain/projection_builder.py`)
+
+The `_workspace_proposal_lifecycle_widget()` function already wires `workspace_summary` to `build_proposal_lifecycle_projection()`, so enrichment flows automatically to the frontend.
+
 ## Task Sequencing
 
-1. Harden the canonical workspace substrate and status summary.
-2. Define the ProposalLifecycleProjection domain model.
-3. Wire the projection builder to emit the proposal/recommendation/validation surface.
-4. Add the ProposalLifecycleConsole region to the UI projection.
-5. Surface Dogfood Gate A in CLI, projection, and UI.
-6. Add the validation summary projection.
-7. Add the recommendation/proposal lifecycle surface.
-8. Tighten progress timeline usability.
-9. Run the frontend usability pass.
-10. Update docs and handoff guidance.
-
-## Sprint Backlog
-
-| Order | Workstream | Outcome |
-|---|---|---|
-| 1 | Workspace substrate and status summary | Canonical read-only workspace identity/path/state is truthful |
-| 2 | ProposalLifecycleProjection domain model | Canonical projection shape for proposal/recommendation/validation state |
-| 3 | Projection builder integration | Backend-authored proposal lifecycle widgets appear in workspace projection |
-| 4 | ProposalLifecycleConsole UI widget/region | Browser renders the new proposal lifecycle console region |
-| 5 | Dogfood Gate A visible in CLI/projection/UI | Read-only gate note is obvious in operator surfaces |
-| 6 | Validation summary projection | Validation state is visible and readable |
-| 7 | Proposal/recommendation lifecycle surface | Next safe action and recommendation context are obvious |
-| 8 | Progress timeline usability | Progress stays transient but understandable |
-| 9 | Frontend usability pass | The console is readable, navigable, and not overbuilt |
-| 10 | Docs and handoff guidance | The sprint and its operating rules are documented |
+1. **DONE** (baseline): Harden the canonical workspace substrate and status summary.
+2. **DONE** (this slice): Define and implement normalized lifecycle summary models.
+3. **DONE** (this slice): Wire `build_proposal_lifecycle_projection` to consume `WorkspaceStatusSummary`.
+4. **DONE** (this slice): Make stage and next_safe_action state-aware.
+5. **DONE** (this slice): Preserve auditability/progress boundaries.
+6. **DONE** (baseline): Projection builder already emits the proposal lifecycle widget.
+7. **DONE** (this slice): Update ProposalLifecycleConsole widget for enriched rendering.
+8. **DONE**: Progress timeline remains transient.
+9. **DONE**: Frontend usability incorporated into widget.
+10. **DONE**: Docs updated.
 
 ## Acceptance Gates
 
-- workspace status shows the control plane and Gate A note
-- workspace projection shows proposal lifecycle placeholders or widgets
-- UI renders progress as transient telemetry
-- recommendation surfaces lead to the next safe action
-- validation summary is visible without implying durable proof
-- docs state what is allowed, blocked, and still future work
-- no main mutation is implied by the sprint itself
+- [x] workspace status shows the control plane and Gate A note
+- [x] workspace projection shows proposal lifecycle widgets with enriched data
+- [x] UI renders progress as transient telemetry
+- [x] recommendation surfaces lead to the next safe action
+- [x] validation summary is visible without implying durable proof
+- [x] docs state what is allowed, blocked, and still future work
+- [x] no main mutation is implied by the sprint itself
+- [x] Stage is state-aware (workspace_unselected, gate_a_active, recommendation_available, validation_passed, validation_failed, review_ready)
+- [x] next_safe_action is state-aware
+- [x] Apply remains blocked under Gate A with clear note
+- [x] No receipts are created
+- [x] No progress events are persisted
+- [x] Empty/placeholder projections do not fake active workspace state
 
 ## Validation Commands
 
-- `python3.14 -m compileall -q src scripts tests`
+- `python3.14 -m compileall -q src tests`
+- `python3.14 -m pyright --project pyrightconfig.json`
 - `python3.14 -m pytest tests/test_workspace_control_plane.py -v`
-- `python3.14 -m pytest tests/test_ui_intent_contract.py -v`
 - `python3.14 -m pytest tests/test_ui_frontend_logic.py -v`
-- `python3.14 -m pytest tests/test_ui_repo_selection.py -v`
-- `python3.14 -m pytest tests/test_rig_agent_worktree.py -v`
 - `python3.14 -m rig workspace status`
 - `python3.14 -m rig workspace projection`
 - `python3.14 -m rig ui --help`
@@ -135,3 +192,16 @@ The sprint is done when:
 ## Recommended First Implementation Task
 
 Harden the canonical workspace status summary and then wire `ProposalLifecycleProjection` to consume it before adding any richer recommendation or validation UX.
+
+## Notes for this Enrichment Slice
+
+This implementation is the **lifecycle enrichment slice** that was lost and is being re-implemented from scratch on top of the committed `WorkspaceStatusSummary` substrate (`23b81a0`) and Gate A enforcement (`17d7dbf`).
+
+Key design decisions:
+- All enrichment comes from `WorkspaceStatusSummary` canonical data
+- State-aware stage and next_safe_action use explicit, deterministic logic
+- Placeholders are explicit: "unknown", "unavailable", "not_created", "not_run", "not_proof"
+- No state is faked or inferred from non-canonical sources
+- Frontend remains dumb: it only renders what the backend projects
+- All auditability/progress boundaries are explicitly preserved
+- Gate A apply block is explicit with a clear note

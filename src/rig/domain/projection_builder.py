@@ -11,6 +11,12 @@ from rig.domain.projections import (
 from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
 from rig.domain.workspace_status import WorkspaceStatusSummary, build_workspace_status_summary, list_workspaces_read_only
 from rig.domain.receipts import get_receipt_store
+from rig.domain.workspace_audit import (
+    build_auditability_state,
+    WorkspaceAuditTrail,
+    PLACEHOLDER_UNKNOWN,
+    PLACEHOLDER_NOT_CREATED,
+)
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -115,6 +121,84 @@ def _workspace_proposal_lifecycle_widget(
         active_workspace=workspace_summary.selected if workspace_summary else False,
     )
     return WidgetProjection("ProposalLifecycleConsole", "workspace.proposal_lifecycle", lifecycle.to_dict())
+
+
+def _workspace_audit_trail_widget(
+    repo_root: Path,
+    active_ws: Optional[dict],
+    workspace_summary: WorkspaceStatusSummary,
+) -> WidgetProjection:
+    """Build audit trail widget for workspace auditability projection.
+    
+    Dumb rendering only - data comes from backend projection.
+    Pure function: no fetching, no authority decisions.
+    """
+    from rig.domain.workspace_audit import (
+        PLACEHOLDER_UNKNOWN,
+        PLACEHOLDER_NOT_CREATED,
+        PLACEHOLDER_NO_RECEIPT,
+    )
+    
+    # Build auditability state from filesystem evidence
+    ws_id = (active_ws or {}).get("workspace_id") or None
+    audit_dir = repo_root / ".build" / "rig" / "audit"
+    
+    # Count audit event files for this workspace
+    authoritative_events = 0
+    advisory_only_events = 0
+    missing_receipts: list[str] = []
+    last_event_id = None
+    
+    if ws_id and audit_dir.exists():
+        # Count files matching workspace patterns
+        patterns = [
+            f"ws_create_{ws_id}.json",
+            f"ws_apply_{ws_id}.json",
+        ]
+        # Also try transition patterns
+        for path in audit_dir.iterdir():
+            if path.is_file() and path.suffix == ".json":
+                name = path.name
+                if name.startswith(f"ws_create_{ws_id}"):
+                    authoritative_events += 1
+                    last_event_id = name.replace(".json", "")
+                elif name.startswith(f"ws_apply_{ws_id}"):
+                    authoritative_events += 1
+                    last_event_id = name.replace(".json", "")
+                elif name.startswith(f"ws_trans_{ws_id}"):
+                    authoritative_events += 1
+                    last_event_id = name.replace(".json", "")
+    
+    # Determine completeness
+    if authoritative_events == 0:
+        audit_completeness = PLACEHOLDER_NOT_CREATED
+    elif authoritative_events >= 2:
+        audit_completeness = "complete"
+    else:
+        audit_completeness = "not_proof"
+    
+    # Check for any workspace files as fallback
+    receipt_dir = repo_root / ".build" / "rig" / "receipts"
+    workspace_receipts = list(receipt_dir.glob(f"{ws_id}_*.json")) if ws_id else []
+    public_intake_receipts = list((repo_root / ".build" / "rig" / "public_intake" / "receipts").glob("*.json"))
+    
+    return WidgetProjection(
+        "AuditTrailCard",
+        "workspace.audit_trail",
+        {
+            "audit_completeness": audit_completeness,
+            "last_authoritative_event_id": last_event_id or PLACEHOLDER_UNKNOWN,
+            "receipt_status_summary": {
+                "workspace_receipts": len(workspace_receipts),
+                "public_intake_receipts": len(public_intake_receipts),
+            },
+            "missing_receipts": missing_receipts,
+            "advisory_only_events": advisory_only_events,
+            "authoritative_events": authoritative_events,
+            "advisory_only_warning": "Public intake and funding data is advisory_only. External systems are NOT authoritative.",
+            "next_missing_audit_action": PLACEHOLDER_NO_RECEIPT,
+        },
+    )
 
 def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[List[ChatMessage]] = None) -> UIProjection:
     from rig_tools.core.io import read_json
@@ -247,6 +331,7 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         "workspace.git_state": _workspace_git_state_widget(repo_root),
         "workspace.lane_summary": _workspace_lane_summary_widget(len(workspaces)),
         "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(repo_root, active_ws, workspace_summary),
+        "workspace.audit_trail": _workspace_audit_trail_widget(repo_root, active_ws, workspace_summary),
         "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
             "title": "Queue",
             "items": [
@@ -272,10 +357,10 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             "state": {"label": "Available" if val_path else "None", "severity": "info" if val_path else "idle"},
             "body": f"Evidence for {ws_id}."
         }),
-            "evidence.receipts": WidgetProjection("ReceiptList", "evidence.receipts", {
-                "title": "Receipts",
-                "receipts": [r.to_projection() for r in recent_receipts] if recent_receipts else []
-            }),
+        "evidence.receipts": WidgetProjection("ReceiptList", "evidence.receipts", {
+            "title": "Receipts",
+            "receipts": [r.to_projection() for r in recent_receipts] if recent_receipts else []
+        }),
             "workspace.command_progress": _workspace_command_progress_widget(),
         "backend.status": WidgetProjection("BackendStatus", "backend.status", {
             "title": "Native bridge",
@@ -306,7 +391,7 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         layout=ProjectionLayout({
             "header": ["app.title", "next.gate", "workspace.header"],
             "sidebar": ["queue.summary", "workspace.git_state"],
-            "main": ["workspace.info", "workspace.lane_summary", "validator.stack"],
+            "main": ["workspace.info", "workspace.lane_summary", "validator.stack", "workspace.audit_trail"],
             "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["workspace.command_progress", "backend.status"]
         }),
