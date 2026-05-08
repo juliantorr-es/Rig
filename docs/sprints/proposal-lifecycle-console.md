@@ -2,7 +2,7 @@
 
 ## Sprint Status
 
-First vertical slice implemented: the workspace projection now includes a backend-authored `ProposalLifecycleConsole` region with Gate A, transient progress, and auditability notes.
+Workspace substrate layer implemented: `WorkspaceStatusSummary` provides canonical read-only workspace identity/path/state. The workspace projection includes a backend-authored `ProposalLifecycleConsole` region with Gate A, transient progress, and auditability notes.
 
 ## Sprint Name
 
@@ -10,7 +10,7 @@ Proposal Lifecycle Console
 
 ## Sprint Goal
 
-Make Rig UI usable enough that a human can understand an agent handoff from the workspace surface without leaving the control plane. The sprint is projection-first: workspace selection, status, Dogfood Gate A, progress, recommendation/proposal context, validation summary, and next safe action all need to be visible in one coherent console.
+Make Rig UI usable enough that a human can understand an agent handoff from the workspace surface without leaving the control plane. The workspace substrate comes first: workspace selection and status, Dogfood Gate A, progress, recommendation/proposal context, validation summary, and next safe action all need to be visible in one coherent console.
 
 ## Product Increment
 
@@ -18,10 +18,11 @@ At the end of the sprint, the operator should be able to:
 
 1. select a workspace
 2. see workspace status and Gate A
-3. see transient progress
-4. see a recommendation/proposal summary
-5. see a validation summary
-6. see the next safe action
+3. see the workspace substrate reflected truthfully in the proposal lifecycle console
+4. see transient progress
+5. see a recommendation/proposal summary
+6. see a validation summary
+7. see the next safe action
 
 This increment remains UI/projection-led. Auditability is future-compatible, not fully complete.
 
@@ -30,6 +31,7 @@ This increment remains UI/projection-led. Auditability is future-compatible, not
 The sprint is done when:
 
 - the workspace control plane is the obvious entry point
+- workspace substrate is canonical and visible
 - Gate A is visible in CLI, projection, and UI
 - progress is visible but still transient
 - recommendation/proposal context is visible
@@ -66,29 +68,31 @@ The sprint is done when:
 
 ## Task Sequencing
 
-1. Define the ProposalLifecycleProjection domain model.
-2. Wire the projection builder to emit the proposal/recommendation/validation surface.
-3. Add the ProposalLifecycleConsole region to the UI projection.
-4. Surface Dogfood Gate A in CLI, projection, and UI.
-5. Add the validation summary projection.
-6. Add the recommendation/proposal lifecycle surface.
-7. Tighten progress timeline usability.
-8. Run the frontend usability pass.
-9. Update docs and handoff guidance.
+1. Harden the canonical workspace substrate and status summary.
+2. Define the ProposalLifecycleProjection domain model.
+3. Wire the projection builder to emit the proposal/recommendation/validation surface.
+4. Add the ProposalLifecycleConsole region to the UI projection.
+5. Surface Dogfood Gate A in CLI, projection, and UI.
+6. Add the validation summary projection.
+7. Add the recommendation/proposal lifecycle surface.
+8. Tighten progress timeline usability.
+9. Run the frontend usability pass.
+10. Update docs and handoff guidance.
 
 ## Sprint Backlog
 
 | Order | Workstream | Outcome |
 |---|---|---|
-| 1 | ProposalLifecycleProjection domain model | Canonical projection shape for proposal/recommendation/validation state |
-| 2 | Projection builder integration | Backend-authored proposal lifecycle widgets appear in workspace projection |
-| 3 | ProposalLifecycleConsole UI widget/region | Browser renders the new proposal lifecycle console region |
-| 4 | Dogfood Gate A visible in CLI/projection/UI | Read-only gate note is obvious in operator surfaces |
-| 5 | Validation summary projection | Validation state is visible and readable |
-| 6 | Proposal/recommendation lifecycle surface | Next safe action and recommendation context are obvious |
-| 7 | Progress timeline usability | Progress stays transient but understandable |
-| 8 | Frontend usability pass | The console is readable, navigable, and not overbuilt |
-| 9 | Docs and handoff guidance | The sprint and its operating rules are documented |
+| 1 | Workspace substrate and status summary | Canonical read-only workspace identity/path/state is truthful |
+| 2 | ProposalLifecycleProjection domain model | Canonical projection shape for proposal/recommendation/validation state |
+| 3 | Projection builder integration | Backend-authored proposal lifecycle widgets appear in workspace projection |
+| 4 | ProposalLifecycleConsole UI widget/region | Browser renders the new proposal lifecycle console region |
+| 5 | Dogfood Gate A visible in CLI/projection/UI | Read-only gate note is obvious in operator surfaces |
+| 6 | Validation summary projection | Validation state is visible and readable |
+| 7 | Proposal/recommendation lifecycle surface | Next safe action and recommendation context are obvious |
+| 8 | Progress timeline usability | Progress stays transient but understandable |
+| 9 | Frontend usability pass | The console is readable, navigable, and not overbuilt |
+| 10 | Docs and handoff guidance | The sprint and its operating rules are documented |
 
 ## Acceptance Gates
 
@@ -130,4 +134,4 @@ The sprint is done when:
 
 ## Recommended First Implementation Task
 
-Define `ProposalLifecycleProjection` and wire the projection builder to emit a minimal proposal lifecycle console region with a validation summary placeholder and Gate A note.
+Harden the canonical workspace status summary and then wire `ProposalLifecycleProjection` to consume it before adding any richer recommendation or validation UX.

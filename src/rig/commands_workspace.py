@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from rig.domain.workspace import WORKSPACE_STATUSES, WorkspaceDomain
+from rig.domain.workspace_status import build_workspace_status_summary
 from rig.domain.agent_workflow_gates import GATE_A_POLICY
 
 
@@ -87,6 +88,7 @@ def register(subparsers, helpers):
 
 def status(helpers):
     records = _legacy_workspace_records(helpers.repo_root)
+    workspace_summary = build_workspace_status_summary(helpers.repo_root)
     payload = {
         "repo_root": str(helpers.repo_root),
         "control_plane": "planned",
@@ -94,6 +96,7 @@ def status(helpers):
         "agent_lane_registry": "not_connected",
         "current_branch": _git_capture(helpers.repo_root, "branch", "--show-current") or "HEAD",
         "current_head": _git_capture(helpers.repo_root, "rev-parse", "--short", "HEAD"),
+        "workspace_summary": workspace_summary.to_dict(),
         "next_action": "Use scripts/rig_agent_worktree.py review/recommend for governed agent lanes.",
         "dogfood_gate": _gate_a_note(),
     }

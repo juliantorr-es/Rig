@@ -454,3 +454,178 @@ def test_dogfood_doc_mentions_inert_progress_markers():
     assert "evidence_refs" in content
     assert "inert" in content
     assert "transient" in content
+
+
+def test_workspace_status_summary_handles_selected_and_missing_workspace():
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        # Test with no workspace records - should return unselected status
+        missing = build_workspace_status_summary(repo_root)
+        assert missing.workspace_id is None
+        assert missing.workspace_path is None
+        assert missing.status == "unselected"
+        assert missing.gate == "A"
+        assert missing.selected is False
+        assert missing.worktree_state.dirty is False
+        assert missing.proposal_state.status == "not_created"
+        assert missing.validation_state.status == "not_run"
+
+        # Test with a workspace record - should return selected status
+        build_root = repo_root / ".build" / "rig"
+        workspace_dir = build_root / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps(
+                {
+                    "workspace_id": "lane-1",
+                    "task": "ui-cockpit",
+                    "status": "review_ready",
+                    "branch": "feature/ui-cockpit-widgets",
+                    "worktree_path": str(repo_root),
+                    "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        selected = build_workspace_status_summary(repo_root)
+        assert selected.workspace_id == "lane-1"
+        assert selected.workspace_path == str(repo_root)
+        assert selected.selected is True
+        assert selected.status == "review_ready"
+        assert selected.gate == "A"
+        assert selected.worktree_state.branch == "feature/ui-cockpit-widgets"
+        assert selected.proposal_state.status == "review_ready"
+        assert selected.validation_state.status == "not_run"
+
+
+def test_workspace_status_summary_read_only_does_not_create_build_dirs():
+    from rig.domain.workspace_status import build_workspace_status_summary, list_workspaces_read_only
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        build_root = repo_root / ".build" / "rig"
+        build_workspace_dir = build_root / "workspaces"
+
+        # Ensure no directories exist before
+        assert not build_root.exists()
+        assert not build_workspace_dir.exists()
+
+        # Call read-only functions
+        records = list_workspaces_read_only(repo_root)
+        summary = build_workspace_status_summary(repo_root)
+
+        # Assert no directories were created
+        assert not build_root.exists(), ".build/rig should not be created by read-only functions"
+        assert not build_workspace_dir.exists(), ".build/rig/workspaces should not be created by read-only functions"
+        assert records == []
+        assert summary.status == "unselected"
+
+
+def test_proposal_lifecycle_projection_is_gate_a_shaped():
+    from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps(
+                {
+                    "workspace_id": "lane-1",
+                    "task": "ui-cockpit",
+                    "status": "review_ready",
+                    "branch": "feature/ui-cockpit-widgets",
+                    "worktree_path": str(repo_root),
+                    "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        summary = build_workspace_status_summary(repo_root)
+        projection = build_proposal_lifecycle_projection(repo_root, workspace_summary=summary)
+
+    assert projection.lifecycle_id == "workspace.proposal_lifecycle"
+    assert projection.stage == "review_ready"
+    assert projection.workspace_path == str(repo_root)
+    assert projection.current_gate == "A"
+    assert any(action.id == "rig.intent.workspace_status" for action in projection.allowed_actions)
+    assert any(action.id == "rig.intent.refresh_projection" for action in projection.allowed_actions)
+    assert projection.recommendation_state["status"] == "unknown"
+    assert projection.proposal_state["status"] == "not_created"
+    assert projection.validation_state["status"] == "not_run"
+    assert projection.auditability_state["progress_receipts"] == "not_created"
+    assert projection.auditability_state["progress_receipt_plan"] == "advisory_only"
+    assert projection.auditability_state["receipt_candidate"] == "inert"
+    assert projection.auditability_state["evidence_refs"] == "inert"
+
+
+def test_workspace_projection_includes_workspace_summary():
+    from rig.domain.projection_builder import build_projection
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+        workspace_dir = repo_root / ".build" / "rig" / "workspaces"
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_dir / "lane-1.json").write_text(
+            json.dumps(
+                {
+                    "workspace_id": "lane-1",
+                    "task": "test",
+                    "status": "review_ready",
+                    "branch": "feature/test",
+                    "worktree_path": str(repo_root),
+                    "status_history": [{"status": "review_ready", "at": "2026-01-01T00:00:00Z"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        projection = build_projection(repo_root, revision=1, chat_history=None)
+        header_widget = projection.widgets["workspace.header"]
+
+        # Verify workspace_summary fields are propagated to the header widget
+        assert header_widget.data["workspace_id"] == "lane-1"
+        assert header_widget.data["workspace_status"] == "review_ready"
+        assert header_widget.data["workspace_path"] == str(repo_root)
+
+
+def test_empty_projection_includes_workspace_summary():
+    from rig.domain.projection_builder import build_projection
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        # No workspace records exist
+        projection = build_projection(repo_root, revision=1, chat_history=None)
+        header_widget = projection.widgets["workspace.header"]
+
+        # Verify empty projection has unselected status
+        assert header_widget.data["workspace_id"] is None
+        assert header_widget.data["workspace_status"] == "unselected"
+        assert header_widget.data["workspace_path"] is None
+
+
+def test_workspace_status_command_includes_workspace_summary():
+    from rig.domain.workspace_status import build_workspace_status_summary
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = Path(tmpdir)
+        _init_git_repo(repo_root)
+
+        # The status command uses build_workspace_status_summary
+        # Verify it works correctly for the unselected case
+        summary = build_workspace_status_summary(repo_root)
+        assert summary.status == "unselected"
+        assert summary.workspace_id is None
+        assert summary.selected is False

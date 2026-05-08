@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from datetime import datetime, timezone
 import subprocess
-from typing import List, Optional
+from typing import Any, List, Optional
 import importlib
 from pathlib import Path
 from rig.domain.projections import (
@@ -9,6 +9,7 @@ from rig.domain.projections import (
     ChatProjection, ChatMessage, ValidatorItem
 )
 from rig.domain.proposal_lifecycle import build_proposal_lifecycle_projection
+from rig.domain.workspace_status import WorkspaceStatusSummary, build_workspace_status_summary, list_workspaces_read_only
 from rig.domain.receipts import get_receipt_store
 
 def utc_now() -> str:
@@ -25,20 +26,17 @@ def _git_status_entries(repo_root: Path) -> list[str]:
     return [entry for entry in raw.split("\0") if entry]
 
 
-def _workspace_header_widget(repo_root: Path, active_ws: Optional[dict]) -> WidgetProjection:
-    branch = _git_capture(repo_root, "branch", "--show-current") or "HEAD"
-    head = _git_capture(repo_root, "rev-parse", "--short", "HEAD")
-    workspace_id = active_ws.get("workspace_id") if active_ws else None
-    workspace_status = active_ws.get("status") if active_ws else "no_active_workspace"
+def _workspace_header_widget(repo_root: Path, workspace_summary: WorkspaceStatusSummary) -> WidgetProjection:
     return WidgetProjection(
         "WorkspaceHeader",
         "workspace.header",
         {
             "repo_root": str(repo_root),
-            "workspace_id": workspace_id,
-            "workspace_status": workspace_status,
-            "branch": branch,
-            "head": head,
+            "workspace_id": workspace_summary.workspace_id,
+            "workspace_status": workspace_summary.status,
+            "workspace_path": workspace_summary.workspace_path,
+            "branch": workspace_summary.branch,
+            "head": workspace_summary.head,
             "authority_label": "Workspace control plane (future lane registry)",
         },
     )
@@ -105,16 +103,20 @@ def _workspace_command_progress_widget() -> WidgetProjection:
     )
 
 
-def _workspace_proposal_lifecycle_widget(repo_root: Path, active_ws: Optional[dict]) -> WidgetProjection:
+def _workspace_proposal_lifecycle_widget(
+    repo_root: Path,
+    active_ws: Optional[dict],
+    workspace_summary: WorkspaceStatusSummary,
+) -> WidgetProjection:
     lifecycle = build_proposal_lifecycle_projection(
         repo_root,
-        workspace_path=str(active_ws.get("worktree_path")) if active_ws and active_ws.get("worktree_path") else None,
-        active_workspace=bool(active_ws),
+        workspace_summary=workspace_summary,
+        workspace_path=workspace_summary.workspace_path if workspace_summary else None,
+        active_workspace=workspace_summary.selected if workspace_summary else False,
     )
     return WidgetProjection("ProposalLifecycleConsole", "workspace.proposal_lifecycle", lifecycle.to_dict())
 
 def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[List[ChatMessage]] = None) -> UIProjection:
-    from rig.domain.workspace import WorkspaceDomain
     from rig_tools.core.io import read_json
 
     # Try to load snapshot from gridline if available, otherwise use empty dict
@@ -125,11 +127,7 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     except (ImportError, ModuleNotFoundError, AttributeError):
         snapshot = {}
 
-    domain = WorkspaceDomain(repo_root)
-    workspaces = domain.list_workspaces()
-    
-    # Simple heuristic for active workspace: the one most recently modified
-    # Use any non-applied workspace first, fall back to applied if that's all we have
+    workspaces = list_workspaces_read_only(repo_root)
     active_ws = None
     def _workspace_sort_key(ws: dict) -> str:
         history = ws.get("status_history")
@@ -148,10 +146,12 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     if active_ws is None and workspaces:
         active_ws = workspaces[0]
 
+    workspace_summary = build_workspace_status_summary(repo_root, workspace_record=active_ws)
+
     jobs_count = len(snapshot.get("jobs", []))
     workspaces_count = len([w for w in workspaces if w.get("status") != "applied"])
     providers_count = len(snapshot.get("providers", []))
-    
+
     chat = None
     if chat_history is not None:
         chat = ChatProjection(messages=chat_history)
@@ -224,7 +224,11 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
             ))
     else:
         # Show what validators are configured even if not run
-        for i, v_cfg in enumerate(domain.read_validator_config()):
+        # Use validator config from workspace_summary metadata if available
+        # or read from pyproject.toml
+        from rig.domain.workspace_status import read_validator_config
+        validator_configs = read_validator_config(repo_root)
+        for i, v_cfg in enumerate(validator_configs):
             state = "missing"
             # If validation is in progress, mark first validator as running
             if run_in_progress and running_validator_id is None:
@@ -239,10 +243,10 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
     widgets = {
         "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": f"Workspace: {ws_id}"}),
         "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": f"Status: {status}", "severity": "info" if status == "validated" else "attention"}),
-        "workspace.header": _workspace_header_widget(repo_root, active_ws),
+        "workspace.header": _workspace_header_widget(repo_root, workspace_summary),
         "workspace.git_state": _workspace_git_state_widget(repo_root),
         "workspace.lane_summary": _workspace_lane_summary_widget(len(workspaces)),
-        "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(repo_root, active_ws),
+        "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(repo_root, active_ws, workspace_summary),
         "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
             "title": "Queue",
             "items": [
@@ -347,10 +351,14 @@ def _build_empty_projection(
         widgets={
             "app.title": WidgetProjection("AppTitle", "app.title", {"title": "Rig", "subtitle": "Local agent governance"}),
             "next.gate": WidgetProjection("GateBadge", "next.gate", {"label": "No active gate", "severity": "idle"}),
-            "workspace.header": _workspace_header_widget(repo_root, None),
+            "workspace.header": _workspace_header_widget(repo_root, build_workspace_status_summary(repo_root)),
             "workspace.git_state": _workspace_git_state_widget(repo_root),
             "workspace.lane_summary": _workspace_lane_summary_widget(workspaces),
-            "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(repo_root, None),
+            "workspace.proposal_lifecycle": _workspace_proposal_lifecycle_widget(
+                repo_root,
+                None,
+                build_workspace_status_summary(repo_root),
+            ),
             "queue.summary": WidgetProjection("MetricStack", "queue.summary", {
                 "title": "Queue",
                 "items": [
