@@ -198,6 +198,7 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 
 - Agent shells should place the Rig Git guard first in `PATH` so destructive commands are blocked before they reach the real Git binary.
 - Use `scripts/rig_vibe` to launch Vibe with the guard active.
+- Use `scripts/rig_gemini` to launch Gemini with the guard active.
 - If the guard blocks a command, stop immediately and report the blocked command and reason.
 - Do not bypass the guard by calling absolute Git paths directly.
 - The guard enforces the patch-forward policy for dirty files.

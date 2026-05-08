@@ -76,6 +76,25 @@ vibe() {
 
 This avoids fragile aliases and PATH drift when launching Vibe from an agent shell.
 
+## Using Gemini Safely
+
+Prefer the repo-supported launcher so Gemini always starts with the Rig Git guard first in `PATH`:
+
+```bash
+/Users/user/Developer/GitHub/Rig/scripts/rig_gemini
+/Users/user/Developer/GitHub/Rig/scripts/rig_gemini --doctor
+```
+
+Optional shell function:
+
+```zsh
+gemini() {
+  /Users/user/Developer/GitHub/Rig/scripts/rig_gemini "$@"
+}
+```
+
+This keeps Gemini on the same guarded launch path as Vibe and avoids alias drift.
+
 ## Test Commands
 
 These should work:
