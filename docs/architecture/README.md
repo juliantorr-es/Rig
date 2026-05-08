@@ -245,6 +245,16 @@ Doctor commands provide **runtime integrity checking**:
 3. [frontend-anti-patterns.md](frontend-anti-patterns.md) — Forbidden UI mechanics
 4. [ui-projections.md](ui-projections.md) — UI projection schema
 
+### "I want to understand Runtime Visualization Convergence"
+
+→ Read these in order (Phase 8: Visual Systems Convergence):
+1. [visual-execution-doctrine.md](visual-execution-doctrine.md) — Core philosophy
+2. [telemetry-scaling-semantics.md](telemetry-scaling-semantics.md) — Telemetry → visual mapping formulas
+3. [visual-semantic-normalization.md](visual-semantic-normalization.md) — Unified visual language
+4. [topology-density-convergence.md](topology-density-convergence.md) — High-density readability
+5. [motion-cadence-convergence.md](motion-cadence-convergence.md) — Deterministic motion timing
+6. [frontend-memory-governance.md](frontend-memory-governance.md) — Memory and DOM management
+
 ### "I want to understand how workspaces work"
 
 → Read these in order:
@@ -312,6 +322,13 @@ Doctor commands provide **runtime integrity checking**:
 - [frontend-systems-architecture.md](frontend-systems-architecture.md) — Widget and stream architecture
 - [frontend-anti-patterns.md](frontend-anti-patterns.md) — Harmful UI mechanics
 - [visual-language.md](visual-language.md) — Geometry and color tokens
+
+### Runtime Visualization Convergence (Phase 8)
+- [telemetry-scaling-semantics.md](telemetry-scaling-semantics.md) — Canonical telemetry → visual formulas
+- [frontend-memory-governance.md](frontend-memory-governance.md) — DOM lifecycle and bounded buffers
+- [visual-semantic-normalization.md](visual-semantic-normalization.md) — Unified color, stroke, spacing, and shape semantics
+- [topology-density-convergence.md](topology-density-convergence.md) — High-density readability preservation
+- [motion-cadence-convergence.md](motion-cadence-convergence.md) — Deterministic timing and animation
 
 ### Public Ops
 - [public-ops.md](public-ops.md) — Public operation governance
