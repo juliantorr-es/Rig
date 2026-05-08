@@ -1,0 +1,80 @@
+name: replay-integrity
+
+# Replay integrity workflow
+#
+# Doctrine:
+# - Deterministic reconstruction
+# - Replay-safe visualization validation
+# - Artifact capture for diagnostics
+
+on:
+  pull_request:
+    branches: [preproduction, main]
+  push:
+    branches: [preproduction, main]
+
+permissions:
+  contents: read
+
+jobs:
+  replay-integrity:
+    name: Replay Integrity
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - name: Install Rig with dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Replay validation
+        run: python -m pytest tests/test_replay.py -v --tb=short
+
+      - name: Deterministic replay reconstruction
+        run: |
+          python -m rig replay timeline --json > replay-timeline.json
+          mkdir -p replay-artifacts
+          cp replay-timeline.json replay-artifacts/
+
+      - name: Projection ordering validation
+        run: python -m pytest tests/test_projection_contracts.py -v --tb=short
+
+      - name: Sequence integrity checks
+        run: python -m pytest tests/test_integrity.py -v --tb=short
+
+      - name: Replay-safe visualization validation
+        run: python -m pytest tests/test_runtime_svg_instrumentation.py -v --tb=short
+
+      - name: Emit replay integrity summary
+        if: always()
+        run: |
+          mkdir -p replay-artifacts
+          cat > replay-artifacts/replay-integrity-summary.json <<'JSON'
+          {
+            "workflow": "replay-integrity",
+            "branch": "${{ github.ref_name }}",
+            "event_name": "${{ github.event_name }}",
+            "status": "collected"
+          }
+          JSON
+
+      - name: Upload replay artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-integrity-artifacts
+          path: |
+            replay-artifacts/
+          retention-days: 7

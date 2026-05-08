@@ -68,3 +68,17 @@ The visual language of Rig relies on hard geometry, drawing from industrial desi
 - **Line Weight:** Used to denote authority boundaries. Thick lines represent hard execution sandboxes; thin or dashed lines represent advisory capabilities.
 - **Structural Framing:** Interfaces are built using clear, unambiguous bounding boxes to reinforce the separation of contexts (e.g., Planner context vs. Execution sandbox).
 - **Whitespace as Cadence:** Spacing is mathematically rigid, utilized to group related operational metrics and visually separate disparate execution lanes, preventing information sludge.
+
+---
+
+## Related Documents
+
+| Section | Link |
+|---------|------|
+| **Core Philosophy** | [visual-execution-doctrine.md](visual-execution-doctrine.md) |
+| **Motion Semantics** | [truthful-animation.md](truthful-animation.md) |
+| **Design Tokens** | [visual-language.md](visual-language.md) |
+| **System Architecture** | [frontend-systems-architecture.md](frontend-systems-architecture.md) |
+| **Replay Mechanics** | [replayable-visualization.md](replayable-visualization.md) |
+| **SVG Architecture** | [svg-instrumentation.md](svg-instrumentation.md) |
+| **Terminology** | [terminology.md](terminology.md) |

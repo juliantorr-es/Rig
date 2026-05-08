@@ -29,14 +29,53 @@ Rig is a **cryptographically governed control plane** for local AI coding. The s
 │              TRUST LEVEL 2 - Projections                      │
 │         UI-optimized views derived from Level 1             │
 ├─────────────────────────────────────────────────────────────┤
-│              TRUST LEVEL 3 - Frontend Rendering              │
+## Trust Level 3 - Frontend Rendering
 │            Dumb widgets consuming Level 2 projections        │
 └─────────────────────────────────────────────────────────────┘
 
 Invariant: Trust NEVER increases when moving down levels.
 ```
 
+## Canonical Reading Paths
+
+Use these paths to navigate the documentation based on your role or interest.
+
+### 🐣 New Contributor (Onboarding)
+1. [README.md](../../README.md) — High-level project overview
+2. [AGENTS.md](../AGENTS.md) — Agent policy and Git discipline
+3. [CONTEXT.md](../CONTEXT.md) — Domain terminology and concepts
+4. [quickstart.md](../quickstart.md) — Getting started locally
+
+### 🎨 Frontend Contributor (Visualization & UX)
+1. [visual-execution-doctrine.md](visual-execution-doctrine.md) — The core philosophy
+2. [visual-language.md](visual-language.md) — Design tokens and semantics
+3. [svg-instrumentation.md](svg-instrumentation.md) — Vector rendering architecture
+4. [truthful-animation.md](truthful-animation.md) — Motion semantics
+5. [topology-density-convergence.md](topology-density-convergence.md) — Scaling and readability
+6. [frontend-systems-architecture.md](frontend-systems-architecture.md) — Widget and stream architecture
+
+### ⚙️ Runtime Contributor (Execution & Replay)
+1. [workspace-control-plane.md](workspace-control-plane.md) — Workspace architecture
+2. [governance-replay.md](governance-replay.md) — Replay system mechanics
+3. [replay-determinism.md](replay-determinism.md) — Determinism guarantees
+4. [runtime-streaming.md](runtime-streaming.md) — Streaming architecture
+5. [execution-sandbox.md](execution-sandbox.md) — Isolation and execution
+
+### 🛡️ CI & Governance Contributor (Operational Trust)
+1. [governance-engine.md](governance-engine.md) — Action legality rules
+2. [integrity-validation.md](integrity-validation.md) — Validation and integrity checks
+3. [preproduction-governance.md](preproduction-governance.md) — CI/CD gates
+4. [protected-branch-governance.md](protected-branch-governance.md) — Branch protection policy
+5. [review-governance.md](review-governance.md) — Review and approval flow
+
+### 🧪 Research Contributor (Doctrine & Future)
+1. [visual-execution-doctrine.md](visual-execution-doctrine.md) — Foundational philosophy
+2. [governance-replay.md](governance-replay.md) — Replay theory
+3. [public-ops.md](public-ops.md) — Future public operations
+4. [experiential-runtime-learning.md](experiential-runtime-learning.md) — Research on runtime learning
+
 ## Architecture Topology
+
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

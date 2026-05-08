@@ -35,8 +35,7 @@
 // =============================================================================
 
 /** Replay sweep visualization - shows replay progression */
-export class SvgReplaySweep {
-=======
+// Duplicate truncated stub removed; canonical implementation continues later in file.
 // =============================================================================
 // SVG Primitive: Stateful Loader
 // =============================================================================
@@ -287,11 +286,9 @@ export class SvgStatefulLoader {
 }
 
 // =============================================================================
+// =============================================================================
 // SVG Primitive: Replay Sweep
 // =============================================================================
-
-/** Replay sweep visualization - shows replay progression */
-export class SvgReplaySweep {=============================================================================
 // Constants
 // =============================================================================
 
@@ -1810,35 +1807,3 @@ export class SvgAnimationState {
     this.lastTimestamp = 0;
   }
 }
-
-// =============================================================================
-// Module Exports
-// =============================================================================
-
-export {
-  SVG_NS,
-  SVG_COLORS,
-  GEOMETRY,
-  ANIMATION,
-  MAX_SVG_ELEMENTS_PER_GROUP,
-  MAX_PATH_SEGMENTS,
-  MAX_REPLAY_SWEEP_FRAMES,
-  STROKE_WIDTH_THIN,
-  STROKE_WIDTH_NORMAL,
-  STROKE_WIDTH_THICK,
-  STROKE_WIDTH_HEAVY,
-  svgId,
-  createSvgElement,
-  setSvgAttr,
-  SvgExecutionLane,
-  SvgRoutingPath,
-  SvgStreamDensityLine,
-  SvgThroughputBar,
-  SvgReplaySweep,
-  SvgIntegrityMarker,
-  SvgProposalNode,
-  SvgTopologyConnector,
-  SvgInstrumentationLayer,
-  ProjectionGeometryMapper,
-  SvgAnimationState
-};

@@ -65,6 +65,12 @@ The domain layer contains Rig's core governance logic. Changes here require spec
 docs/  @juliantorr-es
 docs/*  @juliantorr-es
 
+# Governance Surfaces
+/.github/pull_request_template_agent.md  @juliantorr-es
+/.github/labels.md  @juliantorr-es
+/.github/workflows/preproduction-validation.yml  @juliantorr-es
+/.github/workflows/replay-integrity.yml  @juliantorr-es
+
 # Configuration
 pyproject.toml  @juliantorr-es
 setup.py  @juliantorr-es

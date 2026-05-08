@@ -358,7 +358,12 @@ python -m pytest tests/test_replay.py -v > replay_tests.log
 
 | Resource | Location |
 |----------|----------|
-| Architecture Docs | `docs/architecture/` |
+| Architecture Navigation | [docs/architecture/README.md](docs/architecture/README.md) |
+| Contributor Orientation | [docs/architecture/contributor-orientation.md](docs/architecture/contributor-orientation.md) |
+| Terminology | [docs/architecture/terminology.md](docs/architecture/terminology.md) |
+| Doctrine Map | [docs/architecture/doctrine-map.md](docs/architecture/doctrine-map.md) |
+| Current vs. Future | [docs/architecture/current-vs-future.md](docs/architecture/current-vs-future.md) |
+| Documentation Governance | [docs/architecture/documentation-governance.md](docs/architecture/documentation-governance.md) |
 | Sprint Plans | `docs/sprints/` |
 | ADRs | `docs/adr/` |
 | Issue Templates | `.github/ISSUE_TEMPLATE/` |

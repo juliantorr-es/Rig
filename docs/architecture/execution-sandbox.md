@@ -1,5 +1,8 @@
 # Execution Sandbox Architecture (Managed Execution)
 
+> **Status: IMPLEMENTED (Git Worktrees) / RESEARCH (Hardened Sandboxing)**
+> This document describes the managed execution layer. Current isolation uses Git worktrees. Hardened sandboxing (gVisor, Firecracker) remains research.
+
 ## Overview
 
 The **Execution Sandbox** provides a high-leverage interface for running untrusted or isolated commands within the Rig ecosystem. It abstracts away the complexity of worktree management, environment setup, and evidence capture.

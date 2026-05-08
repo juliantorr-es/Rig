@@ -24,7 +24,7 @@ These tests validate:
 
 Note: These are BACKEND tests for the Python projection contracts that
 feed the FRONTEND SVG instrumentation. The actual JavaScript SVG files
-are validated via node --check syntax validation.
+are validated by importing them as ES modules in Node.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ import hashlib
 import subprocess
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
@@ -672,6 +673,28 @@ class TestTopologyVisualization:
 class TestJsFileSyntax:
     """Tests for JavaScript file syntax validation."""
 
+    @staticmethod
+    def _check_esm_syntax(path: str) -> subprocess.CompletedProcess[str]:
+        file_uri = Path(path).resolve().as_uri()
+        return subprocess.run(
+            [
+                "node",
+                "--experimental-vm-modules",
+                "--input-type=module",
+                "--eval",
+                "\n".join(
+                    [
+                        "import fs from 'node:fs';",
+                        "import vm from 'node:vm';",
+                        f"const source = fs.readFileSync(new URL({json.dumps(file_uri)}), 'utf8');",
+                        "new vm.SourceTextModule(source, { identifier: " + json.dumps(file_uri) + " });",
+                    ]
+                ),
+            ],
+            capture_output=True,
+            text=True,
+        )
+
     @pytest.fixture
     def svg_instrumentation_path(self):
         """Path to SVG instrumentation JS file."""
@@ -699,11 +722,7 @@ class TestJsFileSyntax:
     def test_svg_instrumentation_syntax(self, svg_instrumentation_path):
         """SVG instrumentation JS file has valid syntax."""
         if os.path.exists(svg_instrumentation_path):
-            result = subprocess.run(
-                ["node", "--check", svg_instrumentation_path],
-                capture_output=True,
-                text=True
-            )
+            result = self._check_esm_syntax(svg_instrumentation_path)
             assert result.returncode == 0, f"SVG instrumentation syntax error: {result.stderr}"
         else:
             pytest.skip("SVG instrumentation file does not exist")
@@ -711,11 +730,7 @@ class TestJsFileSyntax:
     def test_topology_panel_syntax(self, topology_panel_path):
         """Runtime topology panel JS file has valid syntax."""
         if os.path.exists(topology_panel_path):
-            result = subprocess.run(
-                ["node", "--check", topology_panel_path],
-                capture_output=True,
-                text=True
-            )
+            result = self._check_esm_syntax(topology_panel_path)
             assert result.returncode == 0, f"Topology panel syntax error: {result.stderr}"
         else:
             pytest.skip("Topology panel file does not exist")
@@ -723,11 +738,7 @@ class TestJsFileSyntax:
     def test_stream_card_syntax(self, stream_card_path):
         """Runtime stream card JS file has valid syntax."""
         if os.path.exists(stream_card_path):
-            result = subprocess.run(
-                ["node", "--check", stream_card_path],
-                capture_output=True,
-                text=True
-            )
+            result = self._check_esm_syntax(stream_card_path)
             assert result.returncode == 0, f"Stream card syntax error: {result.stderr}"
         else:
             pytest.skip("Stream card file does not exist")

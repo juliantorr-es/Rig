@@ -968,10 +968,6 @@ function _renderThroughputBars(topologyState, layer, bounds) {
 // =============================================================================
 
 export {
-  TopologyNode,
-  TopologyEdge,
-  RuntimeTopologyState,
-  renderRuntimeTopologyPanel,
   _createPanelHeader as createTopologyHeader,
   _renderTopology as renderTopology
 };

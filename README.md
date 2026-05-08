@@ -263,6 +263,11 @@ bash scripts/check.sh
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines and workflow |
 | [CHANGELOG.md](./CHANGELOG.md) | Release history and changes |
 | [docs/architecture/README.md](./docs/architecture/README.md) | Architecture navigation map |
+| [docs/architecture/terminology.md](./docs/architecture/terminology.md) | Canonical domain terminology |
+| [docs/architecture/contributor-orientation.md](./docs/architecture/contributor-orientation.md) | Guide for new contributors |
+| [docs/architecture/doctrine-map.md](./docs/architecture/doctrine-map.md) | Architectural layer boundaries |
+| [docs/architecture/documentation-governance.md](./docs/architecture/documentation-governance.md) | How documentation is managed |
+| [docs/architecture/current-vs-future.md](./docs/architecture/current-vs-future.md) | Implementation status map |
 | [docs/quickstart.md](./docs/quickstart.md) | Detailed getting started guide |
 | [docs/troubleshooting.md](./docs/troubleshooting.md) | Debugging and failure ergonomics |
 

@@ -23,8 +23,7 @@ Tests cover:
 
 Note: These tests validate the BACKEND projections that feed the FRONTEND
 JavaScript instrumentation. The actual JavaScript files are validated via:
-  node --check src/rig_tools/static/js/runtime-instrumentation.js
-  node --check src/rig_tools/static/js/widgets/runtime-execution-panel.js
+  node --input-type=module --eval "import('file:///...')"
 
 file: tests/test_runtime_instrumentation.py
 """
@@ -34,6 +33,7 @@ from __future__ import annotations
 import json
 import subprocess
 import os
+from pathlib import Path
 import pytest
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -443,38 +443,46 @@ class TestProjectionValidation:
 class TestRigValidation:
     """Tests for compatibility with Rig's validation infrastructure."""
 
+    @staticmethod
+    def _check_esm_syntax(path: str) -> subprocess.CompletedProcess[str]:
+        file_uri = Path(path).resolve().as_uri()
+        return subprocess.run(
+            [
+                "node",
+                "--experimental-vm-modules",
+                "--input-type=module",
+                "--eval",
+                "\n".join(
+                    [
+                        "import fs from 'node:fs';",
+                        "import vm from 'node:vm';",
+                        f"const source = fs.readFileSync(new URL({json.dumps(file_uri)}), 'utf8');",
+                        "new vm.SourceTextModule(source, { identifier: " + json.dumps(file_uri) + " });",
+                    ]
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+
     def test_frontend_file_syntax_valid(self):
         """Verify runtime-instrumentation.js passes syntax check."""
         js_file = "src/rig_tools/static/js/runtime-instrumentation.js"
         if os.path.exists(js_file):
-            result = subprocess.run(
-                ["node", "--check", js_file],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = self._check_esm_syntax(js_file)
             assert result.returncode == 0, f"JavaScript syntax error: {result.stderr}"
 
     def test_widget_file_syntax_valid(self):
         """Verify runtime-execution-panel.js passes syntax check."""
         js_file = "src/rig_tools/static/js/widgets/runtime-execution-panel.js"
         if os.path.exists(js_file):
-            result = subprocess.run(
-                ["node", "--check", js_file],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = self._check_esm_syntax(js_file)
             assert result.returncode == 0, f"JavaScript syntax error: {result.stderr}"
 
     def test_registry_file_syntax_valid(self):
         """Verify runtime-widget-registry.js passes syntax check."""
         js_file = "src/rig_tools/static/js/widgets/runtime-widget-registry.js"
         if os.path.exists(js_file):
-            result = subprocess.run(
-                ["node", "--check", js_file],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = self._check_esm_syntax(js_file)
             assert result.returncode == 0, f"JavaScript syntax error: {result.stderr}"

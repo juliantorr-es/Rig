@@ -439,19 +439,19 @@ export class VisualStateBuffer {
     const newOldest = sequences.length > 0 ? Math.min(...sequences) : null;
     const newNewest = sequences.length > 0 ? Math.max(...sequences) : null;
 
-    return new VisualStateBuffer(
-      this.maxEntries,
-      this.maxAgeMs
-    ) {
-      bufferId: this.bufferId,
-      entries: newEntries,
-      oldestSequence: newOldest,
-      newestSequence: newNewest,
-      createdAt: this.createdAt,
-      updatedAt: now,
-      evictedCount: newEvicted,
-      truncated: newTruncated
-    };
+    return Object.assign(
+      new VisualStateBuffer(this.maxEntries, this.maxAgeMs),
+      {
+        bufferId: this.bufferId,
+        entries: newEntries,
+        oldestSequence: newOldest,
+        newestSequence: newNewest,
+        createdAt: this.createdAt,
+        updatedAt: now,
+        evictedCount: newEvicted,
+        truncated: newTruncated
+      }
+    );
   }
 
   /** Get entry by sequence */
@@ -578,16 +578,19 @@ export class VelocityTracker {
     const newTotalBytes = newSamples.reduce((sum, s) => sum + s.byteCount, 0);
     const newTotalTokens = newSamples.reduce((sum, s) => sum + s.tokenCount, 0);
 
-    return new VelocityTracker(this.maxSamples) {
-      trackerId: this.trackerId,
-      samples: newSamples,
-      startTime: newStartTime,
-      endTime: newEndTime,
-      totalBytes: newTotalBytes,
-      totalTokens: newTotalTokens,
-      createdAt: this.createdAt,
-      updatedAt: timestamp
-    };
+    return Object.assign(
+      new VelocityTracker(this.maxSamples),
+      {
+        trackerId: this.trackerId,
+        samples: newSamples,
+        startTime: newStartTime,
+        endTime: newEndTime,
+        totalBytes: newTotalBytes,
+        totalTokens: newTotalTokens,
+        createdAt: this.createdAt,
+        updatedAt: timestamp
+      }
+    );
   }
 
   /** Calculate average bytes per second */
@@ -698,15 +701,18 @@ export class ReplayFrameBuffer {
       if (frame.isReconstructed) newReconstructed.add(frame.id);
     }
 
-    return new ReplayFrameBuffer(this.maxFrames) {
-      bufferId: this.bufferId,
-      frames: newFrames,
-      streamIds: newStreamIds,
-      createdAt: this.createdAt,
-      updatedAt: Date.now(),
-      markers: newMarkers,
-      reconstructedFrames: newReconstructed
-    };
+    return Object.assign(
+      new ReplayFrameBuffer(this.maxFrames),
+      {
+        bufferId: this.bufferId,
+        frames: newFrames,
+        streamIds: newStreamIds,
+        createdAt: this.createdAt,
+        updatedAt: Date.now(),
+        markers: newMarkers,
+        reconstructedFrames: newReconstructed
+      }
+    );
   }
 
   /** Get frames for a specific stream */
@@ -793,12 +799,15 @@ export class IntegrityWarningBuffer {
     
     newWarnings.push(warning);
 
-    return new IntegrityWarningBuffer(this.maxWarnings) {
-      bufferId: this.bufferId,
-      warnings: newWarnings,
-      createdAt: this.createdAt,
-      updatedAt: Date.now()
-    };
+    return Object.assign(
+      new IntegrityWarningBuffer(this.maxWarnings),
+      {
+        bufferId: this.bufferId,
+        warnings: newWarnings,
+        createdAt: this.createdAt,
+        updatedAt: Date.now()
+      }
+    );
   }
 
   /** Get warnings for a specific stream */
@@ -873,17 +882,20 @@ export class StatefulLoader {
 
   /** Update the loader state */
   update({ state, message, progress, severity, context }) {
-    return new StatefulLoader({
-      id: this.id,
-      state: state || this.state,
-      message: message || this.message,
-      progress: progress !== undefined ? clamp(progress, 0, 100) : this.progress,
-      severity: severity || this.severity,
-      context: context || this.context
-    }) {
-      startTime: this.startTime,
-      lastUpdate: Date.now()
-    };
+    return Object.assign(
+      new StatefulLoader({
+        id: this.id,
+        state: state || this.state,
+        message: message || this.message,
+        progress: progress !== undefined ? clamp(progress, 0, 100) : this.progress,
+        severity: severity || this.severity,
+        context: context || this.context
+      }),
+      {
+        startTime: this.startTime,
+        lastUpdate: Date.now()
+      }
+    );
   }
 
   /** Derive progress from projection data */
@@ -1665,37 +1677,3 @@ export const WS_MSG_TYPE_STREAM_HEARTBEAT = 'stream_heartbeat';
 export const WS_MSG_TYPE_STREAM_WARNING = 'stream_warning';
 export const WS_MSG_TYPE_STREAM_PROPOSAL = 'stream_proposal';
 export const WS_MSG_TYPE_STREAM_ACKnowledgement = 'stream_ack';
-
-// =============================================================================
-// Module Exports
-// =============================================================================
-
-export {
-  // Constants
-  MAX_VISUAL_STATE_ENTRIES,
-  MAX_VELOCITY_SAMPLES,
-  MAX_REPLAY_FRAMES,
-  MAX_INTEGRITY_WARNINGS,
-  MIN_STATE_UPDATE_INTERVAL_MS,
-  // Classes
-  VelocitySample,
-  VisualStateEntry,
-  ReplayFrame,
-  IntegrityWarning,
-  VisualStateBuffer,
-  VelocityTracker,
-  ReplayFrameBuffer,
-  IntegrityWarningBuffer,
-  StatefulLoader,
-  RuntimeInstrumentation,
-  // Utilities
-  MotionUtils,
-  generateDeterministicId,
-  safeTruncate,
-  formatBytes,
-  formatTokens,
-  getColorForSeverity,
-  getMotionClassForState,
-  clamp,
-  lerp
-};
