@@ -44,7 +44,7 @@ jobs:
 
       - name: Deterministic replay reconstruction
         run: |
-          python -m rig replay timeline --json > replay-timeline.json
+          python -m rig replay --json timeline > replay-timeline.json
           mkdir -p replay-artifacts
           cp replay-timeline.json replay-artifacts/
 

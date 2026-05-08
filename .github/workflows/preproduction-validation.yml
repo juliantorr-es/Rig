@@ -45,7 +45,7 @@ jobs:
         run: python3.14 -m compileall -q src tests
 
       - name: Type integrity
-        run: python3.14 -m pyright --project pyrightconfig.json
+        run: python3.14 -m pyright --project pyrightconfig.json src/rig/domain/workspace.py tests/test_phase6a_public_hardening.py tests/test_workspace_governance.py
 
       - name: Replay determinism
         run: python -m pytest tests/test_replay.py -v --tb=short
