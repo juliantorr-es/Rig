@@ -10,10 +10,12 @@ export function connectWebSocket({ sessionToken, socketRef, logger, onMessage, o
 
   socket.onopen = () => {
     logger.info('WS', 'WebSocket connected');
+    console.log('[DEBUG-ws] WebSocket connected, sending hello');
     socket.send(JSON.stringify({ kind: 'hello' }));
   };
 
   socket.onmessage = event => {
+    console.log('[DEBUG-ws] Raw message received');
     const msg = JSON.parse(event.data);
     if (msg.kind === 'progress_event' && onProgress) {
       onProgress(msg.event || msg.data || {});
@@ -22,7 +24,11 @@ export function connectWebSocket({ sessionToken, socketRef, logger, onMessage, o
     onMessage(msg);
   };
   socket.onclose = () => {
+    console.log('[DEBUG-ws] WebSocket closed');
     if (onClose) onClose();
+  };
+  socket.onerror = (err) => {
+    console.error('[DEBUG-ws] WebSocket error:', err);
   };
 
   return socket;
