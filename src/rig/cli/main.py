@@ -21,6 +21,20 @@ def _legacy_queue_path(repo_root: Path) -> Path:
     return repo_root / ".build" / "rig" / "queue" / "queue.json"
 
 
+def _ensure_rig_workspace_layout(repo_root: Path) -> None:
+    for rel_path in [
+        ".rig",
+        ".rig/worktrees",
+        ".rig/artifacts",
+        ".rig/replay",
+        ".rig/topology",
+        ".rig/receipts",
+        ".rig/runtime",
+        ".rig/cache",
+    ]:
+        (repo_root / rel_path).mkdir(parents=True, exist_ok=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if sys.version_info < (3, 14):
@@ -126,10 +140,22 @@ def _init(repo_root: Path, *, dry_run: bool, yes: bool, config_target: str) -> i
             pyproject.write_text("[build-system]\nrequires = [\"setuptools>=69\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"rig\"\nversion = \"0.1.0\"\n", encoding="utf-8")
     gitignore = repo_root / ".gitignore"
     existing = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
-    for line in ["# Rig local state", ".build/rig/", ".rig/tmp/", ".rig/cache/"]:
+    for line in [
+        "# Rig local state",
+        ".build/rig/",
+        ".rig/worktrees/",
+        ".rig/artifacts/",
+        ".rig/replay/",
+        ".rig/topology/",
+        ".rig/receipts/",
+        ".rig/runtime/",
+        ".rig/cache/",
+        ".rig/tmp/",
+    ]:
         if line not in existing:
             existing += ("" if existing.endswith("\n") or not existing else "\n") + line + "\n"
     gitignore.write_text(existing, encoding="utf-8")
+    _ensure_rig_workspace_layout(repo_root)
     if _legacy_queue_path(repo_root).exists():
         print("Legacy queue state detected at .build/rig/queue/queue.json.\nRig now uses .build/rig/jobs/.\nRun:\n  rig doctor repair --migrate-legacy-queue")
     print("Rig initialized.\nNext:\n  rig ui\n  rig run --task <task-id> --provider custom-command")

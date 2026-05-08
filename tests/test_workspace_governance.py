@@ -103,3 +103,21 @@ def test_status_transition_rejects_skips(tmp_path: Path) -> None:
         assert False, "expected failure"
     except ValueError:
         pass
+
+
+def test_workspace_bootstrap_creates_governed_rig_layout(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    mgr = WorkspaceDomain(repo)
+    for rel in [
+        ".rig",
+        ".rig/worktrees",
+        ".rig/artifacts",
+        ".rig/replay",
+        ".rig/topology",
+        ".rig/receipts",
+        ".rig/runtime",
+        ".rig/cache",
+    ]:
+        assert (repo / rel).exists(), rel
+    record = mgr.create_workspace("task")
+    assert Path(record.payload["worktree_path"]).exists()
