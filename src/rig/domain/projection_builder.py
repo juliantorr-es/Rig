@@ -494,7 +494,24 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         repo_root,
         projection_data=projection_for_contract,
     )
+    # Determine run_validators enable/disable before widgets reference it.
+    run_validators_enabled = status in ("planned", "active", "executed", "blocked")
+    run_validators_disabled_reason: Optional[str] = None
+    if not run_validators_enabled:
+        if status == "validated":
+            run_validators_disabled_reason = "Already validated. Re-run to refresh."
+        elif status == "review_ready":
+            run_validators_disabled_reason = "Review ready. Apply or re-run from workspace."
+        elif status == "applied":
+            run_validators_disabled_reason = "Workspace already applied."
+        else:
+            run_validators_disabled_reason = f"Cannot run in state: {status}"
+
     widgets = {
+        "app.title": WidgetProjection("AppTitle", "app.title", {
+            "title": "Rig",
+            "subtitle": "Governed control plane"
+        }),
         "workspace.header": WidgetProjection("WorkspaceHeader", "workspace.header", {
             "repository": str(repo_root),
             "branch": git_info["branch"],
@@ -562,19 +579,6 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         "integrity.status": _integrity_status_widget(repo_root, integrity_data),
     }
 
-    # Determine run_validators enable/disable based on workspace state
-    run_validators_enabled = status in ("planned", "active", "executed", "blocked")
-    run_validators_disabled_reason: Optional[str] = None
-    if not run_validators_enabled:
-        if status == "validated":
-            run_validators_disabled_reason = "Already validated. Re-run to refresh."
-        elif status == "review_ready":
-            run_validators_disabled_reason = "Review ready. Apply or re-run from workspace."
-        elif status == "applied":
-            run_validators_disabled_reason = "Workspace already applied."
-        else:
-            run_validators_disabled_reason = f"Cannot run in state: {status}"
-    
     return UIProjection(
         revision=revision,
         generated_at=utc_now(),
@@ -582,7 +586,7 @@ def build_projection(repo_root: Path, revision: int = 1, chat_history: Optional[
         shell={"title": "Rig", "subtitle": f"Workspace {ws_id}"},
         chat=chat,
         layout=ProjectionLayout({
-            "header": ["workspace.header", "next.gate", "intent.buttons"],
+            "header": ["app.title", "workspace.header", "next.gate", "intent.buttons"],
             "sidebar": ["git.state", "queue.summary", "next.action"],
             "main": ["validator.stack", "workspace.info"],
             "inspector": ["evidence.current", "evidence.receipts"],
@@ -624,6 +628,10 @@ def _build_empty_projection(
         repo_root,
         projection_data=projection_for_contract,
     )
+    app_title = WidgetProjection("AppTitle", "app.title", {
+        "title": "Rig",
+        "subtitle": "Governed control plane"
+    })
     
     return UIProjection(
         revision=revision,
@@ -632,13 +640,14 @@ def _build_empty_projection(
         shell={"title": "Rig", "subtitle": "Local agent governance", "state": {"label": "No active workspace", "severity": "idle"}},
         chat=chat,
         layout=ProjectionLayout({
-            "header": ["workspace.header", "next.gate"],
+            "header": ["app.title", "workspace.header", "next.gate"],
             "sidebar": ["queue.summary"],
             "main": ["workspace.empty"],
             "inspector": ["evidence.current", "evidence.receipts"],
             "footer": ["workspace.command_progress", "backend.status", "integrity.status"]
         }),
         widgets={
+            "app.title": app_title,
             "workspace.header": WidgetProjection("WorkspaceHeader", "workspace.header", {
                 "repository": "None",
                 "branch": "N/A",
