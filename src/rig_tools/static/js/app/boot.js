@@ -205,6 +205,15 @@ export function bootRigUI() {
     if (msg.kind === 'projection') {
       setProjection(msg.data);
       pendingIntents.clear();
+      
+      // Transition from boot fallback to app
+      const fallback = document.getElementById('boot-fallback');
+      const status = document.getElementById('boot-status');
+      const app = document.getElementById('app');
+      if (fallback) fallback.hidden = true;
+      if (status) status.hidden = true;
+      if (app) app.hidden = false;
+
       render();
     } else if (msg.kind === 'intent_result') {
       dispatcher.handleIntentResult(msg.data);

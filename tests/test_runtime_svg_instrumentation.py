@@ -1726,3 +1726,453 @@ class TestVisualizationExtensibility:
         assert "disclosure layer" in extension_api.lower()
         assert "Replay-Safe Extension Model" in replay_model
         assert "cleanup lifecycle" in lifecycle.lower()
+
+
+# =============================================================================
+# PHASE 9: Workspace UX & Guided Onboarding Validation Tests
+# =============================================================================
+
+class TestStartupExperienceDoctrine:
+    """Tests for Startup Experience Doctrine compliance."""
+
+    def test_startup_experience_doc_exists(self):
+        """Startup experience doctrine document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "startup-experience.md")
+        assert os.path.exists(path), "startup-experience.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "Operational, Calm, Precise" in content
+        assert "no fake loading" in content or "No fake loading" in content
+        assert "synthetic progress" in content or "synthetic startup progress" in content
+        assert "decorative motion" in content or "decorative startup motion" in content
+
+    def test_startup_sequencing_deterministic(self):
+        """Startup sequencing is deterministic and documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "startup-experience.md"), encoding="utf-8").read()
+        assert "Pre-Initialization" in content
+        assert "Runtime Subsystem Wake-Up" in content
+        assert "Topology Wake-Up" in content
+        assert "Runtime Initialization Visibility" in content
+
+    def test_startup_subsystem_order_deterministic(self):
+        """Subsystem initialization order is deterministic."""
+        expected_order = [
+            "runtime.core",
+            "runtime.projection", 
+            "runtime.stream",
+            "runtime.integrity",
+            "runtime.topology",
+            "runtime.replay",
+            "runtime.visualization",
+            "runtime.websocket"
+        ]
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "startup-experience.md"), encoding="utf-8").read()
+        for subsystem in expected_order:
+            assert subsystem in content, f"{subsystem} not in startup sequencing"
+
+    def test_startup_motion_forbidden(self):
+        """Startup motion governance forbids decorative animation."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "startup-experience.md"), encoding="utf-8").read()
+        assert "FORBIDDEN During Startup" in content
+        assert "-webkit-animation" in content
+        assert "@keyframes" in content
+        assert "transition:" in content
+
+    def test_startup_derivation_rules(self):
+        """Visualization derivation rules are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "startup-experience.md"), encoding="utf-8").read()
+        assert "Every startup visual element MUST have a direct 1:1 mapping" in content
+        assert "runtime.status" in content
+
+    def test_deterministic_id_generation_startup(self):
+        """Deterministic ID generation for startup is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "startup-experience.md"), encoding="utf-8").read()
+        assert "svgId" in content
+        assert "deterministic" in content.lower()
+        assert "replay-safe" in content.lower()
+
+
+class TestWorkspaceCompositionDoctrine:
+    """Tests for Workspace Composition System compliance."""
+
+    def test_workspace_composition_doc_exists(self):
+        """Workspace composition document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "workspace-composition.md")
+        assert os.path.exists(path), "workspace-composition.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "constrained, deterministic, and replay-safe" in content
+        assert "Constrained Grid Layout" in content
+        assert "Deterministic Layout Serialization" in content
+
+    def test_grid_structure_documented(self):
+        """Grid structure is documented with regions."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "HEADER" in content
+        assert "SIDEBAR" in content
+        assert "MAIN WORKSPACE" in content
+        assert "FOOTER" in content
+
+    def test_region_constraints_documented(self):
+        """Region constraints are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "Region Constraints" in content
+        assert "Max Widgets" in content
+        assert "| Region |" in content
+
+    def test_widget_size_matrix_documented(self):
+        """Widget size matrix is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "Widget Size Matrix" in content
+        assert "Runtime Overview" in content
+        assert "Topology Panel" in content
+
+    def test_placement_rules_documented(self):
+        """Placement rules are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "Placement Validity" in content
+        assert "No Overlap" in content
+        assert "Region Fit" in content
+
+    def test_deterministic_serialization(self):
+        """Serialization guarantees are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "Deterministic Order" in content
+        assert "Bounded Size" in content
+        assert "Replay-Safe" in content
+
+    def test_topology_safe_placement(self):
+        """Topology-safe placement rules are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "Topology-Safe Placement" in content
+        assert "Lane Scope" in content
+        assert "Projection Contract" in content
+
+    def test_density_governance_documented(self):
+        """Workspace density governance is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-composition.md"), encoding="utf-8").read()
+        assert "Workspace Density Governance" in content
+        assert "Density Actions" in content
+
+
+class TestWidgetDisclosureScalingDoctrine:
+    """Tests for Progressive Disclosure Widget Sizes compliance."""
+
+    def test_widget_disclosure_scaling_doc_exists(self):
+        """Widget disclosure scaling document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "widget-disclosure-scaling.md")
+        assert os.path.exists(path), "widget-disclosure-scaling.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "exactly three disclosure scales" in content
+        assert "SMALL" in content
+        assert "MEDIUM" in content
+        assert "LARGE" in content
+
+    def test_scale_philosophy_documented(self):
+        """Scale philosophy is documented for all three scales."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "widget-disclosure-scaling.md"), encoding="utf-8").read()
+        assert "Calm Overview" in content
+        assert "Active Instrumentation" in content
+        assert "Deep Inspection" in content
+
+    def test_all_widget_types_have_scales(self):
+        """All widget types have documented scales."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "widget-disclosure-scaling.md"), encoding="utf-8").read()
+        widget_types = [
+            "Runtime Overview",
+            "Status Card", 
+            "Topology Panel",
+            "DTG Viewer",
+            "Stream Card",
+            "Replay Controls",
+            "Intent Console",
+            "Integrity Panel",
+            "Proposal Console",
+            "Onboarding Panel"
+        ]
+        for widget_type in widget_types:
+            assert widget_type in content, f"{widget_type} not in disclosure scaling doc"
+
+    def test_canonical_scale_properties(self):
+        """Canonical scale properties are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "widget-disclosure-scaling.md"), encoding="utf-8").read()
+        assert "Deterministic Scaling" in content
+        assert "Replay-Safe Scaling" in content
+        assert "Density-Aware Scaling" in content
+        assert "Reduced-Motion Participation" in content
+
+    def test_scaling_transitions_documented(self):
+        """Scaling transition rules are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "widget-disclosure-scaling.md"), encoding="utf-8").read()
+        assert "Scaling Transitions" in content
+        assert "Instant" in content or "0ms" in content
+        assert "No intermediate states" in content
+
+    def test_semantic_hierarchy_documented(self):
+        """Semantic hierarchy across scales is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "widget-disclosure-scaling.md"), encoding="utf-8").read()
+        assert "Semantic Hierarchy" in content
+        assert "Critical" in content
+        assert "Primary" in content
+        assert "Secondary" in content
+
+
+class TestGuidedOnboardingDoctrine:
+    """Tests for Guided Onboarding System compliance."""
+
+    def test_guided_onboarding_doc_exists(self):
+        """Guided onboarding document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "guided-onboarding.md")
+        assert os.path.exists(path), "guided-onboarding.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "Runtime Teaches Itself" in content
+        assert "MUST NOT be:" in content and "MUST be:" in content
+
+    def test_onboarding_stages_documented(self):
+        """All onboarding stages are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "STAGE 1:" in content
+        assert "STAGE 2:" in content
+        assert "STAGE 3:" in content
+        assert "STAGE 4:" in content
+
+    def test_stage_1_lessons(self):
+        """Stage 1 lessons are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "Workspace Basics & Runtime Overview" in content
+        assert "Welcome" in content
+        assert "Layout Overview" in content
+
+    def test_stage_2_lessons(self):
+        """Stage 2 lessons are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "Topology Understanding & Routing" in content
+        assert "Lane Concept" in content
+        assert "Node Introduction" in content
+
+    def test_trigger_system_documented(self):
+        """Contextual trigger system is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "Onboarding Triggers" in content
+        assert "Contextual Trigger System" in content
+
+    def test_progressive_feature_reveal(self):
+        """Progressive feature reveal is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "Progressive Feature Reveal" in content
+        assert "Feature Availability by Stage" in content
+
+    def test_onboarding_persistence(self):
+        """Onboarding persistence is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "Onboarding Persistence" in content
+        assert "completedLessons" in content
+
+    def test_reduced_stimulation_onboarding(self):
+        """Reduced stimulation onboarding is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "guided-onboarding.md"), encoding="utf-8").read()
+        assert "Reduced Stimulation Onboarding" in content
+        assert "prefers-reduced-motion" in content
+
+
+class TestExperientialLearningDoctrine:
+    """Tests for Experiential Runtime Learning compliance."""
+
+    def test_experiential_learning_doc_exists(self):
+        """Experiential runtime learning document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "experiential-runtime-learning.md")
+        assert os.path.exists(path), "experiential-runtime-learning.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "Learning Through Interaction" in content
+        assert "Guided Discovery" in content
+
+    def test_interaction_explanation_loop(self):
+        """Interaction-explanation loop is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "experiential-runtime-learning.md"), encoding="utf-8").read()
+        assert "Interaction-Explanation Loop" in content
+        assert "User Action" in content
+        assert "Runtime Behavior" in content
+
+    def test_operational_storytelling(self):
+        """Operational storytelling is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "experiential-runtime-learning.md"), encoding="utf-8").read()
+        assert "Operational Storytelling" in content
+        assert "The Runtime as Narrator" in content
+
+    def test_replay_driven_understanding(self):
+        """Replay-driven understanding is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "experiential-runtime-learning.md"), encoding="utf-8").read()
+        assert "Replay-Driven Understanding" in content
+        assert "Replay as Teaching Tool" in content
+
+    def test_topology_literacy(self):
+        """Topology literacy is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "experiential-runtime-learning.md"), encoding="utf-8").read()
+        assert "Topology Literacy" in content
+        assert "Learning Topology Concepts" in content
+
+    def test_instrumentation_literacy(self):
+        """Instrumentation literacy is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "experiential-runtime-learning.md"), encoding="utf-8").read()
+        assert "Instrumentation Literacy" in content
+        assert "Learning What Instruments Mean" in content
+
+    def test_runtime_semantics_education(self):
+        """Runtime semantics education is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "experiential-runtime-learning.md"), encoding="utf-8").read()
+        assert "Runtime Semantics Education" in content
+        assert "What Users Must Learn" in content
+
+
+class TestCalmDashboardGovernanceDoctrine:
+    """Tests for Calm Dashboard Governance compliance."""
+
+    def test_calm_dashboard_doc_exists(self):
+        """Calm dashboard governance document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "calm-dashboard-governance.md")
+        assert os.path.exists(path), "calm-dashboard-governance.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "become calmer as they become more complex" in content
+        assert "abstraction increases" in content
+
+    def test_density_ceilings_documented(self):
+        """Dashboard density ceilings are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "calm-dashboard-governance.md"), encoding="utf-8").read()
+        assert "Dashboard Density Ceilings" in content
+        assert "Hard Limits" in content
+        assert "| Element Type |" in content
+
+    def test_instrumentation_suppression(self):
+        """Instrumentation suppression rules are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "calm-dashboard-governance.md"), encoding="utf-8").read()
+        assert "Instrumentation Suppression" in content
+        assert "What NEVER Gets Suppressed" in content
+
+    def test_topology_simplification(self):
+        """Topology simplification is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "calm-dashboard-governance.md"), encoding="utf-8").read()
+        assert "Topology Simplification" in content
+        assert "Abstraction Levels" in content
+
+    def test_motion_governance(self):
+        """Motion governance is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "calm-dashboard-governance.md"), encoding="utf-8").read()
+        assert "Restrained Motion" in content
+        assert "Motion Ceilings" in content
+
+    def test_low_stimulation_mode(self):
+        """Low-stimulation mode is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "calm-dashboard-governance.md"), encoding="utf-8").read()
+        assert "Low-Stimulation Mode" in content
+        assert "Activates when ANY of:" in content
+
+
+class TestWorkspaceLifecycleDoctrine:
+    """Tests for Workspace Lifecycle Governance compliance."""
+
+    def test_workspace_lifecycle_doc_exists(self):
+        """Workspace lifecycle document exists."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        path = os.path.join(root, "workspace-lifecycle.md")
+        assert os.path.exists(path), "workspace-lifecycle.md not found"
+        content = open(path, encoding="utf-8").read()
+        assert "deterministic, replay-safe, and bounded" in content
+        assert "Workspace States" in content
+
+    def test_state_machine_documented(self):
+        """Workspace state machine is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "State Machine" in content
+        assert "NULL" in content
+        assert "UNINITIALIZED" in content
+        assert "READY" in content
+
+    def test_initialization_phases(self):
+        """Initialization phases are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Initialization Phases" in content
+        assert "Pre-initialization" in content
+        assert "Layout Loading" in content
+
+    def test_deterministic_restore(self):
+        """Deterministic workspace restore is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Deterministic Workspace Restore" in content
+        assert "Restore Guarantees" in content
+
+    def test_stable_widget_identity(self):
+        """Stable widget identity is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Stable Widget Identity" in content
+        assert "Widget Identity Rules" in content
+
+    def test_memory_bounds(self):
+        """Memory bounds are documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Workspace Memory Bounds" in content
+        assert "Memory Limits" in content
+
+    def test_widget_restoration(self):
+        """Widget restoration process is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Widget Restoration" in content
+        assert "Widget Lifecycle During Restore" in content
+
+    def test_replay_safe_state(self):
+        """Replay-safe workspace state is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Replay-Safe Workspace State" in content
+        assert "Replay Guarantees" in content
+
+    def test_workspace_teardown(self):
+        """Workspace teardown is documented."""
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        content = open(os.path.join(root, "workspace-lifecycle.md"), encoding="utf-8").read()
+        assert "Workspace Teardown" in content
+        assert "Teardown Guarantees" in content
