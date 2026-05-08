@@ -1474,20 +1474,46 @@ export class RuntimeInstrumentation {
 
 /** Animation utilities for truthful motion */
 export const MotionUtils = {
+  /** Determine whether the runtime should use low-stimulation motion */
+  getLowStimulationMode: function(context = {}) {
+    const density = clamp(context.density || 0, 0, 1);
+    const overload = clamp(context.overload || 0, 0, 1);
+    const reducedMotion = Boolean(context.reducedMotion);
+    return reducedMotion || density >= 0.6 || overload >= 0.5;
+  },
+
+  /** Calculate density collapse state for overloaded views */
+  calculateDensityCollapse: function(chunkCount, laneCount, violationCount = 0) {
+    const chunks = clamp(chunkCount, 0, 500);
+    const lanes = clamp(laneCount, 0, 16);
+    const violations = clamp(violationCount, 0, 50);
+    const densityScore = clamp((chunks / 250) * 0.5 + (lanes / 8) * 0.3 + (violations / 20) * 0.2, 0, 1);
+
+    return {
+      density: densityScore,
+      shouldCollapse: densityScore >= 0.55,
+      abstractionLevel: densityScore >= 0.85 ? 'extreme' : densityScore >= 0.7 ? 'high' : densityScore >= 0.55 ? 'medium' : 'low',
+      visibleDetail: densityScore >= 0.85 ? 'summary' : densityScore >= 0.7 ? 'collapsed' : densityScore >= 0.55 ? 'condensed' : 'full'
+    };
+  },
+
   /** Calculate geometric pulse cadence based on velocity */
   calculatePulseCadence: function(velocity, intensity) {
-    // Higher velocity = faster, more intense pulse
     const clampedVelocity = clamp(velocity, 0, 1000);
     const clampedIntensity = clamp(intensity, 0, 1);
+    const overloaded = clampedVelocity > 600 || clampedIntensity > 0.75;
     
-    // Map to animation parameters
-    const duration = lerp(2000, 500, clampedIntensity); // 500ms to 2000ms
-    const scale = lerp(1.0, 1.15, clampedIntensity); // Scale up to 15%
+    const duration = overloaded
+      ? lerp(2200, 1400, clampedIntensity)
+      : lerp(2000, 500, clampedIntensity);
+    const scale = overloaded
+      ? lerp(1.0, 1.03, clampedIntensity)
+      : lerp(1.0, 1.15, clampedIntensity);
     
     return {
       duration: `${duration}ms`,
       scale: scale,
-      opacity: lerp(0.5, 1.0, clampedIntensity)
+      opacity: overloaded ? lerp(0.45, 0.8, clampedIntensity) : lerp(0.5, 1.0, clampedIntensity)
     };
   },
 
@@ -1496,13 +1522,14 @@ export const MotionUtils = {
     const clampedChunkCount = clamp(chunkCount, 0, 100);
     const clampedVelocity = clamp(velocity, 0, 1000);
     
-    // More chunks and higher velocity = more dense visualization
     const density = clamp(clampedChunkCount * clampedVelocity / 100000, 0, 1);
+    const collapse = density >= 0.5;
     
     return {
       density: density,
-      gap: lerp(4, 0, density), // CSS gap
-      opacity: lerp(0.3, 1.0, density)
+      gap: collapse ? lerp(4, 2, density) : lerp(4, 0, density),
+      opacity: collapse ? lerp(0.35, 0.65, density) : lerp(0.3, 1.0, density),
+      collapsed: collapse
     };
   },
 
@@ -1518,10 +1545,13 @@ export const MotionUtils = {
     // Combine both metrics
     const combined = (normalizedBPS + normalizedTPS) / 2;
     
+    const overloaded = combined > 0.7;
+
     return {
       intensity: combined,
-      colorIntensity: lerp(0, 100, combined), // For HSL color
-      barWidth: lerp(2, 8, combined) // CSS bar width
+      colorIntensity: overloaded ? lerp(0, 70, combined) : lerp(0, 100, combined),
+      barWidth: overloaded ? lerp(2, 5, combined) : lerp(2, 8, combined),
+      reducedMotion: overloaded
     };
   },
 
@@ -1549,38 +1579,44 @@ export const MotionUtils = {
       percentage: percentage,
       isAtStart: clampedPosition === 0,
       isAtEnd: clampedPosition >= total,
-      isReplaying: isReplaying
+      isReplaying: isReplaying,
+      pace: total > 0 && isReplaying ? lerp(0.9, 0.4, clampedPosition / total) : 1
     };
   },
 
   /** Calculate geometric visualization for runtime state */
   calculateRuntimeGeometricState: function(state, channel, severity) {
+    const lowStim = MotionUtils.getLowStimulationMode({
+      density: severity === InstrumentationSeverity.WARNING ? 0.6 : 0.2,
+      overload: severity === InstrumentationSeverity.ERROR || severity === InstrumentationSeverity.CRITICAL ? 0.8 : 0,
+      reducedMotion: channel === 'system'
+    });
     switch (state) {
       case RuntimeInstrumentationState.STREAMING:
         return {
           shape: 'rectangle',
-          motion: 'flow',
+          motion: lowStim ? 'steady' : 'flow',
           direction: 'horizontal',
           color: getColorForSeverity(severity)
         };
       case RuntimeInstrumentationState.PROPOSING:
         return {
           shape: 'circle',
-          motion: 'pulse',
+          motion: lowStim ? 'fade' : 'pulse',
           direction: 'none',
           color: getColorForSeverity(severity)
         };
       case RuntimeInstrumentationState.VALIDATING:
         return {
           shape: 'triangle',
-          motion: 'rotate',
+          motion: lowStim ? 'hold' : 'rotate',
           direction: 'clockwise',
           color: getColorForSeverity(severity)
         };
       case RuntimeInstrumentationState.REPLAYING:
         return {
           shape: 'line',
-          motion: 'scroll',
+          motion: lowStim ? 'snap' : 'scroll',
           direction: 'horizontal',
           color: getColorForSeverity(severity)
         };

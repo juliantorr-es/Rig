@@ -210,6 +210,17 @@ Frontend widgets are **dumb renderers** that consume projections:
 - Various workspace status widgets
 - Integrity finding display widgets
 
+### Visualization Extensibility
+
+Runtime visualization is now treated as a governed composition surface:
+
+- `docs/architecture/visualization-composition.md` — how panels, overlays, and primitives compose
+- `docs/architecture/instrumentation-extension-api.md` — how contributors add instrumentation safely
+- `docs/architecture/replay-safe-extension-model.md` — replay constraints for extensions
+- `docs/architecture/visualization-lifecycle.md` — mount, update, replay, and cleanup lifecycle rules
+- `src/rig_tools/static/js/svg-primitive-registry.js` — deterministic primitive registration substrate
+- `src/rig_tools/static/js/topology-plugin-model.js` — bounded topology extension hooks
+
 ### 🩺 Doctor Commands
 
 Doctor commands provide **runtime integrity checking**:

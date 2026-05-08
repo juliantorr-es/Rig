@@ -59,7 +59,8 @@ import {
   SvgAnimationState,
   point,
   rect,
-  size
+  size,
+  MotionUtils
 } from '../svg-runtime-instrumentation.js';
 
 import { RuntimeInstrumentationState } from '../runtime-instrumentation.js';
@@ -609,6 +610,7 @@ function _renderTopology(topologyState, layer, data = {}) {
 function _renderLanes(topologyState, layer, bounds) {
   const geometryMapper = topologyState.geometryMapper;
   const nodeCount = topologyState.getAllNodes().length;
+  const densityState = MotionUtils.calculateDensityCollapse(nodeCount, Math.max(1, Math.ceil(nodeCount / 5)), topologyState.getAllIntegrityMarkers().length);
   const laneCount = Math.min(MAX_TOPOLOGY_LANES, Math.ceil(nodeCount / 5));
   
   // Create lanes
@@ -637,7 +639,7 @@ function _renderLanes(topologyState, layer, bounds) {
       active,
       stalled,
       completed,
-      throughput,
+      throughput: densityState.shouldCollapse ? Math.min(throughput, 500) : throughput,
       maxThroughput,
       index: i
     });
@@ -900,6 +902,7 @@ function _renderReplaySweep(topologyState, layer, bounds) {
 function _renderStreamDensity(topologyState, layer, bounds) {
   const edges = topologyState.getAllEdges().filter(e => e.kind === 'stream');
   const geometryMapper = topologyState.geometryMapper;
+  const densityState = MotionUtils.calculateDensityCollapse(topologyState.getAllNodes().length, Math.max(1, topologyState.lanes.size || 1), topologyState.getAllIntegrityMarkers().length);
 
   for (const edge of edges) {
     const sourceNode = topologyState.getNode(edge.sourceId);
@@ -919,7 +922,7 @@ function _renderStreamDensity(topologyState, layer, bounds) {
       point(targetX, targetY)
     ];
 
-    const intensity = edge.active ? 1.0 : 0.5;
+    const intensity = densityState.shouldCollapse ? 0.45 : edge.active ? 1.0 : 0.5;
 
     const densityLine = new SvgStreamDensityLine(`density-${edge.id}`, points, {
       intensity,
@@ -940,6 +943,7 @@ function _renderThroughputBars(topologyState, layer, bounds) {
   const nodes = topologyState.getAllNodes().filter(n => n.kind === 'runtime');
   const geometryMapper = topologyState.geometryMapper;
   const padding = 16;
+  if (nodes.length === 0) return;
   const barWidth = (bounds.width - padding * 2) / nodes.length - 8;
 
   for (let i = 0; i < nodes.length; i++) {

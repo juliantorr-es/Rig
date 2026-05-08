@@ -50,7 +50,8 @@ import {
   point,
   rect,
   clamp,
-  mapRange
+  mapRange,
+  MotionUtils
 } from '../svg-runtime-instrumentation.js';
 
 /** Runtime Stream Card Widget
@@ -367,6 +368,7 @@ function _renderSvgStreamVisualization(data, layer, bounds) {
   const isReplaying = state === 'replaying' || data.replay_ref;
   const replayProgress = data.replay_progress || (isReplaying ? 0.5 : 0);
   const isReconstructed = data.reconstructed || false;
+  const densityState = MotionUtils.calculateDensityCollapse(totalChunks, currentThroughput > 0 ? 1 : 0, data.integrity_flags?.length || 0);
 
   // =========================================================================
   // 1. Stream Density Line (shows chunk flow)
@@ -386,7 +388,7 @@ function _renderSvgStreamVisualization(data, layer, bounds) {
     }
     
     // Calculate intensity based on throughput
-    const intensity = clamp(totalTokens / maxTotalTokens, 0.1, 1.0);
+    const intensity = densityState.shouldCollapse ? 0.45 : clamp(totalTokens / maxTotalTokens, 0.1, 1.0);
     
     const densityLine = new SvgStreamDensityLine('stream-density', densityPoints, {
       intensity,
@@ -436,10 +438,11 @@ function _renderSvgStreamVisualization(data, layer, bounds) {
   );
 
   const progress = maxSequence > 0 ? clamp(sequence / maxSequence, 0, 1) : 0;
+  const replayMode = isReplaying || densityState.shouldCollapse;
   
   const sweep = new SvgReplaySweep('sequence-progress', progressBounds, {
     progress,
-    state: isReplaying ? 'replaying' : state,
+    state: replayMode ? 'replaying' : state,
     sequence,
     totalSequences: maxSequence,
     isReconstructed

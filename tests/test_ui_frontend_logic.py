@@ -119,3 +119,52 @@ def test_proposal_lifecycle_console_handles_missing_partial_data_safely():
     assert "Validation not run" in content or "Unknown" in content
     # Check null safety - uses nullish checks
     assert "||" in content or "?" in content or "if (" in content
+
+
+def test_progressive_disclosure_doctrine_docs_exist():
+    root = Path(__file__).parent.parent / "docs" / "architecture"
+    progressive = (root / "progressive-disclosure-doctrine.md").read_text(encoding="utf-8")
+    motion = (root / "governed-motion.md").read_text(encoding="utf-8")
+    spatial = (root / "spatial-stability.md").read_text(encoding="utf-8")
+    density = (root / "density-collapse.md").read_text(encoding="utf-8")
+    hierarchy = (root / "visual-priority-hierarchy.md").read_text(encoding="utf-8")
+
+    assert "Layer 1" in progressive
+    assert "Layer 4" in progressive
+    assert "Motion MUST become calmer under overload" in motion
+    assert "persistent topology" in spatial.lower()
+    assert "Higher complexity must collapse into clearer summary structures" in density
+    assert "High" in hierarchy and "integrity divergence" in hierarchy
+
+
+def test_runtime_instrumentation_contains_low_stimulation_helpers():
+    path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "runtime-instrumentation.js"
+    content = path.read_text(encoding="utf-8")
+    assert "getLowStimulationMode" in content
+    assert "calculateDensityCollapse" in content
+    assert "calculateReplayScrub" in content
+    assert "low-stimulation" in content
+
+
+def test_runtime_widgets_consume_density_governance():
+    topology = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "runtime-topology-panel.js"
+    stream = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "runtime-stream-card.js"
+    status = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "widgets" / "runtime-status-card.js"
+
+    topology_content = topology.read_text(encoding="utf-8")
+    stream_content = stream.read_text(encoding="utf-8")
+    status_content = status.read_text(encoding="utf-8")
+
+    assert "MotionUtils" in topology_content
+    assert "calculateDensityCollapse" in topology_content
+    assert "MotionUtils" in stream_content
+    assert "densityState.shouldCollapse" in stream_content
+    assert "SvgStatefulLoader" in status_content
+
+
+def test_architecture_readme_points_to_extension_path():
+    path = Path(__file__).parent.parent / "docs" / "architecture" / "README.md"
+    content = path.read_text(encoding="utf-8")
+    assert "Visualization Extensibility" in content
+    assert "svg-primitive-registry.js" in content
+    assert "topology-plugin-model.js" in content

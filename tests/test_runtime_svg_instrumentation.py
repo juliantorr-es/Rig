@@ -67,6 +67,46 @@ from rig.domain.runtime import (
 )
 
 
+def _calculate_pulse_cadence(velocity: float, intensity: float) -> dict[str, float | str]:
+    overloaded = velocity > 600 or intensity > 0.75
+    duration = (2200 - (400 * intensity)) if overloaded else (2000 - (1500 * intensity))
+    scale = (1.0 + (0.03 * intensity)) if overloaded else (1.0 + (0.15 * intensity))
+    opacity = (0.45 + (0.15 * intensity)) if overloaded else (0.5 + (0.5 * intensity))
+    return {"duration": f"{duration}ms", "scale": scale, "opacity": opacity}
+
+
+def _calculate_density_collapse(chunk_count: int, lane_count: int, violation_count: int = 0) -> dict[str, object]:
+    density = max(0.0, min(((chunk_count / 250) * 0.5) + ((lane_count / 8) * 0.3) + ((violation_count / 20) * 0.2), 1.0))
+    return {
+        "density": density,
+        "shouldCollapse": density >= 0.55,
+        "abstractionLevel": "extreme" if density >= 0.85 else "high" if density >= 0.7 else "medium" if density >= 0.55 else "low",
+        "visibleDetail": "summary" if density >= 0.85 else "collapsed" if density >= 0.7 else "condensed" if density >= 0.55 else "full",
+    }
+
+
+def _low_stimulation_mode(context: dict[str, object]) -> bool:
+    density = float(context.get("density", 0))
+    overload = float(context.get("overload", 0))
+    reduced_motion = bool(context.get("reducedMotion", False))
+    return reduced_motion or density >= 0.6 or overload >= 0.5
+
+
+def _calculate_replay_scrub(position: int, total: int, is_replaying: bool) -> dict[str, object]:
+    clamped = max(0, min(position, total))
+    percentage = (clamped / total) * 100 if total > 0 else 0
+    pace = (0.9 - (0.5 * (clamped / total))) if total > 0 and is_replaying else 1
+    return {
+        "position": clamped,
+        "total": total,
+        "percentage": percentage,
+        "isAtStart": clamped == 0,
+        "isAtEnd": clamped >= total,
+        "isReplaying": is_replaying,
+        "pace": pace,
+    }
+
+
 # =============================================================================
 # Doctrinal Compliance Tests
 # =============================================================================
@@ -152,6 +192,48 @@ class TestSvgInstrumentationDoctrine:
         # Same ordering on replay
         sorted_again = sorted(projections, key=lambda p: p.sequence)
         assert [p.projection_id for p in sorted_projections] == [p.projection_id for p in sorted_again]
+
+
+class TestErgonomicsGovernance:
+    def test_motion_calmens_under_overload(self):
+        """Motion governance should reduce stimulation under overload."""
+        normal = _calculate_pulse_cadence(velocity=100, intensity=0.2)
+        overload = _calculate_pulse_cadence(velocity=900, intensity=0.9)
+
+        assert float(overload["duration"][:-2]) >= float(normal["duration"][:-2])
+        assert overload["scale"] <= normal["scale"]
+        assert overload["opacity"] <= normal["opacity"]
+
+    def test_density_collapse_triggers_abstraction(self):
+        """Higher density should collapse to calmer abstraction."""
+        sparse = _calculate_density_collapse(chunk_count=10, lane_count=1, violation_count=0)
+        dense = _calculate_density_collapse(chunk_count=400, lane_count=8, violation_count=20)
+
+        assert sparse["shouldCollapse"] is False
+        assert dense["shouldCollapse"] is True
+        assert dense["abstractionLevel"] in {"medium", "high", "extreme"}
+        assert dense["visibleDetail"] in {"condensed", "collapsed", "summary"}
+
+    def test_low_stimulation_mode_detects_overload(self):
+        """Low-stimulation mode should activate when density or overload rises."""
+        calm = _low_stimulation_mode({"density": 0.1, "overload": 0.1, "reducedMotion": False})
+        overloaded = _low_stimulation_mode({"density": 0.7, "overload": 0.1, "reducedMotion": False})
+        reduced = _low_stimulation_mode({"density": 0.1, "overload": 0.1, "reducedMotion": True})
+
+        assert calm is False
+        assert overloaded is True
+        assert reduced is True
+
+    def test_replay_scrub_is_bounded_and_paced(self):
+        """Replay pacing should remain bounded and deterministic."""
+        start = _calculate_replay_scrub(0, 100, True)
+        mid = _calculate_replay_scrub(50, 100, True)
+        end = _calculate_replay_scrub(100, 100, True)
+
+        assert start["pace"] >= mid["pace"] >= end["pace"]
+        assert start["isAtStart"] is True
+        assert end["isAtEnd"] is True
+        assert 0 <= mid["percentage"] <= 100
 
 
 # =============================================================================
@@ -1612,3 +1694,35 @@ class TestMotionCadenceConvergence:
             # We verify by running twice
             case_str = str(case)
             assert case_str == case_str  # Trivial but demonstrates determinism
+
+
+class TestVisualizationExtensibility:
+    def test_svg_primitive_registry_exists_and_is_bounded(self):
+        path = os.path.join(os.path.dirname(__file__), "..", "src", "rig_tools", "static", "js", "svg-primitive-registry.js")
+        with open(path, encoding="utf-8") as f:
+            content = f.read()
+        assert "SvgPrimitiveRegistry" in content
+        assert "DEFAULT_MAX_PRIMITIVES" in content
+        assert "deterministic registration ordering" in content
+        assert "replay-safe" in content
+
+    def test_topology_plugin_model_exists_and_is_lane_safe(self):
+        path = os.path.join(os.path.dirname(__file__), "..", "src", "rig_tools", "static", "js", "topology-plugin-model.js")
+        with open(path, encoding="utf-8") as f:
+            content = f.read()
+        assert "TopologyPluginModel" in content
+        assert "laneScope" in content
+        assert "disclosureLayer" in content
+        assert "lowStimulation" in content
+
+    def test_extension_docs_define_required_contracts(self):
+        root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
+        composition = open(os.path.join(root, "visualization-composition.md"), encoding="utf-8").read()
+        extension_api = open(os.path.join(root, "instrumentation-extension-api.md"), encoding="utf-8").read()
+        replay_model = open(os.path.join(root, "replay-safe-extension-model.md"), encoding="utf-8").read()
+        lifecycle = open(os.path.join(root, "visualization-lifecycle.md"), encoding="utf-8").read()
+
+        assert "projection ownership" in composition.lower()
+        assert "disclosure layer" in extension_api.lower()
+        assert "Replay-Safe Extension Model" in replay_model
+        assert "cleanup lifecycle" in lifecycle.lower()
