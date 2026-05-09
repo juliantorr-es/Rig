@@ -76,7 +76,6 @@ from rig.domain.runtime_streaming._types import (
     PLACEHOLDER_STREAM_ID,
     PLACEHOLDER_SEQUENCE,
     PLACEHOLDER_PROVIDER,
-    PLACEHOLDER_INVOCATION,
     PLACEHOLDER_NO_RECEIPT,
     DEFAULT_MAX_CHUNK_SIZE,
     DEFAULT_MAX_BUFFER_SIZE,
@@ -127,9 +126,7 @@ PLACEHOLDER_DECISION_ID = "no_decision"
 PLACEHOLDER_COMMAND = "no_command"
 PLACEHOLDER_INVOKE_ID = "INVOKE_ID_PLACEHOLDER"
 
-# Forbidden commands
-FORBIDDEN_COMMANDS = frozenset(["rm", "mv", "git", "dd", "mkfs", "fdisk", "format"])
-FORBIDDEN_COMMAND_PREFIXES = frozenset(["sudo ", "chmod ", "chown "])
+
 
 # Process supervision defaults
 DEFAULT_PROCESS_TIMEOUT_SECONDS = 300.0
@@ -189,6 +186,11 @@ class RuntimeSupervisionViolationKind(Enum):
     TIMEOUT_VIOLATION = "timeout_violation"  # Timeout exceeded
     MEMORY_VIOLATION = "memory_violation"   # Memory limit exceeded
     NETWORK_VIOLATION = "network_violation"  # Network access violation
+    PROCESS_TIMEOUT = "process_timeout"    # Process execution timed out
+    OUTPUT_LIMIT_EXCEEDED = "output_limit_exceeded"  # Output exceeded bounds
+    MEMORY_LIMIT_EXCEEDED = "memory_limit_exceeded"  # Memory limit exceeded
+    FILE_ACCESS_VIOLATION = "file_access_violation"  # Unauthorized file access
+    NETWORK_ACCESS_VIOLATION = "network_access_violation"  # Unauthorized network access
 
 
 # =============================================================================
@@ -214,7 +216,8 @@ def _utc_now() -> str:
 # Commands that are NEVER allowed, even from runtimes
 FORBIDDEN_COMMANDS = frozenset({
     # Git destructive commands
-    "git reset"
+    "git reset",
+    "git reset --hard",
     "git clean",
     "git stash",
     "git rebase",
@@ -228,8 +231,10 @@ FORBIDDEN_COMMANDS = frozenset({
     "rm -r",
     "rm -f",
     "dd",
+    "dd if=/dev/zero",
     # System destruction
     ":() { :; } ;",  # fork bomb
+    ":(){ :|:& };:",  # fork bomb variant
     "mkfs",
     "fdisk",
     "format",
@@ -255,18 +260,28 @@ FORBIDDEN_COMMANDS = frozenset({
 })
 
 FORBIDDEN_COMMAND_PREFIXES = frozenset({
+    # Git destructive commands
     "git reset",
+    "git reset --hard",
     "git clean",
     "git stash",
     "git rebase",
+    "git merge",
+    "git commit",
+    "git push",
+    # Filesystem destructive commands
     "rm -",
     "dd ",
+    "dd if=",
+    # System destruction
     "mkfs",
     "fdisk",
     "format ",
+    # Process management
     "pkill",
     "killall",
     "kill -9",
+    # Privilege escalation
     "sudo ",
     "su ",
     ":() { :; }",
@@ -342,7 +357,7 @@ class RuntimeProcessHandle:
     process_id: str
     supervisor_id: str = PLACEHOLDER_SUPERVISOR_ID
     pid: Optional[int] = None
-    invocation_id: str = PLACEHOLDER_INVOCATION
+    invocation_id: str = PLACEHOLDER_INVOKE_ID
     provider_id: str = PLACEHOLDER_PROVIDER
     command: str = ""
     status: RuntimeProcessStatus = RuntimeProcessStatus.PENDING
@@ -555,7 +570,7 @@ class RuntimeProcessHandle:
             process_id=d.get("process_id", _generate_deterministic_id("process", "unknown")),
             supervisor_id=d.get("supervisor_id", PLACEHOLDER_SUPERVISOR_ID),
             pid=d.get("pid"),
-            invocation_id=d.get("invocation_id", PLACEHOLDER_INVOCATION),
+            invocation_id=d.get("invocation_id", PLACEHOLDER_INVOKE_ID),
             provider_id=d.get("provider_id", PLACEHOLDER_PROVIDER),
             command=d.get("command", ""),
             status=RuntimeProcessStatus(d.get("status", "pending")),
@@ -1072,6 +1087,34 @@ class RuntimeSupervisor:
             return False, reason
         
         return True, None
+    
+    def evaluate_command(self, command: str) -> RuntimeSupervisorDecision:
+        """Evaluate a command and return a supervision decision.
+        
+        This is the supervision-level interface for command evaluation.
+        It wraps check_command() and converts the result into a proper
+        RuntimeSupervisorDecision object.
+        
+        args:
+            command: The command to evaluate
+            
+        Returns:
+            RuntimeSupervisorDecision with ALLOW_STREAM or BLOCK_STREAM code
+        """
+        is_allowed, reason = self.check_command(command)
+        
+        if is_allowed:
+            return RuntimeSupervisorDecision.allow(
+                supervisor_id=self.supervisor_id,
+                decision_code=RuntimeSupervisorDecisionCode.ALLOW_STREAM,
+                reason=reason or "Command allowed by supervisor policy",
+            )
+        else:
+            return RuntimeSupervisorDecision.block(
+                supervisor_id=self.supervisor_id,
+                decision_code=RuntimeSupervisorDecisionCode.BLOCK_STREAM,
+                reason=reason or "Command blocked by supervisor policy",
+            )
     
     def validate_invocation(
         self,
