@@ -10,7 +10,7 @@ Rig's agentic workflow infrastructure — the governed pipeline from intent to p
 > ADR numbering and cross-references in this document depend on the ADR index being stabilized. Before this ADR can be accepted, verify that the Related ADR numbers below match the canonical index in `docs/adr/README.md`. Known drift exists between ADR 0007/0008 filenames and their cross-references.
 
 > [!NOTE]
-> **Workflow Narrative**: This ADR is the umbrella for agent workflow refinement. The canonical workflow is: **ADR → Sprint → Mission → Evidence → Review/Promotion**. Missions are substantial, agent-sized work packets. Do not create nested subtasks or recursive missions. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative operational narrative.
+> **Workflow Narrative**: This ADR is the umbrella for agent workflow refinement. The canonical workflow is: **ADR → Sprint → Sprint Research → Mission → Merge-Friendliness Check → Patch Batch → Evidence → Review/Promotion**. Sprint Research is mandatory read-only planning before implementation. Patch batches group coherent changes for reliable application. Patch batches require merge-friendliness preflight check before apply. Missions are substantial, agent-sized work packets. Do not create nested subtasks or recursive missions. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative operational narrative.
 
 **Related ADRs**:
 - [0003 Governance Engine Deepening](0003-governance-engine-deepening.md) — agent orchestration feeds governance evaluation
@@ -25,19 +25,63 @@ Rig's agentic workflow infrastructure — the governed pipeline from intent to p
 
 ---
 
-## Dogfood Bridge: Missions vs. Trajectories
+## Dogfood Bridge: Sprint Research, Missions, and Patch Batches
 
-Before `AgentOrchestrator` owns executable trajectories, ADR implementation work uses ADR-local progress ledgers (`.rig/work/adr/<adr-id>/progress.jsonl`). These ledgers are append-only operational evidence for human/agent workflow coordination. They are the bootstrap migration path into formal TrajectoryEvents and receipts.
+Before `AgentOrchestrator` owns executable trajectories, ADR implementation work uses ADR-local progress ledgers (`.rig/work/adr/<adr-id>/progress.jsonl`) and sprint research artifacts. These ledgers and artifacts are append-only operational evidence for human/agent workflow coordination. They are the bootstrap migration path into formal TrajectoryEvents and receipts.
 
 **The Boundary**:
+- **Sprint Research** = Mandatory read-only planning phase. Identifies files, assesses state, proposes missions, plans patch batches.
 - **Mission** = Delegated work contract (human-facing scope). Substantial, agent-sized work packet. Not a micro-task or subtask.
+- **Patch Batch** = Coherent set of related changes applied together. Prechecked and validated.
 - **Intent** = Proposed action inside a mission.
 - **TrajectoryEvent** = Evidence of a governed execution step.
 - **Receipt** = Durable governance/evidence artifact.
+- **Merge-Friendliness** = Preflight check that a patch batch is safe to apply relative to active worktrees.
 
-Missions feed the orchestrator scope and budget; trajectory events record what happened during execution. Do not collapse them.
+Sprint Research defines the scope; missions provide execution contracts; merge-friendliness checks prevent conflicts with active worktrees; patch batches group reliable changes; trajectory events record what happened; receipts provide durable evidence. Do not collapse these concepts.
+
+**Merge-Friendliness Rules**:
+- Patch batches require merge-friendliness preflight before apply.
+- Agents must not apply patches blindly while other worktrees are active.
+- Dirty same-file overlap in another worktree blocks by default.
+- Same-directory overlap warns.
+- Merge simulation is advisory/preflight only and does not mutate worktrees.
 
 **Note on "Slice" terminology**: This ADR uses "Slice 0", "Slice 0.5", "Slice 0.8", etc. to describe implementation phases only. These are NOT workflow hierarchy levels. Slices are internal staging for ADR 0009 implementation. The workflow hierarchy stops at Mission. Do not use "slice" as a workflow concept.
+
+**ADR Workspace Structure (Dogfood Bridge)**:
+```
+.rig/work/adr/<adr-id>/
+  task.json
+  progress.jsonl
+  projection.json
+  exports/                    # Optional dataset exports
+    events.csv
+    missions.csv
+    patch_batches.csv
+    validations.csv
+    findings.csv
+    schema.json
+    dataset_card.md
+  notes/
+    out-of-scope-findings.md
+  sprints/
+    <sprint-id>/
+      research_summary.md
+      repo_inventory.md
+      mission_plan.json
+      patch_batches/
+        <batch-id>.patch
+        <batch-id>_plan.json
+```
+
+**Merge-Friendliness Discovery**:
+- Worktrees are discovered using `git worktree list --porcelain -z`
+- Additional worktrees under `.rig/worktrees/` are also checked
+- Dirty worktree state is detected using `git status --porcelain=v1`
+- Patch file contents are parsed for touched files (diff --git headers)
+- `git apply --check` is used for precheck
+- `git merge-tree` is used for merge simulation when available
 
 ---
 

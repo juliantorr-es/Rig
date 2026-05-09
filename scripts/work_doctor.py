@@ -6,16 +6,18 @@ Usage:
 
 Validates:
 - progress.jsonl is parseable.
-- task.json has all required fields.
+- task.json has all required fields (sprints or missions).
 - Events have required fields (event_id, ts, worker, type, task_id).
 - mission_id values reference real missions.
-- Mission allowed_paths are subsets of parent allowed_paths.
 - Claimed paths are within task/mission allowed_paths.
 - Protected paths are not claimed.
-- No more than 12 missions (warn at 7, fail at 12 unless --allow-large-task).
+- No more than 12 missions per sprint (warn at 7, fail at 12 unless --allow-large-task).
 - Active claim heartbeat within 30m (warn) / 4h (stale).
 - Commit readiness: active claims must have a handoff.
 - Handoff has required fields: tests, dirty_files_after, completion_summary, out_of_scope_findings.
+- Sprint Research: All sprints must have completed research before implementation.
+- Patch Batches: Commit readiness fails if patch batch evidence is required but missing.
+- Merge-friendliness: Commit readiness fails if patches applied without merge-friendliness evidence.
 - No unexpected dirty files outside allowed_paths (uses git status --porcelain=v1).
 
 Exit codes: 0 = pass, 1 = failure, 2 = warnings only (pass with caveats).
@@ -29,16 +31,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _work_lib import (
-    load_task, load_events, get_mission,
+    load_task, load_events, get_mission, get_sprint,
     validate_paths_allowed, path_matches_any,
     HEARTBEAT_WARN_SECONDS, HEARTBEAT_STALE_SECONDS, seconds_since,
 )
 
 REQUIRED_TASK_FIELDS = [
     "id", "kind", "adr", "status", "priority", "allowed_paths", "protected_paths",
-    "completion_criteria", "required_checks", "required_evidence", "missions",
-    "created_at", "updated_at",
+    "completion_criteria", "required_checks", "required_evidence",
 ]
+# Note: "missions" is optional if using "sprints" (new structure)
+# At least one of missions or sprints must be present
+
 REQUIRED_EVENT_FIELDS = ["event_id", "ts", "worker", "type", "task_id"]
 REQUIRED_HANDOFF_FIELDS = ["tests", "dirty_files_after", "completion_summary", "out_of_scope_findings"]
 
@@ -85,29 +89,108 @@ def main(argv: list[str] | None = None) -> int:
         if field not in task:
             errors.append(f"task.json missing required field: '{field}'")
 
-    # --- Mission count ---
+    # --- Check for missions or sprints ---
     missions = task.get("missions", [])
-    mission_ids = {m["id"] for m in missions}
-    if len(missions) > 12 and not args.allow_large_task:
-        errors.append(f"Too many missions: {len(missions)} (max 12; use --allow-large-task to override)")
-    elif len(missions) > 7:
-        warnings.append(f"Many missions: {len(missions)} (warn threshold: 7)")
+    sprints = task.get("sprints", [])
+    
+    if not missions and not sprints:
+        errors.append("task.json must have either 'missions' or 'sprints' (or both for new structure)")
+    
+    # Get all mission IDs (from sprints or flat missions)
+    mission_ids = set()
+    for m in missions:
+        mission_ids.add(m["id"])
+    for s in sprints:
+        for m in s.get("missions", []):
+            mission_ids.add(m["id"])
+    
+    # --- Sprint Research Check (MANDATORY) ---
+    if sprints:
+        # Build sprint research status from events
+        sprint_research_status: dict[str, str] = {}
+        try:
+            events = load_events(args.task_id)
+        except ValueError:
+            events = []
+        
+        for ev in events:
+            etype = ev.get("type", "")
+            sprint_id = ev.get("sprint_id", "")
+            if etype == "sprint_research_started":
+                sprint_research_status[sprint_id] = "in_progress"
+            elif etype == "sprint_research_completed":
+                sprint_research_status[sprint_id] = "completed"
+            elif etype == "sprint_research_blocked":
+                sprint_research_status[sprint_id] = "blocked"
+        
+        # Check each sprint has completed research if it has missions in progress
+        for s in sprints:
+            s_id = s.get("id", "")
+            s_status = s.get("status", "not_started")
+            s_research = sprint_research_status.get(s_id, "not_started")
+            
+            # If sprint has missions that are claimed/in_progress, research MUST be completed
+            s_missions = s.get("missions", [])
+            has_active_missions = any(
+                m.get("status") in ("claimed", "in_progress")
+                for m in s_missions
+            )
+            
+            if has_active_missions and s_research != "completed":
+                errors.append(
+                    f"Sprint '{s_id}' has active missions but research is not completed "
+                    f"(status: {s_research}). Research is MANDATORY before implementation."
+                )
+            elif s_research == "not_started" and s_status != "not_started":
+                warnings.append(
+                    f"Sprint '{s_id}' is {s_status} but research not started. "
+                    "Research is mandatory before implementation."
+                )
+
+    # --- Mission count ---
+    total_missions = len(mission_ids)
+    if total_missions > 12 and not args.allow_large_task:
+        errors.append(f"Too many missions: {total_missions} (max 12; use --allow-large-task to override)")
+    elif total_missions > 7:
+        warnings.append(f"Many missions: {total_missions} (warn threshold: 7)")
 
     # --- Mission path authority ---
     parent_allowed = task.get("allowed_paths", [])
     parent_protected = task.get("protected_paths", [])
-    for m in missions:
+    
+    # Check both flat missions and sprint missions
+    all_missions_list = list(missions)
+    for s in sprints:
+        all_missions_list.extend(s.get("missions", []))
+    
+    for m in all_missions_list:
         mid = m["id"]
+        parent_allowed_for_mission = parent_allowed
+        
+        # Find the containing sprint to get its allowed_paths
+        containing_sprint = None
+        for s in sprints:
+            if mid in [mm.get("id") for mm in s.get("missions", [])]:
+                containing_sprint = s
+                break
+        
+        # Use most specific allowed_paths: task -> sprint -> mission
+        if containing_sprint:
+            sprint_allowed = containing_sprint.get("allowed_paths", [])
+            if sprint_allowed:
+                parent_allowed_for_mission = sprint_allowed
+        
         for mpath in m.get("allowed_paths", []):
-            if not path_matches_any(mpath, parent_allowed):
+            if not path_matches_any(mpath, parent_allowed_for_mission):
                 errors.append(f"Mission '{mid}' allowed_path '{mpath}' exceeds parent allowed_paths")
 
-    # --- Load events ---
-    try:
-        events = load_events(args.task_id)
-    except ValueError as exc:
-        errors.append(f"progress.jsonl parse error: {exc}")
-        events = []
+    # --- Load events (if not already loaded) ---
+    if 'events' not in locals():
+        try:
+            events = load_events(args.task_id)
+        except ValueError as exc:
+            errors.append(f"progress.jsonl parse error: {exc}")
+            events = []
 
     # --- Event field validation ---
     for i, ev in enumerate(events):
@@ -132,8 +215,9 @@ def main(argv: list[str] | None = None) -> int:
             allowed = parent_allowed
             protected = parent_protected
             if mid and mid in mission_ids:
-                mission = next(m for m in missions if m["id"] == mid)
-                allowed = mission.get("allowed_paths", allowed)
+                mission = next((m for m in all_missions_list if m["id"] == mid), None)
+                if mission:
+                    allowed = mission.get("allowed_paths", allowed)
             errs = validate_paths_allowed(paths, allowed, protected)
             for e in errs:
                 errors.append(f"Claim by {worker}/{mid}: {e}")
@@ -142,6 +226,94 @@ def main(argv: list[str] | None = None) -> int:
             active_claims.pop(ckey, None)
         elif etype == "heartbeat":
             last_heartbeat[worker] = ev.get("ts", "")
+
+    # --- Patch Batch Evidence Check ---
+    # Collect patch batch events
+    patch_batch_events = [
+        ev for ev in events
+        if ev.get("type") in [
+            "patch_batch_planned",
+            "patch_batch_prechecked",
+            "patch_batch_applied",
+            "patch_batch_validated",
+            "patch_batch_blocked",
+        ]
+    ]
+    
+    # Find missions that have been claimed or are in progress
+    active_missions = set()
+    for ckey, claim in active_claims.items():
+        mid = claim.get("mission_id")
+        if mid:
+            active_missions.add(mid)
+    
+    # Check that any active mission with patch batches has required evidence
+    for pb_ev in patch_batch_events:
+        pb_id = pb_ev.get("patch_batch_id", "")
+        pb_type = pb_ev.get("type", "")
+        mid = pb_ev.get("mission_id", "")
+        
+        if mid in active_missions:
+            # Check if there's a planned batch without precheck
+            if pb_type == "patch_batch_planned":
+                has_precheck = any(
+                    e.get("patch_batch_id") == pb_id and e.get("type") == "patch_batch_prechecked"
+                    for e in patch_batch_events
+                )
+                if not has_precheck:
+                    warnings.append(
+                        f"Patch batch '{pb_id}' for mission '{mid}' was planned but not prechecked. "
+                        "Run 'git apply --check' before applying."
+                    )
+            
+            # Check if there's an applied batch without validation
+            if pb_type == "patch_batch_applied":
+                has_validation = any(
+                    e.get("patch_batch_id") == pb_id and e.get("type") == "patch_batch_validated"
+                    for e in patch_batch_events
+                )
+                if not has_validation:
+                    warnings.append(
+                        f"Patch batch '{pb_id}' for mission '{mid}' was applied but not validated. "
+                        "Run validation after each batch."
+                    )
+            
+            # Check if there's an applied batch without merge-friendliness check
+            if pb_type == "patch_batch_applied":
+                has_merge_check = any(
+                    e.get("patch_batch_id") == pb_id and e.get("type") == "patch_batch_merge_friendly_checked"
+                    for e in patch_batch_events
+                )
+                if not has_merge_check:
+                    errors.append(
+                        f"Patch batch '{pb_id}' for mission '{mid}' was applied without merge-friendliness check. "
+                        "Merge-friendliness is required before applying patches. "
+                        "Run 'python3 scripts/work_patch_batch.py --action merge-friendly' before apply."
+                    )
+                else:
+                    # Check if merge-friendliness check passed
+                    merge_check = next(
+                        e for e in patch_batch_events
+                        if e.get("patch_batch_id") == pb_id and e.get("type") == "patch_batch_merge_friendly_checked"
+                    )
+                    if not merge_check.get("safe_to_apply", False):
+                        errors.append(
+                            f"Patch batch '{pb_id}' for mission '{mid}' was applied but merge-friendliness "
+                            f"check reported unsafe: {merge_check.get('result', 'unknown')}. "
+                            f"Blocked reasons: {merge_check.get('blocked_reasons', [])}"
+                        )
+            
+            # Check if precheck passed but merge-friendliness not checked yet
+            if pb_type == "patch_batch_prechecked" and pb_ev.get("precheck_passed", False):
+                has_merge_check = any(
+                    e.get("patch_batch_id") == pb_id and e.get("type") == "patch_batch_merge_friendly_checked"
+                    for e in patch_batch_events
+                )
+                if not has_merge_check:
+                    warnings.append(
+                        f"Patch batch '{pb_id}' for mission '{mid}' precheck passed but merge-friendliness "
+                        "not yet checked. Run merge-friendliness check before apply."
+                    )
 
     # --- Handoff quality check ---
     last_handoff: dict[str, dict] = {}
@@ -190,6 +362,22 @@ def main(argv: list[str] | None = None) -> int:
     # --- Print report ---
     print(f"\n=== work_doctor: {args.task_id} ===")
     print(f"Events: {len(events)}  Active claims: {len(active_claims)}  Dirty files: {len(dirty)}")
+    
+    if sprints:
+        print(f"Sprints: {len(sprints)}  Total missions: {total_missions}")
+        if sprints:
+            research_status = {}
+            for ev in events:
+                if ev.get("type") == "sprint_research_completed":
+                    research_status[ev.get("sprint_id", "")] = "completed"
+            incomplete = [
+                s.get("id", "") for s in sprints
+                if research_status.get(s.get("id", "")) != "completed"
+            ]
+            if incomplete:
+                print(f"Research incomplete for: {', '.join(incomplete)}")
+    else:
+        print(f"Missions: {total_missions}")
 
     if warnings:
         print(f"\nWarnings ({len(warnings)}):")

@@ -62,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("task_id")
     p.add_argument("--mission", metavar="MISSION_ID")
+    p.add_argument("--sprint", metavar="SPRINT_ID", help="Sprint ID ( optional, for sprint-based worktracking).")
     p.add_argument("--worker", required=True, metavar="NAME")
     p.add_argument("--message", required=True, metavar="MSG", help="Commit message body.")
     p.add_argument("--dry-run", action="store_true", help="Show plan only; do not mutate.")
@@ -81,10 +82,25 @@ def main(argv: list[str] | None = None) -> int:
     allowed = task["allowed_paths"]
     protected = task["protected_paths"]
 
+    sprint_id = None
+    if args.sprint:
+        try:
+            from _work_lib import get_sprint
+            sprint = get_sprint(task, args.sprint)
+            sprint_id = sprint.get("id")
+            sprint_allowed = sprint.get("allowed_paths", [])
+            if sprint_allowed:
+                allowed = sprint_allowed
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+
     if args.mission:
         try:
             mission = get_mission(task, args.mission)
-            allowed = mission["allowed_paths"]
+            mission_allowed = mission["allowed_paths"]
+            if mission_allowed:
+                allowed = mission_allowed
         except ValueError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
@@ -107,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
     trailers = [
         f"Task: {args.task_id}",
     ]
+    if sprint_id:
+        trailers.append(f"Sprint: {sprint_id}")
     if args.mission:
         trailers.append(f"Mission: {args.mission}")
     trailers.append("Rig-Work-Doctor: passed")
@@ -115,6 +133,8 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print("=== Commit Plan ===")
     print(f"Task:    {args.task_id}")
+    if sprint_id:
+        print(f"Sprint:  {sprint_id}")
     if args.mission:
         print(f"Mission: {args.mission}")
     print(f"Worker:  {args.worker}")

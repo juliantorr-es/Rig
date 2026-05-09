@@ -8,6 +8,11 @@ Usage:
 Regenerates:
     .rig/work/adr/<task_id>/projection.json
     .rig/work/adr/<task_id>/notes/out-of-scope-findings.md
+
+Now supports:
+    - Sprint Research status
+    - Patch Batch status and summaries
+    - Sprint-based mission organization
 """
 from __future__ import annotations
 
@@ -17,9 +22,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _work_lib import (
-    compute_projection, load_task, load_events,
-    projection_json_path, regenerate_findings_md,
-    HEARTBEAT_WARN_SECONDS, HEARTBEAT_STALE_SECONDS, seconds_since,
+    compute_projection,
+    load_task,
+    load_events,
+    projection_json_path,
+    regenerate_findings_md,
+    HEARTBEAT_WARN_SECONDS,
+    HEARTBEAT_STALE_SECONDS,
+    seconds_since,
 )
 
 
@@ -49,7 +59,10 @@ def main(argv: list[str] | None = None) -> int:
     proj_path = projection_json_path(task_id)
     proj_path.parent.mkdir(parents=True, exist_ok=True)
     persisted = {k: v for k, v in projection.items() if not k.startswith("_")}
-    proj_path.write_text(json.dumps(persisted, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    proj_path.write_text(
+        json.dumps(persisted, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
     # Regenerate notes
     regenerate_findings_md(task_id, projection)
@@ -63,21 +76,69 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Generated:   {projection['generated_at']}")
     print()
 
+    # Sprint Research Status
+    research_complete = projection.get("research_complete", True)
+    sprints = projection.get("sprints", [])
+    if sprints:
+        print("Sprint Research Status:")
+        for s in sprints:
+            research_status = s.get("research_status", "not_started")
+            status_icon = "✓" if research_status == "completed" else "○" if research_status == "in_progress" else "✗"
+            print(f"  {status_icon} {s['id']}: {s['title']} -> {research_status}")
+        if not research_complete:
+            print("  ⚠  RESEARCH INCOMPLETE - Implementation cannot begin")
+        print()
+
+    # Patch Batch Summary
+    patch_summary = projection.get("patch_batches_summary", {})
+    if patch_summary:
+        print("Patch Batch Summary:")
+        print(f"  Planned:    {patch_summary.get('total_planned', 0)}")
+        print(f"  Prechecked: {patch_summary.get('total_prechecked', 0)}")
+        print(f"  Applied:   {patch_summary.get('total_applied', 0)}")
+        print(f"  Validated: {patch_summary.get('total_validated', 0)}")
+        print(f"  Blocked:   {patch_summary.get('total_blocked', 0)}")
+        if patch_summary.get("blocked_reasons"):
+            print(f"  Blocked reasons: {', '.join(patch_summary['blocked_reasons'])}")
+        print()
+
+    # Missions with Patch Batch info
+    missions = projection.get("missions", [])
     print("Missions:")
-    for m in projection["missions"]:
+    for m in missions:
         claim_info = f"  [claimed by {m['active_claim']}]" if m["active_claim"] else ""
         hb_info = ""
         if m["last_heartbeat"]:
             age = seconds_since(m["last_heartbeat"])
-            hb_info = f"  (last hb: {int(age/60)}m ago)"
-        print(f"  {m['id']:<50} {m['status']:<18}{claim_info}{hb_info}")
+            hb_info = f"  (last hb: {int(age / 60)}m ago)"
+        
+        # Patch batch info for mission
+        pb_info = ""
+        patch_batches = m.get("patch_batches", [])
+        if patch_batches:
+            pb_statuses = [pb.get("status", "unknown") for pb in patch_batches]
+            pb_info = f"  [patches: {len(patch_batches)}]"
+            if any(s == "blocked" for s in pb_statuses):
+                pb_info += " ⚠BLOCKED"
+            # Check for merge-friendliness status
+            merge_checked = sum(1 for pb in patch_batches if pb.get("merge_friendly_checked"))
+            merge_safe = sum(1 for pb in patch_batches if pb.get("merge_friendly_safe") == True)
+            if merge_checked > 0:
+                pb_info += f" merge-{merge_safe}/{merge_checked}"
+                if merge_safe < merge_checked:
+                    pb_info += " ⚠UNSAFE"
+        
+        print(f"  {m['id']:<45} {m['status']:<18}{claim_info}{hb_info}{pb_info}")
     print()
 
     if projection["active_claims"]:
         print("Active claims:")
         for c in projection["active_claims"]:
-            print(f"  worker={c['worker']}  mission={c.get('mission_id') or '(task-level)'}"
-                  f"  since={c['claimed_at']}")
+            sprint_info = f"  sprint={c.get('sprint_id') or 'N/A'}" if c.get("sprint_id") else ""
+            print(
+                f"  worker={c['worker']}  mission={c.get('mission_id') or '(task-level)'}"
+                f"  since={c['claimed_at']}{sprint_info}"
+            )
         print()
 
     if projection["stale_claims"]:
@@ -109,7 +170,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Next safe action: {projection['next_safe_action']}")
     print(f"\nProjection written to: {proj_path}")
-    print(f"Findings notes written to: {proj_path.parent / 'notes' / 'out-of-scope-findings.md'}")
+    print(
+        f"Findings notes written to: {proj_path.parent / 'notes' / 'out-of-scope-findings.md'}"
+    )
     return 0
 
 

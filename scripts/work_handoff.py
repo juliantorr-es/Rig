@@ -9,9 +9,11 @@ Usage:
         --dirty-files-after "path/to/file.py" \
         --completion-summary "What was accomplished." \
         [--out-of-scope-finding "text"] [...]
+        [--patch-batch <batch_id>] [...]
 
 Handoff events:
 - Always include out_of_scope_findings (empty list if none).
+- Always include patch_batches_applied (empty list if none).
 - Release the active claim for this worker/mission.
 - Require: status, tests, dirty-files-after, completion-summary.
 """
@@ -44,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out-of-scope-finding", action="append", default=[],
                    dest="out_of_scope_findings", metavar="TEXT",
                    help="Out-of-scope finding observed during mission. May repeat. "
+                        "Always included in handoff event, even if empty.")
+    p.add_argument("--patch-batch", action="append", default=[],
+                   dest="patch_batches_applied", metavar="BATCH_ID",
+                   help="Patch batch IDs that were applied during this mission. May repeat. "
                         "Always included in handoff event, even if empty.")
     p.add_argument("--note", help="Optional extra note.")
     return p
@@ -82,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         dirty_files_after=args.dirty_files_after,
         completion_summary=args.completion_summary,
         out_of_scope_findings=args.out_of_scope_findings,  # always present, may be []
+        patch_batches_applied=args.patch_batches_applied,  # always present, may be []
     )
     append_event(args.task_id, event)
 
@@ -98,6 +105,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  [{i}] {f}")
     else:
         print("  (none — out_of_scope_findings: [] recorded explicitly)")
+    print(f"Patch batches applied: {len(args.patch_batches_applied)}")
+    if args.patch_batches_applied:
+        for i, batch_id in enumerate(args.patch_batches_applied, 1):
+            print(f"  [{i}] {batch_id}")
+    else:
+        print("  (none — patch_batches_applied: [] recorded explicitly)")
     print(f"Event ID: {event['event_id']}")
     return 0
 

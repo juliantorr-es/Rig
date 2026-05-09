@@ -285,7 +285,9 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 - **Proof/receipt records evidence**; it does not define current work.
 - Active tasks need: goal, non-goals, scope, acceptance, validation, and evidence.
 - **Park shiny ideas as follow-ups**; do not opportunistically implement them.
-- **Canonical workflow**: Agents follow ADR → Sprint → Mission → Evidence → Review/Promotion. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative workflow narrative.
+- **Canonical workflow**: Agents follow ADR → Sprint → **Sprint Research** → Mission → **Patch Batch** → Evidence → Review/Promotion. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative workflow narrative.
+- **Sprint Research is mandatory** before any implementation. Research is read-only and must produce research artifacts.
+- **Patch batches are preferred** over repeated fine-grained edits. Always precheck patches with `git apply --check`.
 
 ---
 
@@ -343,30 +345,59 @@ git worktree list --porcelain
 
 - ADR work state lives under `.rig/work/adr/<adr-id>/`.
 - Each ADR has `task.json`, `progress.jsonl`, `projection.json`, and `notes/out-of-scope-findings.md`.
+- Each sprint has `.rig/work/adr/<adr-id>/sprints/<sprint-id>/` with research artifacts and patch batches.
 - `progress.jsonl` is **append-only**. Never delete or edit existing lines.
 - `projection.json` and `notes/out-of-scope-findings.md` are **generated**. Do not hand-edit them.
+
+### Sprint Research (MANDATORY)
+
+- Sprint Research is **mandatory** before any implementation.
+- Research is **read-only** — no file edits except writing artifacts under `.rig/work/adr/<adr-id>/sprints/<sprint-id>/`.
+- Research must use installed Python tooling (pathlib, json, ast, difflib, subprocess, tokenize) and CLI tools (rg, fd, git diff, git status --porcelain=v1).
+- Research must produce: research_summary, repo_inventory, relevant_files, current_state, risk_notes, mission_plan, patch_batches, validation_plan, out_of_scope_findings.
+- Research must **identify expected files** before mutation begins.
+- Research must **define validation commands** before mutation begins.
+- Sprint Research must **record out-of-current-scope findings** instead of ignoring them.
+
+### Mission and Patch Batch Execution
+
 - Agents should **claim missions**, not tiny slices or subtasks.
 - Agents should **derive their own internal checklist** from mission `intent` and `completion_criteria`.
+- Agents should **execute missions using patch batches** where practical (`scripts/work_patch_batch.py`).
 - Agents should **heartbeat** during long work (`scripts/work_heartbeat.py`).
-- Agents must **record useful out-of-current-scope findings** instead of ignoring them (`scripts/work_note.py --out-of-scope`).
-- Out-of-scope findings **do not expand the current mission**. They are observations only.
+- Agents must **precheck patches** with `git apply --check` before applying unified diffs.
+- **Patch batches require merge-friendliness preflight before apply** (`scripts/work_merge_friendly.py`).
+- **Agents must not apply patches blindly while other worktrees are active**.
+- Agents must **check merge-friendliness** before applying any patch batch.
+- Agents must **validate after each patch batch** is applied.
+- Agents must **stop** if actual changed files exceed planned files, protected paths are touched, or unexpected dirty files appear.
+- **Do not use** `git reset`/`restore`/`stash`/`checkout`/`clean` for rollback. Report and await direction.
+- **Merge-friendliness rules**: Dirty same-file overlap in another worktree blocks by default. Same-directory overlap warns. Merge simulation is advisory/preflight only and does not mutate worktrees.
+
+### Evidence Rules
+
+- Out-of-scope findings **do not expand** the current mission or sprint. They are observations only.
 - Agents must include **out-of-scope findings at the end of handoff/final reports**, even if the list is empty.
 - Do **not** create nested subtasks, recursive missions, workstreams, or slices. Missions are flat.
 - Slices are **implementation phases only** (see ADR 0009), not workflow hierarchy.
-- Use `scripts/work_doctor.py` before any commit.
+- Use `scripts/work_doctor.py` before any commit. `work_doctor.py` will warn or fail if a sprint has missions but no completed research.
 
 #### ADR work scripts (all tracked under `scripts/`)
 
 | Script | Purpose |
 |---|---|
-| `work_status.py <task_id>` | Regenerate projection + print status summary |
+| `work_research.py <task_id> --sprint <id> --worker <name> --action start\|complete` | Start/complete sprint research, write research artifacts |
+| `work_patch_batch.py <task_id> --action plan\|precheck\|merge-friendly\|apply\|validate --batch <id> ...` | Manage patch batch planning, precheck, merge-friendliness check, apply, validation |
+| `work_merge_friendly.py <task_id> --batch <id> --patch-file <path> [--mission <id>] [--sprint <id>]` | Check patch merge-friendliness against active worktrees. Run before apply. |
+| `work_export_dataset.py <task_id> [--output-dir <path>] [--force]` | Export ledger data as CSV/Parquet for analysis. Generates events.csv, missions.csv, patch_batches.csv, validations.csv, findings.csv, dataset_card.md, schema.json |
+| `work_status.py <task_id>` | Regenerate projection + print status summary (includes sprint research, patch batch, and merge-friendliness status) |
 | `work_claim.py <task_id> --mission <id> --worker <name> --paths <glob>` | Claim a mission |
 | `work_heartbeat.py <task_id> --mission <id> --worker <name>` | Record heartbeat |
 | `work_note.py <task_id> --worker <name> --note "text"` | Append a note |
 | `work_note.py <task_id> --worker <name> --out-of-scope --note "text"` | Record out-of-scope finding |
 | `work_blocked.py <task_id> --worker <name> --note "reason"` | Record blocked event |
-| `work_handoff.py <task_id> --worker <name> --status ready_for_review ...` | Record handoff |
-| `work_doctor.py <task_id>` | Validate task + ledger; required before committing |
+| `work_handoff.py <task_id> --worker <name> --status ready_for_review ...` | Record handoff (includes patch batches applied and out-of-scope findings) |
+| `work_doctor.py <task_id>` | Validate task + ledger; required before committing. **Warns/fails if sprint has missions but no completed research. Fails commit readiness if patch batch evidence or merge-friendliness check is missing.** |
 | `work_commit.py <task_id> --worker <name> --message "..."` | Governed commit plan |
 
 ---

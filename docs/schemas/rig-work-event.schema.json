@@ -6,33 +6,234 @@
   "type": "object",
   "required": ["event_id", "ts", "worker", "type", "task_id"],
   "properties": {
-    "event_id":   { "type": "string", "description": "UUID or deterministic slug uniquely identifying this event." },
-    "ts":         { "type": "string", "format": "date-time", "description": "ISO 8601 UTC timestamp." },
-    "worker":     { "type": "string", "description": "Agent or user name/slug that appended this event." },
-    "type":       {
+    "event_id": {
+      "type": "string",
+      "description": "UUID or deterministic slug uniquely identifying this event."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+    "worker": {
+      "type": "string",
+      "description": "Agent or user name/slug that appended this event."
+    },
+    "type": {
       "type": "string",
       "enum": [
-        "claim_started", "claim_released", "heartbeat", "note", "blocked",
-        "handoff", "doctor_run", "commit_prepared", "commit_created",
-        "out_of_scope_finding", "projection_generated"
+        "claim_started",
+        "claim_released",
+        "heartbeat",
+        "note",
+        "blocked",
+        "handoff",
+        "doctor_run",
+        "commit_prepared",
+        "commit_created",
+        "out_of_scope_finding",
+        "projection_generated",
+        "sprint_research_started",
+        "sprint_research_completed",
+        "sprint_research_blocked",
+        "sprint_plan_proposed",
+        "patch_batch_planned",
+        "patch_batch_prechecked",
+        "patch_batch_applied",
+        "patch_batch_validated",
+        "patch_batch_blocked",
+        "patch_batch_merge_friendly_checked",
+        "preproduction_promotion_completed",
+        "preproduction_promotion_blocked",
+        "preproduction_merge_completed",
+        "preproduction_validation_passed",
+        "preproduction_validation_failed"
       ]
     },
-    "task_id":    { "type": "string" },
-    "mission_id": { "type": "string" },
-    "note":       { "type": "string" },
-    "paths":      { "type": "array", "items": { "type": "string" } },
-    "checks":     { "type": "array", "items": { "type": "string" } },
-    "tests":      { "type": "string", "description": "Test result summary or 'not run: <reason>'." },
-    "dirty_files_after": { "type": "array", "items": { "type": "string" } },
-    "completion_summary": { "type": "string" },
+    "task_id": {
+      "type": "string",
+      "description": "The ADR task ID this event belongs to."
+    },
+    "sprint_id": {
+      "type": "string",
+      "description": "Sprint ID if this event is sprint-specific."
+    },
+    "mission_id": {
+      "type": "string",
+      "description": "Mission ID if this event is mission-specific."
+    },
+    "note": {
+      "type": "string",
+      "description": "Human-readable annotation or event details."
+    },
+    "paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "File paths relevant to this event."
+    },
+    "checks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Check commands run or to be run."
+    },
+    "tests": {
+      "type": "string",
+      "description": "Test result summary or 'not run: <reason>'."
+    },
+    "dirty_files_after": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Dirty files after the event."
+    },
+    "completion_summary": {
+      "type": "string",
+      "description": "Summary of what was completed."
+    },
     "out_of_scope_findings": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Observations outside current mission scope. Must not expand scope or authorize edits outside allowed_paths."
+      "description": "Observations outside current mission or sprint scope. Must not expand scope or authorize edits outside allowed_paths."
     },
-    "git_branch": { "type": "string" },
-    "git_head":   { "type": "string" },
-    "status":     { "type": "string", "description": "Handoff or doctor status." }
+    "git_branch": {
+      "type": "string",
+      "description": "Current git branch."
+    },
+    "git_head": {
+      "type": "string",
+      "description": "Current git HEAD commit."
+    },
+    "status": {
+      "type": "string",
+      "description": "Handoff or doctor status."
+    },
+    "research_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of research artifacts produced (for sprint_research_completed events)."
+    },
+    "patch_batch_id": {
+      "type": "string",
+      "description": "Patch batch ID for patch batch events."
+    },
+    "precheck_passed": {
+      "type": "boolean",
+      "description": "Whether git apply --check passed (for patch_batch_prechecked events)."
+    },
+    "precheck_failed_reason": {
+      "type": "string",
+      "description": "Reason precheck failed (for patch_batch_blocked events)."
+    },
+    "validation_results": {
+      "type": "object",
+      "description": "Validation results (for patch_batch_validated events).",
+      "additionalProperties": true
+    },
+    "planned_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files planned to be changed (for patch_batch_planned events)."
+    },
+    "actual_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files actually changed (for patch_batch_applied events)."
+    },
+    "protected_paths_touched": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Protected paths that were touched (must be empty for successful application)."
+    },
+    "patch_batches_applied": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of patch batch IDs applied (for handoff events)."
+    },
+    "result": {
+      "type": "string",
+      "enum": ["clean", "warning", "risky", "blocked"],
+      "description": "Merge-friendliness result class (for patch_batch_merge_friendly_checked events)."
+    },
+    "safe_to_apply": {
+      "type": "boolean",
+      "description": "Whether the patch is safe to apply (for patch_batch_merge_friendly_checked events)."
+    },
+    "patch_path": {
+      "type": "string",
+      "description": "Path to the patch file (for patch_batch_merge_friendly_checked events)."
+    },
+    "patch_hash": {
+      "type": "string",
+      "description": "SHA256 hash of patch content (truncated, for patch_batch_merge_friendly_checked events)."
+    },
+    "checked_worktree_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of worktrees checked (for patch_batch_merge_friendly_checked events)."
+    },
+    "overlapping_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files that overlap between patch and dirty worktree files (for patch_batch_merge_friendly_checked events)."
+    },
+    "dirty_worktrees": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Worktrees with dirty/staged changes (for patch_batch_merge_friendly_checked events)."
+    },
+    "blocked_reasons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Reasons the patch was blocked (for patch_batch_merge_friendly_checked events)."
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Warning messages (for patch_batch_merge_friendly_checked events)."
+    },
+    "target": {
+      "type": "string",
+      "description": "Target branch for promotion (for preproduction_promotion_* events)."
+    },
+    "source_branch": {
+      "type": "string",
+      "description": "Source branch being promoted (for preproduction_promotion_* events)."
+    },
+    "source_head": {
+      "type": "string",
+      "description": "Source branch HEAD commit (for preproduction_promotion_* events)."
+    },
+    "gate_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "message": { "type": "string" },
+          "blocking": { "type": "boolean" },
+          "details": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "description": "Results of all Rite of Deterministic Passage gates (for preproduction_promotion_* events)."
+    },
+    "blocking_gates_failures": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of blocking gate failures (for preproduction_promotion_* events)."
+    },
+    "all_gates_passed": {
+      "type": "boolean",
+      "description": "Whether all gates passed (for preproduction_promotion_* events)."
+    },
+    "promotion_message": {
+      "type": "string",
+      "description": "Promotion result message (for preproduction_promotion_* events)."
+    },
+    "promotion_details": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Promotion result details (for preproduction_promotion_* events)."
+    }
   },
   "additionalProperties": true
 }
