@@ -23,27 +23,53 @@ Depen `GovernanceEngine` to own all governance:
 
 ## Consequences
 
-**Leverage**: One place for all "is X allowed?" logic. New gates added in one place. Consistent decision structure across all intents.
+**Leverage**: One place for all "is X allowed?" logic. Currently `evaluate_action_legality()` (112 lines) and `_preflight()` (~25 lines) contain overlapping logic. After: single `evaluate()` method. Add new gate? One place. Change workspace activation rule? One place.
 
-**Locality**: All governance knowledge concentrated. Policy changes in one module. Audit trail of decisions in one place.
+**Locality**: All governance knowledge in `governance/` package. Currently governance logic in `engine.py` (112 lines) + dispatcher preflight (25 lines) + scattered hardcoded lists. After: all in `engine.py` with clean separation from intent routing.
 
-**Testability**: Test governance through `evaluate()` interface. Feed it various intent/context combinations, assert on `GateDecision`. No need to test dispatcher's preflight separately.
+**Testability**: Test governance through `evaluate()` interface. Currently tests would need to mock both `GovernanceEngine` and `IntentDispatcher._preflight()`. After: mock only `GovernanceEngine.evaluate()`. Test cases: feed various `Intent` + `EvaluationContext` combinations, assert `GateDecision`.
 
-**Seam**: `GateDecision` becomes the real seam. Two adapters exist: production `GovernanceEngine` and test mock that returns predefined decisions.
+**Seam**: `GovernanceEngine.evaluate()` is the real seam. Two adapters already exist:
+- Production: `GovernanceEngine` with real workspace/proposal/evidence checks
+- Test: mock engine returning predefined `GateDecision`
+
+**Cross-cutting**: This affects `rig_tools/ui_server.py` and `rig_tools/auth_handlers.py` which currently handle intents. They will need to route through the deepened `GovernanceEngine`.
 
 ## Files Involved
 
-- `src/rig/domain/governance/engine.py` — deepened to include preflight and capability logic
-- `src/rig/domain/governance/decisions.py` — types remain, possibly extended
-- `src/rig/domain/governance/context.py` — new: `EvaluationContext` dataclass
-- `src/rig/domain/intents/dispatcher.py` — simplified: remove `_preflight()`, delegate to `GovernanceEngine`
-- `src/rig/domain/intent_defs.py` — unchanged (pure types)
+### New files
+- `src/rig/domain/governance/context.py` — new: `EvaluationContext` dataclass (~20 lines)
+
+### Modified files
+- `src/rig/domain/governance/engine.py` — deepened from 112 to ~180 lines: absorb preflight logic, add `evaluate(intent, context)` method
+- `src/rig/domain/intents/dispatcher.py` — simplified from 455 to ~380 lines: remove `_preflight()` inlines, delegate to `GovernanceEngine`
+
+### Unchanged files
+- `src/rig/domain/governance/decisions.py` — types remain
+- `src/rig/domain/intent_defs.py` — types remain
+
+### Updated consumers
+- `src/rig_tools/ui_server.py` — update to use new `GovernanceEngine.evaluate()` interface
+- `src/rig_tools/auth_handlers.py` — verify no changes needed (uses types only)
+- Any direct callers of `GovernanceEngine.evaluate_action_legality()` — migrate to new interface
 
 ## Migration Path
 
-1. Create `EvaluationContext` with workspace_id, proposal, evidence, policy, actor
-2. Move `_preflight()` logic from dispatcher to engine as `evaluate()` helper
-3. Extend `GateDecision` to include capability check results
-4. Update `IntentDispatcher` to call engine for all decisions
-5. Remove duplicate preflight from dispatcher
-6. Update all direct `GovernanceEngine` callers to use new interface
+### Phase 1: Add new interface (no breaking changes)
+1. Create `governance/context.py` with `EvaluationContext` dataclass
+2. Add `GovernanceEngine.evaluate(intent: Intent, context: EvaluationContext) -> GateDecision` method to `engine.py`
+3. Move `_preflight()` logic from dispatcher to engine as private `_check_preflight()` 
+
+### Phase 2: Update dispatcher
+4. Update `IntentDispatcher._preflight()` to call `GovernanceEngine.evaluate()` internally
+5. Update `IntentDispatcher.dispatch()` to use new governance check
+
+### Phase 3: Migrate direct callers
+6. Update `rig_tools/ui_server.py` to use new interface
+7. Update any other direct `evaluate_action_legality()` callers
+
+### Phase 4: Cleanup
+8. Deprecate `evaluate_action_legality()` with warning, point to `evaluate()`
+9. Remove old method once all callers migrated
+
+**Risk**: Medium. Affects intent handling flow. Test with UI server and various intent types.

@@ -6,6 +6,10 @@ Rig is a cryptographically governed control plane for local AI coding. It forces
 
 ## Why Rig Exists
 
+Rig is a **governed operational substrate** for cognition, orchestration, and software evolution. It is no longer an "inference wrapper" but a replay-first operational runtime where the workspace itself is the substrate for governed cognition.
+
+See: [Operational Coherence & Project Vision](docs/architecture/operational-coherence.md)
+
 Most AI coding tools mutate your code blindly. Rig ensures:
 - **No silent mutation of main** — Every change goes through explicit gates
 - **No auto-apply** — You decide what gets applied, when

@@ -26,6 +26,13 @@ file: src/rig/domain/runtime_supervisor.py
 
 from __future__ import annotations
 
+import warnings
+warnings.warn(
+    ("rig.domain.runtime_supervisor is deprecated. Import from rig.domain.runtime_streaming instead. See ADR 0004."),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import asyncio
 import hashlib
 import json

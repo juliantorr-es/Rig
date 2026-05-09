@@ -20,6 +20,13 @@ file: src/rig/domain/runtime_stream.py
 
 from __future__ import annotations
 
+import warnings
+warnings.warn(
+    ("rig.domain.runtime_stream is deprecated. Import from rig.domain.runtime_streaming instead. See ADR 0004."),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field

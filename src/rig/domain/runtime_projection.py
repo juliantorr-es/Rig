@@ -15,6 +15,13 @@ file: src/rig/domain/runtime_projection.py
 
 from __future__ import annotations
 
+import warnings
+warnings.warn(
+    ("rig.domain.runtime_projection is deprecated for streaming orchestration. Streaming refresh orchestration: import from rig.domain.runtime_streaming. Projection semantics: see ADR 0002. See ADR 0004."),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field

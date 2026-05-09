@@ -16,27 +16,45 @@ The **Workspace** concept (CONTEXT.md: "A governed environment for work items") 
 
 ## Decision
 
-Depen **WorkspaceDomain** into a single authoritative module that:
-- Owns all workspace types and state
-- Exposes composite interface: `WorkspaceDomain.get_state(repo_root: Path) -> WorkspaceState`
-- `WorkspaceState` is a frozen dataclass containing:
-  - Git state (branch, status, changes)
-  - Workspace records and lane status
-  - Audit state and receipt backing
-  - Hygiene status and violations
-  - Runtime state
-- Internal modules become private implementation details
-- CLI commands and domain code access workspace only through this interface
+Create a **WorkspaceDomain** deep module that serves as the **single source of truth** for all workspace concerns. Currently 5 files with 2,834 lines; after: 1 public interface with internal seams.
+
+### New Interface
+- `WorkspaceDomain.get_state(repo_root: Path, workspace_id: Optional[str] = None) -> WorkspaceState` — composite state
+- `WorkspaceDomain.create_workspace(repo_root: Path, task: str) -> WorkspaceRecord` — workspace creation
+- `WorkspaceDomain.list_workspaces(repo_root: Path) -> List[WorkspaceRecord]` — workspace enumeration
+- `WorkspaceDomain.get_audit_trail(repo_root: Path, workspace_id: str) -> WorkspaceAuditTrail` — audit access
+- `WorkspaceDomain.check_hygiene(repo_root: Path) -> WorkspaceHygieneStatus` — hygiene checks
+
+### Composite State
+`WorkspaceState` frozen dataclass containing:
+- `git: GitState` — branch, status, changes (from git helper)
+- `records: List[WorkspaceRecord]` — workspace lane records
+- `audit: WorkspaceAuditTrail` — audit state and receipt backing info
+- `hygiene: WorkspaceHygieneStatus` — hygiene violations and warnings
+- `runtime: WorkspaceRuntime` — runtime state for active workspace
+
+### Architecture
+- `workspace_domain.py` — public interface with 5 methods
+- `_git.py` — internal git operations (currently mixed in `workspace.py`)
+- `_records.py` — internal workspace record management (from `workspace.py`)
+- `_status.py` — internal status building (from `workspace_status.py`)
+- `_audit.py` — internal audit (from `workspace_audit.py`)
+- `_hygiene.py` — internal hygiene (from `workspace_hygiene.py`)
+- `_runtime.py` — internal runtime integration (from `workspace_runtime.py`)
 
 ## Consequences
 
-**Leverage**: One place for all workspace state. UI needs workspace info? One call. CLI needs workspace summary? One call. Domain needs to know workspace status? One call.
+**Leverage**: One place for all workspace state. Currently: UI server calls `workspace.py` for records, `workspace_status.py` for status, `workspace_audit.py` for audit. After: one call to `get_state()`. New workspace feature? Add to one module.
 
-**Locality**: All workspace-related change in one module. Git operation changes? One place. Audit logic changes? One place. Introduce new workspace concept? One place.
+**Locality**: All 2,834 lines of workspace knowledge in one deep module. Currently: git ops in `workspace.py` (via `rig_tools.core`), status building in `workspace_status.py`, audit in `workspace_audit.py`, hygiene in `workspace_hygiene.py`. After: clean separation with internal seams.
 
-**Testability**: Test workspace through `get_state()` interface. Create test scenario, call `get_state()`, assert on composite state. No need to coordinate multiple domain modules.
+**Testability**: Test workspace through `get_state()` interface. Currently: need to coordinate mocking `WorkspaceDomain`, `build_workspace_status_summary`, `WorkspaceAuditTrail`. After: mock `WorkspaceDomain.get_state()` once.
 
-**Seam**: `WorkspaceDomain` interface is the seam. Two adapters: production (real git, real filesystem) and test (in-memory mock).
+**Seam**: `WorkspaceDomain.get_state()` is the real seam. Two adapters:
+- Production: real git, real filesystem, real receipt store
+- Test: in-memory mock with fake git state, fake records, fake audit
+
+**Cross-package impact**: Reduces `rig.domain` imports from `rig_tools` (currently `workspace.py` imports `run_capture` from `rig_tools.core`).
 
 ## Files Involved
 

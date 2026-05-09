@@ -15,28 +15,43 @@ The **Evidence** concept (CONTEXT.md: "Durable proof of an event (Receipts)") is
 
 ## Decision
 
-Create a **EvidenceDomain** deep module that:
-- Owns all evidence types (`ReceiptEnvelope`, `Receipt`, etc.)
-- Owns the receipt store and query interface
-- Owns receipt derivation from events/progress
-- Owns receipt validation and verification
-- Exposes interfaces:
-  - `EvidenceDomain.create(receipt_input: ReceiptInput) -> ReceiptEnvelope`
-  - `EvidenceDomain.append(envelope: ReceiptEnvelope) -> str` (returns receipt_id)
-  - `EvidenceDomain.query(filter: ReceiptFilter) -> List[ReceiptEnvelope]`
-  - `EvidenceDomain.derive_from_progress(event: ProgressEvent) -> Optional[ReceiptEnvelope]`
-  - `EvidenceDomain.validate(envelope: ReceiptEnvelope) -> ValidationResult`
-- All receipt creation goes through this module
+Create a **EvidenceDomain** deep module that unifies all receipt/evidence concerns. Currently 3 files with 2,307 lines and scattered creation sites; after: 1 public interface with internal seams.
+
+### New Interface
+- `EvidenceDomain.create(receipt_input: ReceiptInput) -> ReceiptEnvelope` — unified receipt creation
+- `EvidenceDomain.append(envelope: ReceiptEnvelope) -> str` — returns receipt_id, persists to filesystem
+- `EvidenceDomain.query(filter: ReceiptFilter) -> List[ReceiptEnvelope]` — search/retrieve receipts
+- `EvidenceDomain.derive_from_progress(event: ProgressEvent) -> Optional[ReceiptEnvelope]` — auto-derivation
+- `EvidenceDomain.validate(envelope: ReceiptEnvelope) -> ValidationResult` — integrity checks
+- `EvidenceDomain.get_store(repo_root: Path) -> ReceiptStore` — store accessor
+
+### Architecture
+- `evidence_domain.py` — public interface with 6 methods
+- `_types.py` — all receipt types from `receipt_envelope.py`
+- `_store.py` — receipt store and I/O from `receipts.py`
+- `_derivation.py` — derivation logic from `progress_receipt_derivation.py`
+- `_validation.py` — validation helpers extracted from `receipt_envelope.py`
+
+### Key change: Single creation path
+All direct calls to `build_receipt_envelope()` and direct `ReceiptEnvelope` instantiation must route through `EvidenceDomain.create()`. This enables:
+- Centralized validation
+- Consistent schema versioning
+- Automatic provenance tracking
+- Unified integrity hashing
 
 ## Consequences
 
-**Leverage**: One place for all evidence/receipt operations. New receipt type? One place. New derivation rule? One place. Change receipt schema? One place.
+**Leverage**: One place for all evidence operations. Currently: receipt creation in `workspace.py`, `workspace_audit.py`, `intents/dispatcher.py`, `commands_public_intake.py`. After: all through `EvidenceDomain.create()`. New receipt type? Extend `_types.py`. New derivation rule? Extend `_derivation.py`.
 
-**Locality**: All receipt-related knowledge concentrated. Schema changes, validation logic, store operations — all in one module.
+**Locality**: All 2,307 lines of receipt knowledge in one deep module. Currently: types + building in `receipt_envelope.py`, storage in `receipts.py`, derivation in `progress_receipt_derivation.py`. After: clean internal seams.
 
-**Testability**: Test evidence through domain interface. Create receipt, append to store, query, validate. Tests don't need to know about envelope internals or store implementation.
+**Testability**: Test evidence through domain interface. Currently: need to mock `build_receipt_envelope()`, store separately. After: mock `EvidenceDomain` once with in-memory store. Test cases: create → append → query → validate → derive.
 
-**Seam**: `EvidenceDomain` interface is the seam. Two adapters: production (real filesystem store) and test (in-memory store).
+**Seam**: `EvidenceDomain` interface is the real seam. Two adapters:
+- Production: filesystem store, real derivation, real validation
+- Test: in-memory store, mock derivation, passthrough validation
+
+**Cross-package impact**: Currently `receipt_envelope.py` imports `write_json` from `rig_tools.core.io`. After deepening, this dependency moves to `_store.py` internal, not exposed at the seam.
 
 ## Files Involved
 
@@ -62,3 +77,25 @@ Create a **EvidenceDomain** deep module that:
 8. Update all store access to use `EvidenceDomain.query()`
 9. Deprecate old modules
 10. Delete old modules once migrated
+s wired to internal modules
+
+### Phase 3: Migrate direct creation sites (week 2)
+10. Update `workspace.py` to use `EvidenceDomain.create()`
+11. Update `workspace_audit.py` to use `EvidenceDomain.create()`
+12. Update `intents/dispatcher.py` to use `EvidenceDomain.create()` + `.append()`
+13. Update `commands_public_intake.py` to use `EvidenceDomain.create()`
+
+### Phase 4: Migrate type consumers (week 2)
+14. Update `domain/__init__.py` exports
+15. Update `integrity.py` imports
+16. Update all tests
+
+### Phase 5: Add deprecation shims (week 2)
+17. Add `__getattr__` shims to old files pointing to new package
+18. Verify all consumers work
+
+### Phase 6: Cleanup (week 3)
+19. Delete old `receipt*.py` files
+20. Delete deprecation shims
+
+**Risk**: Medium-High. Affects core receipt functionality. `receipt_envelope.py` is imported by 6+ modules. Schedule 2-3 weeks with thorough testing.

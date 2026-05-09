@@ -29,10 +29,12 @@ Create a **CommandRegistry** deep module at the CLI seam that:
 
 ## Files Involved
 
-- `src/rig/cli/main.py` — simplified to instantiate registry and call `run()`
-- `src/rig/cli/registry.py` — new deep module (CLI seam owner)
-- `src/rig/commands_*.py` — each becomes thin: define handler + register with registry
-- `src/rig/cli/context.py` — new: `RepoContext` dataclass for shared command dependencies
+- `src/rig/cli/main.py` — simplified from ~200 lines to ~50: instantiate registry, call `run()`
+- `src/rig/cli/registry.py` — new deep module (~200 lines): owns argparse setup, output modes, help conventions
+- `src/rig/cli/context.py` — new (~50 lines): `RepoContext` dataclass, output formatting utilities
+- `src/rig/commands_*.py` — 66 files simplified: each defines `setup_parser(parser)` + `handler(args, ctx) -> int`, auto-registered
+- `src/rig_tools/window_launcher.py` — refactor to use `RepoContext` instead of custom arg handling
+- `src/rig_tools/ui_server.py` — refactor to use `RepoContext` instead of custom CLI parsing
 
 ## Migration Path
 
@@ -40,4 +42,6 @@ Create a **CommandRegistry** deep module at the CLI seam that:
 2. Move one command (e.g., `commands_validate.py`) to use registry
 3. Replace individual imports in `main.py` with registry auto-discovery
 4. Migrate remaining commands incrementally
+5. Delete old registration code from `main.py` once all commands migrated
+tally
 5. Delete old registration code from `main.py` once all commands migrated

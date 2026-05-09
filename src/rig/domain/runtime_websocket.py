@@ -25,6 +25,13 @@ file: src/rig/domain/runtime_websocket.py
 
 from __future__ import annotations
 
+import warnings
+warnings.warn(
+    ("rig.domain.runtime_websocket is deprecated. Import from rig.domain.runtime_streaming instead. See ADR 0004."),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import asyncio
 import hashlib
 import json
