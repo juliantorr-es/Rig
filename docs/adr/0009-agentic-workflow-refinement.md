@@ -10,7 +10,7 @@ Rig's agentic workflow infrastructure — the governed pipeline from intent to p
 > ADR numbering and cross-references in this document depend on the ADR index being stabilized. Before this ADR can be accepted, verify that the Related ADR numbers below match the canonical index in `docs/adr/README.md`. Known drift exists between ADR 0007/0008 filenames and their cross-references.
 
 > [!NOTE]
-> **Workflow Narrative**: This ADR is the umbrella for agent workflow refinement. The canonical workflow is: **ADR → Sprint → Sprint Research → Mission → Merge-Friendliness Check → Patch Batch → Evidence → Review/Promotion**. Sprint Research is mandatory read-only planning before implementation. Patch batches group coherent changes for reliable application. Patch batches require merge-friendliness preflight check before apply. Missions are substantial, agent-sized work packets. Do not create nested subtasks or recursive missions. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative operational narrative.
+> **Workflow Narrative**: This ADR is the umbrella for agent workflow refinement. The canonical workflow is: **ADR → Sprint → Sprint Research → Mission → Merge-Friendliness Check → Patch Batch → Evidence → Review → Preproduction Promotion**. Sprint Research is mandatory read-only planning before implementation. Patch batches group coherent changes for reliable application. Patch batches require merge-friendliness preflight check before apply. Preproduction promotion is governed by the **Rite of Deterministic Passage** — a sequence of 13 deterministic gates that must all pass before agent work may be merged into the local `preproduction` branch. Missions are substantial, agent-sized work packets. Do not create nested subtasks or recursive missions. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative operational narrative and the full Rite of Deterministic Passage specification.
 
 **Related ADRs**:
 - [0003 Governance Engine Deepening](0003-governance-engine-deepening.md) — agent orchestration feeds governance evaluation
@@ -47,9 +47,20 @@ Sprint Research defines the scope; missions provide execution contracts; merge-f
 - Same-directory overlap warns.
 - Merge simulation is advisory/preflight only and does not mutate worktrees.
 
+**Preproduction Promotion Rules (Rite of Deterministic Passage)**:
+- **Agents must NOT run `git merge` directly** — Direct git merge is forbidden under all circumstances.
+- **Agents may ONLY promote through `scripts/work_promote.py`** — This is the sole authorized path for preproduction promotion.
+- **Target is restricted to `preproduction` only** — main/production remain human-governed and out of scope.
+- **All 13 deterministic gates must pass** before promotion executes. Gates: sprint research, mission handoff, patch batches prechecked, merge-friendliness, work_doctor, required tests, out-of-scope findings, clean source branch, HEAD recorded, preproduction exists, merge simulation passes, clean preproduction worktree.
+- **Failed gates append `preproduction_promotion_blocked` event** to the ledger and **must not mutate branches**.
+- **Promotion is fully auditable** through ADR-local progress ledger events.
+- **Merge simulation uses `git merge-tree`** for non-mutating preflight check.
+- **`--dry-run` mode** shows gate results without executing promotion.
+- **Preproduction is integration/local only** — production/main remains human-governed and out of scope.
+
 **Note on "Slice" terminology**: This ADR uses "Slice 0", "Slice 0.5", "Slice 0.8", etc. to describe implementation phases only. These are NOT workflow hierarchy levels. Slices are internal staging for ADR 0009 implementation. The workflow hierarchy stops at Mission. Do not use "slice" as a workflow concept.
 
-**ADR Workspace Structure (Dogfood Bridge)**:
+**ADR Workspace Structure (Dogfood Bridge)** with Rite of Deterministic Passage promotion:
 ```
 .rig/work/adr/<adr-id>/
   task.json

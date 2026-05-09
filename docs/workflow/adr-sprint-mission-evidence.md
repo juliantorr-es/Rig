@@ -176,6 +176,114 @@ Human/governance evaluation before acceptance, merge, release, or production mov
 
 ---
 
+## Rite of Deterministic Passage (Preproduction Promotion)
+
+**Preproduction promotion is script-gated only.** Agents **must not** merge directly. Agents **may only** invoke `scripts/work_promote.py --target preproduction` to promote.
+
+### Overview
+
+The **Rite of Deterministic Passage** is a sequence of 13 deterministic gates that must all pass before agent work may be merged into the local `preproduction` branch. This ensures that promotion is fully auditable, safe, and governed.
+
+**Key Principles**:
+- Agents **must not** run `git merge` directly under any circumstances
+- Agents **may only** invoke `scripts/work_promote.py` for promotion
+- Promotion script verifies all 13 gates pass before executing merge
+- Failed gates append `preproduction_promotion_blocked` event to ledger and **must not** mutate branches
+- Promotion is fully auditable through ADR-local progress ledger events
+- **Preproduction is integration/local only** — production/main remains human-governed and out of scope
+
+### The 13 Gates
+
+All 13 gates must pass before promotion execution. Gates are checked in dependency order:
+
+| # | Gate | Blocking | Description |
+|---|------|----------|-------------|
+| 1 | **Sprint research completed** | Yes | Sprint research must be completed (event `sprint_research_completed` exists) |
+| 2 | **Mission handoff completed** | Yes | Mission must have a handoff event with required fields (tests, dirty_files_after, completion_summary, out_of_scope_findings) |
+| 3 | **Patch batches prechecked** | Yes | All planned patch batches must have precheck events (`patch_batch_prechecked`) |
+| 4 | **Patch batches applied and validated** | No (warning) | Patch batches should be applied and validated |
+| 5 | **Merge-friendliness pass completed** | Yes | Applied patch batches must have passed merge-friendliness check (`patch_batch_merge_friendly_checked` with `safe_to_apply: true`) |
+| 6 | **work_doctor.py passed** | Yes | `work_doctor.py` must pass for the task (run as subprocess) |
+| 7 | **Required tests/checks passed** | Yes | Required checks must pass or be explicitly justified |
+| 8 | **Out-of-current-scope findings recorded** | Yes | Out-of-scope findings must be recorded, even if empty |
+| 9 | **Candidate source branch is clean** | Yes | Source branch worktree must be clean (no dirty files) |
+| 10 | **Candidate source branch HEAD is recorded** | Yes | Source branch HEAD commit must be available |
+| 11 | **Preproduction branch exists locally** | Yes | Preproduction branch must exist locally (`git branch --list preproduction`) |
+| 12 | **Merge simulation against preproduction passes** | Yes | `git merge-tree` simulation must pass without conflicts |
+| 13 | **Preproduction working tree is clean before merge** | Yes | Preproduction branch worktree must be clean before merge |
+
+### Promotion Workflow
+
+```
+1. Check all 13 gates → All pass?
+   ├─ NO: Append preproduction_promotion_blocked event to ledger
+   │       Exit non-zero, do NOT mutate branches
+   │
+   YES: Proceed to merge execution
+   │
+2. Execute promotion merge:
+   ├─ Switch to preproduction branch
+   ├─ Verify preproduction worktree is clean
+   ├─ Run: git merge --no-ff --no-edit <source_branch> -m "Promote <task_id>: <mission_id>"
+   │
+   ├─ If merge fails:
+   │   ├─ git merge --abort
+   │   ├─ Switch back to source branch
+   │   └─ Append preproduction_promotion_blocked event
+   │
+   └─ If merge succeeds:
+       ├─ Switch back to source branch
+       └─ Append preproduction_promotion_completed event
+3. Record event to ADR-local progress.jsonl ledger
+```
+
+### Additional Safety Checks
+
+The promotion script also enforces these constraints:
+- **Not on main**: Cannot promote from main branch
+- **Target is preproduction**: Only `preproduction` target is supported; main/production are blocked
+- **Not on target**: Cannot promote while on the target (preproduction) branch
+- **Source != target**: Source and target branches must be different
+
+### Script Usage
+
+```bash
+# Dry-run: Check gates without executing promotion
+python3 scripts/work_promote.py <task_id> \
+    --mission <mission_id> \
+    --target preproduction \
+    --worker <worker> \
+    --dry-run
+
+# Execute promotion (only if all gates pass)
+python3 scripts/work_promote.py <task_id> \
+    --mission <mission_id> \
+    --sprint <sprint_id> \
+    --target preproduction \
+    --worker <worker>
+```
+
+### Event Types
+
+| Event Type | When Emitted | Key Fields |
+|------------|--------------|------------|
+| `preproduction_promotion_completed` | All gates passed, merge executed successfully | `target`, `source_branch`, `source_head`, `gate_results`, `all_gates_passed: true` |
+| `preproduction_promotion_blocked` | Any blocking gate failed | `target`, `source_branch`, `source_head`, `gate_results`, `blocking_gates_failures`, `all_gates_passed: false` |
+| `preproduction_merge_completed` | Merge execution completed | Same as promotion_completed |
+| `preproduction_validation_passed` | Post-promotion validation passed | - |
+| `preproduction_validation_failed` | Post-promotion validation failed | - |
+
+### Post-Promotion Validation
+
+After successful promotion, agents should run:
+```bash
+git checkout preproduction
+python3 scripts/work_doctor.py <task_id>
+# Run any configured preproduction validation commands
+```
+
+---
+
 ## Workflow Rules
 
 ### What Agents Must Do
@@ -208,6 +316,8 @@ Human/governance evaluation before acceptance, merge, release, or production mov
 10. **Do not apply patches without merge-friendliness check** — Always run `scripts/work_merge_friendly.py` before apply
 11. **Do not apply patches with failed merge-friendliness** — If merge-friendliness reports blocked, resolve issues first
 12. **Do not use git reset/restore/stash/checkout/clean for rollback** — Report and await direction
+13. **Do not merge directly** — Agents must NOT run `git merge`. Use `scripts/work_promote.py` for preproduction promotion only
+14. **Do not promote to main/production** — Only preproduction target is supported via `work_promote.py`. main/production remain human-governed
 
 ---
 
@@ -409,10 +519,12 @@ When executing missions:
 
 - `scripts/work_research.py` — Start/complete sprint research, write research artifacts
 - `scripts/work_patch_batch.py` — Manage patch batch planning, precheck, apply, validation
+- `scripts/work_merge_friendly.py` — Run merge-friendliness preflight before applying patch batches
 - `scripts/work_doctor.py` — Must warn/fail if sprint has missions but no completed research
 - `scripts/work_doctor.py` — Must fail commit readiness if patch batch evidence required but missing
 - `scripts/work_status.py` — Must show sprint research status and patch batch status
 - `scripts/work_handoff.py` — Must include patch batches applied and out-of-scope findings
+- `scripts/work_promote.py` — Governed promotion to preproduction via Rite of Deterministic Passage; agents must NOT merge directly
 
 ---
 

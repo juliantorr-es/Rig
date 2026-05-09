@@ -198,7 +198,7 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 | `git stash` | ✓ | **NEVER** |
 | `git stash pop` | ✓ | **NEVER** |
 | `git rebase` | ✓ | **NEVER** |
-| `git merge` | ✓ | **NEVER** |
+| `git merge` | ✓ | **NEVER** — agents must use `scripts/work_promote.py` for preproduction promotion |
 | `git branch -D` | ✓ | **NEVER** |
 | `rm -rf` | ✓ | **NEVER** |
 
@@ -399,6 +399,34 @@ git worktree list --porcelain
 | `work_handoff.py <task_id> --worker <name> --status ready_for_review ...` | Record handoff (includes patch batches applied and out-of-scope findings) |
 | `work_doctor.py <task_id>` | Validate task + ledger; required before committing. **Warns/fails if sprint has missions but no completed research. Fails commit readiness if patch batch evidence or merge-friendliness check is missing.** |
 | `work_commit.py <task_id> --worker <name> --message "..."` | Governed commit plan |
+| `work_promote.py <task_id> --mission <id> --target preproduction --worker <name> [--sprint <id>] [--dry-run]` | Governed promotion to preproduction via Rite of Deterministic Passage. **Agents must NOT merge directly.** |
+
+---
+
+### Preproduction Promotion Rules (Rite of Deterministic Passage)
+
+- **Agents MUST NOT run `git merge` directly.** Direct git merge is forbidden under all circumstances.
+- **Agents MAY ONLY promote through `scripts/work_promote.py`** — this is the sole authorized path for preproduction promotion.
+- **Target is restricted to `preproduction` only** — main/production are human-governed and out of scope.
+- **All 13 deterministic gates must pass** before promotion executes:
+  1. Sprint research completed
+  2. Mission handoff completed
+  3. Patch batches prechecked
+  4. Patch batches applied and validated
+  5. Merge-friendliness pass completed
+  6. work_doctor.py passed
+  7. Required tests/checks passed or explicitly justified
+  8. Out-of-current-scope findings recorded (even if empty)
+  9. Candidate source branch is clean
+  10. Candidate source branch HEAD is recorded
+  11. Preproduction branch exists locally
+  12. Merge simulation against preproduction passes
+  13. Preproduction working tree is clean before merge
+- **Failed gates append `preproduction_promotion_blocked` event** to the ledger and **must not mutate branches**.
+- **Promotion is fully auditable** through ADR-local progress ledger events.
+- **Merge simulation uses `git merge-tree`** for non-mutating preflight check.
+- **`--dry-run` mode** shows gate results without executing promotion.
+- **Preproduction is integration/local only** — production/main remains human-governed and out of scope.
 
 ---
 
