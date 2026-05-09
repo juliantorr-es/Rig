@@ -43,7 +43,8 @@ import {
   SvgDampingIndicator,
   SvgConvergenceIndicator,
   rect,
-  point
+  point,
+  normalizeOperationalStatusEnvelope
 } from '../svg-runtime-instrumentation.js';
 
 export function renderRuntimeStatusCard(id, data, context) {
@@ -67,15 +68,26 @@ export function renderRuntimeStatusCard(id, data, context) {
   titleEl.textContent = data.title || 'Runtime Status';
   header.appendChild(titleEl);
 
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.style.fontSize = '12px';
+    lineage.style.marginLeft = '12px';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    header.appendChild(lineage);
+  }
+
   // Overall status badge
-  const overallStatus = data.status || data.overall_status || 'unknown';
+  const overallStatus = normalizeOperationalStatusEnvelope(
+    data.condition || data.status || data.overall_status || data.runtime_status
+  );
   const statusBadge = document.createElement('div');
-  const severity = data.severity || 
-                   (typeof overallStatus === 'object' ? overallStatus.severity : null) ||
-                   getSeverityFromStatus(overallStatus);
+  const severity = data.severity || overallStatus.severity || getSeverityFromStatus(overallStatus.value);
   statusBadge.className = 'badge severity-' + severity;
-  const statusText = typeof overallStatus === 'string' ? overallStatus :
-                    (overallStatus.label || overallStatus.value || 'unknown');
+  const statusText = overallStatus.label || overallStatus.value || 'unknown';
   statusBadge.textContent = capitalizeFirst(statusText);
   header.appendChild(statusBadge);
 
@@ -376,9 +388,6 @@ export function renderRuntimeStatusCard(id, data, context) {
     _renderSvgStatusVisualization(newData, instrumentationLayer, svgBounds);
     
     if (newData.tokens && tokenLayer) {
-// SVG Status Visualization Rendering
-// =============================================================================
-=======
       tokenLayer.clear();
       _renderTokenBars(newData.tokens, tokenLayer, tokenBounds);
     }
@@ -404,7 +413,10 @@ function _renderSvgStatusVisualization(data, layer, bounds) {
   const geometryMapper = new ProjectionGeometryMapper(bounds);
   
   // State for SVG elements
-  const state = data.status?.value || data.status || data.state || 'unknown';
+  const operationalStatus = normalizeOperationalStatusEnvelope(
+    data.condition || data.status || data.overall_status || data.runtime_status || data.state
+  );
+  const state = operationalStatus.state || operationalStatus.value || 'unknown';
   const progress = data.progress || 0;
   const isComplete = state === 'complete' || state === 'completed' || state === 'succeeded';
   const isFailed = state === 'failed' || state === 'error' || state === 'timed_out';
@@ -613,12 +625,12 @@ function renderReconciliationSummary(data, el) {
   summaryInfo.style.marginBottom = '6px';
   
   const totalLoops = reconciliation.loops.length;
-  const runningCount = reconciliation.loops.filter(l => l.status === 'running').length;
-  const convergedCount = reconciliation.loops.filter(l => l.status === 'converged').length;
-  const errorCount = reconciliation.loops.filter(l => l.status === 'error').length;
+  const runningCount = reconciliation.loops.filter(l => l.status === 'running' || l.status === 'reconciling').length;
+  const convergedCount = reconciliation.loops.filter(l => l.status === 'converged' || l.status === 'stable').length;
+  const errorCount = reconciliation.loops.filter(l => l.status === 'error' || l.status === 'failed').length;
   const stoppedCount = reconciliation.loops.filter(l => l.status === 'stopped' || l.status === 'pending').length;
   
-  summaryInfo.textContent = `Loops: ${totalLoops} | Running: ${runningCount} | Converged: ${convergedCount} | Errors: ${errorCount}`;
+  summaryInfo.textContent = `Loops: ${totalLoops} | Running: ${runningCount} | Converged: ${convergedCount} | Errors: ${errorCount} | Stopped: ${stoppedCount}`;
   reconcileSection.appendChild(summaryInfo);
 
   // Create SVG container for loop indicators

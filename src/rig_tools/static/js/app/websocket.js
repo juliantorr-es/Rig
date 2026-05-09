@@ -17,11 +17,20 @@ export function connectWebSocket({ sessionToken, socketRef, logger, onMessage, o
   socket.onmessage = event => {
     console.log('[DEBUG-ws] Raw message received');
     const msg = JSON.parse(event.data);
-    if (msg.kind === 'progress_event' && onProgress) {
-      onProgress(msg.event || msg.data || {});
+    const schemaVersion = msg.schema_version || msg.schemaVersion || 'rig.ui.message.v1';
+    const normalized = {
+      ...msg,
+      schema_version: schemaVersion,
+    };
+    if (normalized.kind === 'progress_event' && onProgress) {
+      const progressEvent = normalized.event || normalized.data || {};
+      onProgress({
+        ...progressEvent,
+        schema_version: progressEvent.schema_version || progressEvent.schemaVersion || 'rig.ui.progress_event.v1',
+      });
       return;
     }
-    onMessage(msg);
+    onMessage(normalized);
   };
   socket.onclose = () => {
     console.log('[DEBUG-ws] WebSocket closed');

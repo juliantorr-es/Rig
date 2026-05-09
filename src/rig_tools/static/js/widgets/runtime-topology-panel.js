@@ -65,22 +65,11 @@ import {
   rect,
   size,
   MotionUtils,
-  normalizeRuntimeEventEnvelope
+  normalizeRuntimeEventEnvelope,
+  normalizeOperationalStatusEnvelope
 } from '../svg-runtime-instrumentation.js';
 
 import { RuntimeInstrumentationState } from '../runtime-instrumentation.js';
-
-// Module Exports
-// =============================================================================
-
-export {
-  _createPanelHeader as createTopologyHeader,
-  _renderTopology as renderTopology
-};
-=======
-// =============================================================================
-// Reconciliation Visibility for Topology Panel (PHASE 8)
-// =============================================================================
 
 function _renderReconciliationLayer(parentEl, topologyState) {
   /** Render reconciliation state in topology panel
@@ -133,14 +122,6 @@ function _renderReconciliationLayer(parentEl, topologyState) {
 }
 
 // =============================================================================
-// Module Exports
-// =============================================================================
-
-export {
-  _createPanelHeader as createTopologyHeader,
-  _renderTopology as renderTopology,
-  _renderReconciliationLayer as renderReconciliationLayer
-};=============================================================================
 // Constants
 // =============================================================================
 
@@ -548,7 +529,12 @@ export function renderRuntimeTopologyPanel(id, data, context) {
   }
 
   // Create header
-  const header = _createPanelHeader(data.title || 'Runtime Topology', normalizeRuntimeEventEnvelope(data.runtime_event || data.event_envelope));
+  const header = _createPanelHeader(
+    data.title || 'Runtime Topology',
+    normalizeRuntimeEventEnvelope(data.runtime_event || data.event_envelope),
+    normalizeOperationalStatusEnvelope(data.condition || data.status || data.overall_status || data.runtime_status),
+    data
+  );
   container.appendChild(header);
 
   // Create SVG container
@@ -612,7 +598,7 @@ export function renderRuntimeTopologyPanel(id, data, context) {
 // =============================================================================
 
 /** Create panel header */
-function _createPanelHeader(title, runtimeEnvelope = null) {
+function _createPanelHeader(title, runtimeEnvelope = null, operationalStatus = null, lineage = null) {
   const header = document.createElement('div');
   header.className = 'widget-header topology-header';
   header.style.display = 'flex';
@@ -638,12 +624,26 @@ function _createPanelHeader(title, runtimeEnvelope = null) {
     header.appendChild(eventBadge);
   }
 
+  if (lineage && (lineage.schema_version || lineage.projection_revision !== undefined)) {
+    const lineageEl = document.createElement('div');
+    lineageEl.className = 'topology-lineage';
+    lineageEl.style.fontSize = '12px';
+    lineageEl.style.color = 'var(--color-text-muted, #888)';
+    lineageEl.textContent = [
+      lineage.schema_version ? `schema: ${lineage.schema_version}` : null,
+      lineage.projection_revision !== undefined ? `revision: ${lineage.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    header.appendChild(lineageEl);
+  }
+
   // Status indicator
   const statusEl = document.createElement('div');
   statusEl.className = 'topology-status';
   statusEl.style.fontSize = '12px';
   statusEl.style.color = 'var(--color-text-muted, #888)';
-  statusEl.textContent = 'Initializing...';
+  statusEl.textContent = operationalStatus
+    ? `${operationalStatus.label || operationalStatus.value || 'unknown'} · ${operationalStatus.severity || 'info'}`
+    : 'Initializing...';
   header.appendChild(statusEl);
 
   return header;

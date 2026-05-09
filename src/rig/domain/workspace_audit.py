@@ -49,6 +49,8 @@ REQUIRED_PLACEHOLDERS = (
     PLACEHOLDER_NO_RECEIPT,
 )
 
+SCHEMA_VERSION = "rig.workspace_audit.v1"
+
 
 # ---------------------------------------------------------------------------
 # Helper for enum serialization
@@ -191,6 +193,7 @@ class AuditActor:
     
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
+        d["schema_version"] = SCHEMA_VERSION
         # Ensure all values are JSON-serializable
         return {k: _enum_to_value(v) for k, v in d.items()}
 
@@ -259,6 +262,7 @@ class AuditSubject:
     
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
+        d["schema_version"] = SCHEMA_VERSION
         return {k: _enum_to_value(v) for k, v in d.items()}
 
 
@@ -294,6 +298,7 @@ class AuditEvent:
     
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
+        d["schema_version"] = SCHEMA_VERSION
         d["actor"] = self.actor.to_dict()
         d["subject"] = self.subject.to_dict()
         # Convert any remaining enums
@@ -471,6 +476,7 @@ class AuditReceiptLink:
     
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
+        d["schema_version"] = SCHEMA_VERSION
         return {k: _enum_to_value(v) for k, v in d.items()}
 
 
@@ -503,6 +509,7 @@ class WorkspaceAuditTrail:
     
     def to_dict(self) -> dict[str, Any]:
         return {
+            "schema_version": SCHEMA_VERSION,
             "workspace_id": self.workspace_id,
             "events": [e.to_dict() for e in self.events],
             "receipt_links": [rl.to_dict() for rl in self.receipt_links],

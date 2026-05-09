@@ -56,7 +56,8 @@ import {
   clamp,
   mapRange,
   MotionUtils,
-  normalizeRuntimeEventEnvelope
+  normalizeRuntimeEventEnvelope,
+  normalizeOperationalStatusEnvelope
 } from '../svg-runtime-instrumentation.js';
 
 /** Runtime Stream Card Widget
@@ -95,6 +96,18 @@ export function renderRuntimeStreamCard(id, data, context) {
   titleEl.textContent = data.title || 'Runtime Stream';
   header.appendChild(titleEl);
 
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.style.fontSize = '12px';
+    lineage.style.marginLeft = '12px';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    header.appendChild(lineage);
+  }
+
   if (runtimeEnvelope) {
     const eventBadge = document.createElement('div');
     eventBadge.className = 'badge severity-info';
@@ -103,13 +116,15 @@ export function renderRuntimeStreamCard(id, data, context) {
   }
 
   // Stream status badge
-  if (data.status) {
+  const operationalStatus = normalizeOperationalStatusEnvelope(
+    data.condition || data.status || data.overall_status || data.runtime_status
+  );
+
+  if (operationalStatus && operationalStatus.value !== 'unknown') {
     const statusBadge = document.createElement('div');
-    const severity = data.status.severity || 'info';
+    const severity = operationalStatus.severity || 'info';
     statusBadge.className = 'badge severity-' + severity;
-    const statusText = data.status.label || 
-                       (typeof data.status === 'string' ? data.status : data.status.value) ||
-                       'streaming';
+    const statusText = operationalStatus.label || operationalStatus.value || 'streaming';
     statusBadge.textContent = statusText.charAt(0).toUpperCase() + statusText.slice(1);
     header.appendChild(statusBadge);
   }
@@ -368,7 +383,10 @@ function _renderSvgStreamVisualization(data, layer, bounds) {
   const geometryMapper = new ProjectionGeometryMapper(bounds);
   
   // Determine stream state
-  const state = data.status?.value || data.status || 'streaming';
+  const statusEnvelope = normalizeOperationalStatusEnvelope(
+    data.condition || data.status || data.overall_status || data.runtime_status
+  );
+  const state = statusEnvelope.state || statusEnvelope.value || 'streaming';
   const channel = data.channel || 'assistant';
   const sequence = data.sequence || data.stats?.last_sequence || 0;
   const maxSequence = data.max_sequence || 
@@ -564,10 +582,7 @@ function renderIntegrityFlags(flags) {
     flagEl.textContent = flag;
     container.appendChild(flagEl);
   }
-  
-// Widget Registration
-// =============================================================================
-=======
+
   return container;
 }
 

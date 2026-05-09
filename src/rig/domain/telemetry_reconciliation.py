@@ -109,6 +109,7 @@ class TelemetryMetricConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["metric_type"] = self.metric_type.value
         result["loop_type"] = self.loop_type.value
         result["damping_type"] = self.damping_type.name
@@ -135,10 +136,15 @@ class TelemetryAggregationConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["metric_configs"] = {
             metric_type.value if hasattr(metric_type, "value") else str(metric_type): config.to_dict()
             for metric_type, config in self.metric_configs.items()
         }
+        result["cadence"] = self.cadence.to_dict()
+        result["damping"] = self.damping.to_dict()
+        result["retry"] = self.retry.to_dict()
+        result["convergence"] = self.convergence.to_dict()
         return result
 
 
@@ -153,7 +159,10 @@ class TelemetrySample:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["metric_type"] = self.metric_type.value
+        if hasattr(self.timestamp, "isoformat"):
+            result["timestamp"] = self.timestamp.isoformat()
         return result
 
 
@@ -173,7 +182,10 @@ class AggregatedMetric:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["metric_type"] = self.metric_type.value
+        if hasattr(self.last_update, "isoformat"):
+            result["last_update"] = self.last_update.isoformat()
         return result
 
 
@@ -757,6 +769,7 @@ class TelemetryReconciliationController:
         health = {}
         for loop_type, loop in self._loops.items():
             health[loop_type.value] = {
+                'schema_version': SCHEMA_VERSION,
                 'status': 'running' if self._running else 'stopped',
                 'metric_type': loop.metric_type.value,
                 'aggregated_value': loop.aggregated_value,

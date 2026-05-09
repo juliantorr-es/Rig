@@ -44,6 +44,16 @@ export function renderRuntimeConsoleCard(id, data, context) {
     subtitleEl.textContent = subtitle;
     header.appendChild(subtitleEl);
   }
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'widget-subtitle';
+    lineage.style.fontSize = '11px';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    header.appendChild(lineage);
+  }
   el.appendChild(header);
 
   // Status badge

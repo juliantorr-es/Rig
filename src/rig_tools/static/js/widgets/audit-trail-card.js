@@ -18,6 +18,8 @@
  * - authoritative_events: number
  * - advisory_only_warning: string
  * - next_missing_audit_action: string
+ * - schema_version: string
+ * - source_schema_version: string
  */
 
 export function renderAuditTrailCard(id, data, actions) {
@@ -33,6 +35,20 @@ export function renderAuditTrailCard(id, data, actions) {
   // Summary section
   const summary = document.createElement('div');
   summary.className = 'card-section';
+
+  if (data && (data.schema_version || data.source_schema_version)) {
+    const lineage = document.createElement('div');
+    lineage.className = 'status-row';
+    const lineageLabel = document.createElement('span');
+    lineageLabel.className = 'status-label';
+    lineageLabel.textContent = 'Lineage:';
+    const lineageValue = document.createElement('span');
+    lineageValue.className = 'status-value status-mono';
+    lineageValue.textContent = `${data.schema_version || 'rig.workspace_audit.v1'} / ${data.source_schema_version || 'unknown'}`;
+    lineage.appendChild(lineageLabel);
+    lineage.appendChild(lineageValue);
+    summary.appendChild(lineage);
+  }
 
   // Completeness status
   const completeness = document.createElement('div');

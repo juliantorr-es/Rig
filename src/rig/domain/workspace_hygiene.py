@@ -124,6 +124,7 @@ class ArtifactInfo:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["category"] = self.category.value
         return result
 
@@ -157,6 +158,7 @@ class NamespaceInfo:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["health_status"] = self.health_status.value
         return result
 
@@ -172,7 +174,9 @@ class RuntimeHealthInfo:
     warnings: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,7 +189,9 @@ class IsolationInfo:
     violation_details: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +241,7 @@ class HygieneAction:
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
         result["action"] = self.action.value
         return result
 
@@ -251,7 +258,9 @@ class WorkspaceHygieneStats:
     errors: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        result["schema_version"] = SCHEMA_VERSION
+        return result
 
 
 class WorkspaceHygieneController:
@@ -683,6 +692,7 @@ class WorkspaceHygieneController:
         self._last_check = datetime.now(timezone.utc)
         
         results: Dict[str, Any] = {
+            'schema_version': SCHEMA_VERSION,
             'workspace_id': self.workspace_id,
             'iteration': self._iteration,
             'timestamp': self._last_check,

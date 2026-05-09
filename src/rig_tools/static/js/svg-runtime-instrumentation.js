@@ -46,6 +46,58 @@ export function normalizeRuntimeEventEnvelope(envelope = {}) {
   };
 }
 
+export function normalizeOperationalStatusEnvelope(status = {}) {
+  if (status === null || status === undefined) {
+    return {
+      schema_version: 'rig.runtime_status.v1',
+      value: 'unknown',
+      label: 'Unknown',
+      severity: 'info',
+      state: 'unknown',
+      message: '',
+      condition: null
+    };
+  }
+
+  if (typeof status === 'string') {
+    return {
+      schema_version: 'rig.runtime_status.v1',
+      value: status,
+      label: status,
+      severity: getStatusSeverity(status),
+      state: status,
+      message: '',
+      condition: null
+    };
+  }
+
+  const condition = status.condition && typeof status.condition === 'object' ? status.condition : null;
+  const value = status.value || status.state || status.label || condition?.value || condition?.state || 'unknown';
+  const label = status.label || condition?.label || value;
+  const severity = status.severity || condition?.severity || getStatusSeverity(value);
+
+  return {
+    schema_version: status.schema_version || status.schemaVersion || 'rig.runtime_status.v1',
+    value,
+    label,
+    severity,
+    state: status.state || condition?.state || value,
+    message: status.message || condition?.message || '',
+    condition
+  };
+}
+
+function getStatusSeverity(value) {
+  const normalized = String(value || 'unknown').toLowerCase();
+  if (['failed', 'error', 'timed_out', 'cancelled', 'blocked'].includes(normalized)) {
+    return 'error';
+  }
+  if (['stalled', 'paused', 'degraded', 'saturated', 'drift_detected', 'reconciling'].includes(normalized)) {
+    return 'warning';
+  }
+  return 'info';
+}
+
 // SVG Primitive: Replay Sweep
 // =============================================================================
 
@@ -2487,14 +2539,6 @@ export class SvgConvergenceIndicator {
     this.converged = options.converged !== undefined ? options.converged : this.converged;
     this.stabilisationThreshold = options.stabilisationThreshold !== undefined ? options.stabilisationThreshold : this.stabilisationThreshold;
   }
-}
-
-/**
- * Helper function to create deterministic SVG ID
- */
-function svgId(prefix, id) {
-  const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `rig-${prefix}-${cleanId}`;
 }
 
 /**

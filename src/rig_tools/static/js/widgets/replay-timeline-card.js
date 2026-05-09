@@ -30,6 +30,9 @@
  * - finding_count: number
  * - findings_by_severity: object (severity -> count)
  * - state: string (replay state)
+ * - schema_version: string
+ * - source_schema_version: string
+ * - source_event_id: string
  */
 
 function createElement(tag, className, text) {
@@ -69,6 +72,15 @@ function renderStatusBadge(status, className) {
     badge.className += ' ' + className;
   }
   return badge;
+}
+
+function renderKeyValue(labelText, valueText, valueClassName = 'replay-meta-value') {
+  const row = createElement('div', 'replay-meta-row');
+  const label = createElement('span', 'replay-meta-label', labelText);
+  const value = createElement('span', valueClassName, valueText || 'unknown');
+  row.appendChild(label);
+  row.appendChild(value);
+  return row;
 }
 
 function renderConflictTypeCount(type, count) {
@@ -133,6 +145,14 @@ function renderReplayTimelineCard(element, data) {
   }
   container.appendChild(headerRow);
 
+  // Replay lineage section
+  const lineageSection = createElement('div', 'card-section replay-lineage-section');
+  lineageSection.appendChild(renderKeyValue('Replay Schema:', getValue(data, 'schema_version', 'rig.replay.v1'), 'replay-mono'));
+  lineageSection.appendChild(renderKeyValue('Source Schema:', getValue(data, 'source_schema_version', 'unknown'), 'replay-mono'));
+  lineageSection.appendChild(renderKeyValue('Source Event:', getValue(data, 'source_event_id', 'unknown'), 'replay-mono'));
+  lineageSection.appendChild(renderKeyValue('Source Kind:', getValue(data, 'source_event_kind', 'unknown'), 'replay-mono'));
+  container.appendChild(lineageSection);
+
   // Frame navigation info
   const frameInfoRow = createElement('div', 'replay-frame-info');
   const frameIndex = getValue(data, 'frame_index', -1);
@@ -178,6 +198,16 @@ function renderReplayTimelineCard(element, data) {
   stateSection.appendChild(stateRow);
   container.appendChild(stateSection);
 
+  const continuitySection = createElement('div', 'card-section replay-continuity-section');
+  continuitySection.appendChild(renderKeyValue('Frame Hash:', getValue(data, 'frame_hash', 'unknown'), 'replay-mono'));
+  continuitySection.appendChild(renderKeyValue('Previous Hash:', getValue(data, 'previous_frame_hash', 'unknown'), 'replay-mono'));
+  continuitySection.appendChild(renderKeyValue(
+    'Evidence Mode:',
+    getValue(data, 'authoritative_evidence_available', false) ? 'authoritative' : 'advisory',
+    'replay-mono'
+  ));
+  container.appendChild(continuitySection);
+
   // Chain continuity section
   const chainSection = createElement('div', 'card-section replay-chain-section');
   
@@ -204,6 +234,16 @@ function renderReplayTimelineCard(element, data) {
     chainSection.appendChild(auditRow);
     
     container.appendChild(chainSection);
+  }
+
+  const lineageChainSection = createElement('div', 'card-section replay-lineage-chain-section');
+  const lineageLinks = getValue(data, 'lineage_links', []);
+  if (lineageLinks && lineageLinks.length > 0) {
+    const lineageTitle = createElement('div', 'replay-lineage-title', 'Lineage Links');
+    lineageChainSection.appendChild(lineageTitle);
+    const lineageCount = createElement('div', 'replay-lineage-count', `Links: ${lineageLinks.length}`);
+    lineageChainSection.appendChild(lineageCount);
+    container.appendChild(lineageChainSection);
   }
 
   // Status History / Timeline section

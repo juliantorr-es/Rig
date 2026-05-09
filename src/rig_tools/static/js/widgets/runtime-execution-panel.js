@@ -872,6 +872,18 @@ export function renderRuntimeExecutionPanel(id, data, context) {
   titleEl.textContent = data.title || 'Runtime Execution';
   el.appendChild(titleEl);
 
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.style.fontSize = '12px';
+    lineage.style.marginLeft = '12px';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    el.appendChild(lineage);
+  }
+
   // Current state indicator
   const stateSummary = instrumentation.getStateSummary();
   const stateEl = renderStateTransition(stateSummary.state, {

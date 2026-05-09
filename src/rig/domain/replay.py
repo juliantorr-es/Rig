@@ -48,6 +48,8 @@ PLACEHOLDER_ORPHANED = "orphaned"
 PLACEHOLDER_CONTRADICTION = "contradiction"
 PLACEHOLDER_GAP = "gap"
 
+SCHEMA_VERSION = "rig.replay.v1"
+
 # All replay-specific placeholders
 REQUIRED_REPLAY_PLACEHOLDERS = (
     PLACEHOLDER_UNKNOWN,
@@ -135,6 +137,8 @@ class ReplayEvent:
     event_kind: ReplayEventKind = ReplayEventKind.UNKNOWN
     source_id: str = PLACEHOLDER_UNKNOWN  # receipt_id or event_id from source
     workspace_id: Optional[str] = None
+    source_schema_version: str = ""
+    source_event_id: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
     sequence_index: int = 0
     data: Dict[str, Any] = field(default_factory=dict)
@@ -145,6 +149,7 @@ class ReplayEvent:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         d = asdict(self)
+        d["schema_version"] = SCHEMA_VERSION
         # Convert enums to values
         d["event_kind"] = self.event_kind.value
         d["advisory_only"] = self.advisory_only
@@ -160,6 +165,8 @@ class ReplayEvent:
             event_kind=ReplayEventKind.RECEIPT,
             source_id=envelope.receipt_id,
             workspace_id=envelope.subject.workspace_id if hasattr(envelope.subject, 'workspace_id') else None,
+            source_schema_version=envelope.schema_version,
+            source_event_id=envelope.receipt_id,
             timestamp=envelope.created_at,
             sequence_index=sequence_index,
             data=data,
@@ -177,6 +184,8 @@ class ReplayEvent:
             event_kind=ReplayEventKind.AUDIT,
             source_id=event.event_id,
             workspace_id=event.workspace_id,
+            source_schema_version="rig.workspace_audit.v1",
+            source_event_id=event.event_id,
             timestamp=event.timestamp,
             sequence_index=sequence_index,
             data=data,
@@ -193,6 +202,8 @@ class ReplayEvent:
             event_kind=ReplayEventKind.UNKNOWN,
             source_id=PLACEHOLDER_NO_RECEIPT,
             workspace_id=workspace_id,
+            source_schema_version=SCHEMA_VERSION,
+            source_event_id=PLACEHOLDER_NO_RECEIPT,
             timestamp=PLACEHOLDER_NOT_CREATED,
             sequence_index=-1,
             data={"status": PLACEHOLDER_NO_EVIDENCE},
@@ -230,6 +241,7 @@ class ReplayFrame:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         return {
+            "schema_version": SCHEMA_VERSION,
             "frame_index": self.frame_index,
             "events": [e.to_dict() for e in self.events],
             "workspace_id": self.workspace_id,
@@ -275,7 +287,9 @@ class ReplayCursor:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
-        return asdict(self)
+        d = asdict(self)
+        d["schema_version"] = SCHEMA_VERSION
+        return d
     
     def go_back(self) -> Optional["ReplayCursor"]:
         """Move cursor back one frame. Returns None if at beginning."""
@@ -430,6 +444,7 @@ class ReplaySnapshot:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         return {
+            "schema_version": SCHEMA_VERSION,
             "snapshot_id": self.snapshot_id,
             "workspace_id": self.workspace_id,
             "frame_index": self.frame_index,
@@ -466,6 +481,7 @@ class ReplayConflict:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         return {
+            "schema_version": SCHEMA_VERSION,
             "conflict_id": self.conflict_id,
             "conflict_type": self.conflict_type.value,
             "severity": self.severity.value,
@@ -511,6 +527,7 @@ class ReplayIntegrityFinding:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         return {
+            "schema_version": SCHEMA_VERSION,
             "finding_id": self.finding_id,
             "title": self.title,
             "message": self.message,
@@ -558,6 +575,7 @@ class ReplayResult:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         return {
+            "schema_version": SCHEMA_VERSION,
             "replay_id": self.replay_id,
             "workspace_id": self.workspace_id,
             "frames": [f.to_dict() for f in self.frames],
