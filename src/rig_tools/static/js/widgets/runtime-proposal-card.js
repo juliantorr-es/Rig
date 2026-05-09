@@ -1,3 +1,5 @@
+import { normalizeOperationalStatusEnvelope } from '../svg-runtime-instrumentation.js';
+
 /** Runtime Proposal Card Widget
  *
  * Renders runtime proposal summaries from stream events.
@@ -40,15 +42,31 @@ export function renderRuntimeProposalCard(id, data, context) {
   titleEl.textContent = data.title || 'Runtime Proposal';
   header.appendChild(titleEl);
 
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.style.fontSize = '12px';
+    lineage.style.marginLeft = '12px';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    header.appendChild(lineage);
+  }
+
   // Proposal status badge
-  const status = data.status || data.proposal_status || 'pending';
-  const severity = data.severity || 
+  const statusEnvelope = normalizeOperationalStatusEnvelope(
+    data.condition || data.status || data.overall_status || data.runtime_status || data.proposal_status
+  );
+  const status = statusEnvelope.value || data.status || data.proposal_status || 'pending';
+  const severity = data.severity ||
+                  statusEnvelope.severity ||
                   (typeof status === 'object' ? status.severity : null) ||
                   getProposalSeverity(status);
   const statusBadge = document.createElement('div');
   statusBadge.className = 'badge severity-' + severity;
-  const statusText = typeof status === 'string' ? status :
-                    (status.label || status.value || 'pending');
+  const statusText = statusEnvelope.label || (typeof status === 'string' ? status :
+                    (status.label || status.value || 'pending'));
   statusBadge.textContent = capitalizeFirst(statusText);
   header.appendChild(statusBadge);
 
