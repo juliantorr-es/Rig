@@ -30,6 +30,16 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def branch_exists_locally(branch: str) -> bool:
+    """Check if a branch exists locally."""
+    import subprocess
+    r = subprocess.run(
+        ["git", "branch", "--list", branch],
+        text=True, capture_output=True,
+    )
+    return r.returncode == 0 and branch in r.stdout
+
+
 def parse_iso(ts: str) -> datetime:
     """Parse an ISO 8601 UTC timestamp (with or without fractional seconds)."""
     for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%S+00:00"):
@@ -268,6 +278,20 @@ def compute_projection(task_id: str) -> dict[str, Any]:
             "patch_batch_merge_friendly_checked",
         ]:
             patch_batch_events.append(ev)
+        
+        # Track promotion events
+        if etype in [
+            "preproduction_promotion_completed",
+            "preproduction_promotion_blocked",
+            "preproduction_merge_completed",
+            "preproduction_validation_passed",
+            "preproduction_validation_failed",
+        ]:
+            promotion_events.append(ev)
+            # Track last attempt
+            if etype in ["preproduction_promotion_completed", "preproduction_promotion_blocked"]:
+                last_promotion_attempt = ev
+                last_promotion_success = etype == "preproduction_promotion_completed"
 
         if etype == "claim_started":
             active_claims_map[claim_key] = {
@@ -567,6 +591,15 @@ def compute_projection(task_id: str) -> dict[str, Any]:
             "total_merge_blocked": total_merge_blocked,
             "blocked_reasons": blocked_reasons,
             "merge_blocked_reasons": merge_blocked_reasons,
+        },
+        "promotion_summary": {
+            "rite_of_deterministic_passage_complete": False,  # Will be computed per mission/sprint
+            "last_promotion_attempt": last_promotion_attempt.get("ts") if last_promotion_attempt else None,
+            "last_promotion_success": last_promotion_success,
+            "promotion_target": "preproduction",
+            "promotion_source_branch": last_promotion_attempt.get("source_branch") if last_promotion_attempt else None,
+            "promotion_gate_failures": last_promotion_attempt.get("blocking_gates_failures", 0) if last_promotion_attempt else 0,
+            "preproduction_exists": branch_exists_locally("preproduction"),
         },
         "_out_of_scope_findings": out_of_scope_findings,  # internal, used for notes generation
     }

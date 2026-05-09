@@ -2,60 +2,265 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rig.anigma.internal/schemas/rig-work-task.schema.json",
   "title": "Rig Work Task",
-  "description": "ADR implementation task file. Contains one task with optional flat missions. No recursive subtasks. See docs/workflow/adr-sprint-mission-evidence.md for the canonical workflow narrative.",
+  "description": "ADR implementation task file. Contains one or more sprints with mandatory research and optional flat missions. No recursive subtasks. A large ADR may have multiple sprints. See docs/workflow/adr-sprint-mission-evidence.md for the canonical workflow narrative: ADR → Sprint → Sprint Research → Mission → Patch Batch → Evidence → Review/Promotion.",
   "type": "object",
-  "required": ["id", "kind", "adr", "status", "priority", "allowed_paths", "protected_paths",
-               "completion_criteria", "required_checks", "required_evidence", "missions",
-               "created_at", "updated_at"],
+  "required": [
+    "id",
+    "kind",
+    "adr",
+    "status",
+    "priority",
+    "allowed_paths",
+    "protected_paths",
+    "completion_criteria",
+    "required_checks",
+    "required_evidence",
+    "sprints",
+    "created_at",
+    "updated_at"
+  ],
   "additionalProperties": false,
   "properties": {
-    "id":                  { "type": "string", "description": "Stable slug matching the ADR workspace directory name." },
-    "kind":                { "type": "string", "const": "adr_implementation" },
-    "adr":                 { "type": "string", "description": "Repo-relative path to the ADR markdown file." },
-    "status":              { "type": "string", "enum": ["open", "in_progress", "blocked", "ready_for_review", "closed"] },
-    "priority":            { "type": "string", "enum": ["critical", "high", "normal", "low"] },
-    "allowed_paths":       { "type": "array",  "items": { "type": "string" }, "description": "Glob patterns bounding all mission authority. Missions may only narrow this set." },
-    "protected_paths":     { "type": "array",  "items": { "type": "string" }, "description": "Paths agents must never modify or claim." },
-    "completion_criteria": { "type": "array",  "items": { "type": "string" } },
-    "required_checks":     { "type": "array",  "items": { "type": "string" }, "description": "CLI commands that must pass before promoting." },
-    "required_evidence":   { "type": "array",  "items": { "type": "string" }, "description": "Evidence artifacts required before closing." },
-    "missions": {
-      "type": "array",
-      "description": "Flat list of agent-sized work packets. No nesting. Maximum 12.",
-      "maxItems": 12,
-      "items": { "$ref": "#/$defs/mission" }
+    "id": {
+      "type": "string",
+      "description": "Stable slug matching the ADR workspace directory name."
     },
-    "created_at":  { "type": "string", "format": "date-time" },
-    "updated_at":  { "type": "string", "format": "date-time" }
+    "kind": {
+      "type": "string",
+      "const": "adr_implementation"
+    },
+    "adr": {
+      "type": "string",
+      "description": "Repo-relative path to the ADR markdown file."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "in_progress", "blocked", "ready_for_review", "closed"]
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["critical", "high", "normal", "low"]
+    },
+    "allowed_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns bounding all sprint and mission authority. Sprints and missions may only narrow this set."
+    },
+    "protected_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths agents must never modify or claim."
+    },
+    "completion_criteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_checks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "CLI commands that must pass before promoting."
+    },
+    "required_evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Evidence artifacts required before closing."
+    },
+    "sprints": {
+      "type": "array",
+      "description": "List of sprints for this ADR. A massive ADR may have multiple sprints. Each sprint must have completed research before implementation.",
+      "items": { "$ref": "#/$defs/sprint" }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
   },
   "$defs": {
     "agent_discretion": {
       "type": "object",
-      "required": ["may_create_files", "may_refactor_within_allowed_paths", "may_add_tests",
-                   "may_commit_when_doctor_passes", "must_stop_if"],
+      "required": [
+        "may_create_files",
+        "may_refactor_within_allowed_paths",
+        "may_add_tests",
+        "may_commit_when_doctor_passes",
+        "must_stop_if"
+      ],
       "additionalProperties": false,
       "properties": {
-        "may_create_files":                   { "type": "boolean" },
-        "may_refactor_within_allowed_paths":  { "type": "boolean" },
-        "may_add_tests":                      { "type": "boolean" },
-        "may_commit_when_doctor_passes":      { "type": "boolean" },
-        "must_stop_if":                       { "type": "array", "items": { "type": "string" } }
+        "may_create_files": { "type": "boolean" },
+        "may_refactor_within_allowed_paths": { "type": "boolean" },
+        "may_add_tests": { "type": "boolean" },
+        "may_commit_when_doctor_passes": { "type": "boolean" },
+        "must_stop_if": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Conditions that must halt execution immediately, e.g., 'protected_paths_touched', 'unexpected_dirty_files'."
+        }
       }
     },
     "mission": {
       "type": "object",
-      "required": ["id", "title", "status", "intent", "allowed_paths", "non_goals",
-                   "completion_criteria", "agent_discretion"],
+      "required": [
+        "id",
+        "title",
+        "status",
+        "intent",
+        "allowed_paths",
+        "non_goals",
+        "completion_criteria",
+        "agent_discretion"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id":                  { "type": "string" },
-        "title":               { "type": "string" },
-        "status":              { "type": "string", "enum": ["open", "claimed", "in_progress", "blocked", "ready_for_review", "closed"] },
-        "intent":              { "type": "string" },
-        "allowed_paths":       { "type": "array", "items": { "type": "string" }, "description": "Must be a subset of parent task allowed_paths." },
-        "non_goals":           { "type": "array", "items": { "type": "string" } },
+        "id": {
+          "type": "string",
+          "description": "Unique mission identifier within the sprint."
+        },
+        "title": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["open", "claimed", "in_progress", "blocked", "ready_for_review", "closed"]
+        },
+        "intent": { "type": "string" },
+        "allowed_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Must be a subset of parent sprint allowed_paths, which must be a subset of task allowed_paths."
+        },
+        "non_goals": { "type": "array", "items": { "type": "string" } },
         "completion_criteria": { "type": "array", "items": { "type": "string" } },
-        "agent_discretion":    { "$ref": "#/$defs/agent_discretion" }
+        "agent_discretion": { "$ref": "#/$defs/agent_discretion" },
+        "patch_batches": {
+          "type": "array",
+          "description": "Patch batches applied during this mission. Missions should be executed as patch batches where practical.",
+          "default": [],
+          "items": { "$ref": "#/$defs/patch_batch" }
+        }
+      }
+    },
+    "patch_batch": {
+      "type": "object",
+      "required": ["id", "status", "precheck_passed"],
+      "additionalProperties": false,
+      "description": "A coherent set of related changes applied together. Must be prechecked and validated.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique batch identifier within the mission."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "prechecked", "applied", "validated", "blocked"]
+        },
+        "precheck_passed": {
+          "type": "boolean",
+          "description": "Whether git apply --check passed before applying."
+        },
+        "precheck_command": {
+          "type": "string",
+          "description": "The git apply --check command that was run."
+        },
+        "apply_command": {
+          "type": "string",
+          "description": "The git apply command used to apply the patch."
+        },
+        "patch_file": {
+          "type": "string",
+          "description": "Path to the unified diff patch file under .rig/work/adr/<adr-id>/sprints/<sprint-id>/patch-batches/"
+        },
+        "planned_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files expected to be changed by this batch. Stop if actual files exceed this."
+        },
+        "actual_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files actually changed by this batch. Must match or be subset of planned_files."
+        },
+        "protected_paths_touched": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Any protected paths that were touched. Must be empty or block application."
+        },
+        "validation_results": {
+          "type": "object",
+          "description": "Results of validation after applying the batch.",
+          "additionalProperties": true
+        },
+        "applied_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the patch batch was applied."
+        },
+        "validated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the patch batch was validated."
+        }
+      }
+    },
+    "sprint": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "status",
+        "research_status",
+        "allowed_paths"
+      ],
+      "additionalProperties": false,
+      "description": "A scope-bounded implementation campaign. Must have completed research before implementation. A large ADR may have multiple sprints.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique sprint identifier within the ADR."
+        },
+        "title": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "research_in_progress", "research_complete", "implementation_in_progress", "blocked", "ready_for_review", "closed"]
+        },
+        "research_status": {
+          "type": "string",
+          "enum": ["not_started", "in_progress", "completed", "blocked"],
+          "description": "Sprint Research is mandatory. Implementation cannot begin until research_status is 'completed'."
+        },
+        "allowed_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns bounding sprint authority. Must be a subset of task allowed_paths. Missions may only narrow this further."
+        },
+        "mission_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of mission IDs in this sprint. Alternatively, use inline missions."
+        },
+        "missions": {
+          "type": "array",
+          "description": "Inline mission definitions for this sprint. Alternative to mission_ids.",
+          "default": [],
+          "items": { "$ref": "#/$defs/mission" }
+        },
+        "patch_batch_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/patch_batch" },
+          "description": "Planned patch batches for this sprint. Defined during research phase.",
+          "default": []
+        },
+        "research_artifacts_path": {
+          "type": "string",
+          "description": "Path to sprint research artifacts: .rig/work/adr/<adr-id>/sprints/<sprint-id>/"
+        },
+        "validation_plan": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Validation commands that must pass. Defined during research phase."
+        }
       }
     }
   }

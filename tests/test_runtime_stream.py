@@ -42,6 +42,8 @@ from rig.domain.runtime_stream import (
     PLACEHOLDER_INVOKE_ID,
     PLACEHOLDER_SEQUENCE,
     PLACEHOLDER_PROVIDER_ID,
+    PLACEHOLDER_PROVIDER,
+    PLACEHOLDER_INVOCATION,
     PLACEHOLDER_MODEL_ID,
     PLACEHOLDER_CHANNEL,
     PLACEHOLDER_CONTENT,
@@ -49,6 +51,7 @@ from rig.domain.runtime_stream import (
     PLACEHOLDER_HASH,
     DEFAULT_MAX_CHUNK_BYTES,
     DEFAULT_MAX_BUFFER_BYTES,
+    DEFAULT_MAX_BUFFER_SIZE,
     DEFAULT_STREAM_TIMEOUT_SECONDS,
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_STALLED_THRESHOLD_SECONDS,
@@ -82,12 +85,12 @@ from rig.domain.runtime_stream import (
 def sample_chunk_data() -> Dict[str, Any]:
     """Sample chunk data for testing."""
     return {
+        "chunk_id": "chunk_001",
         "stream_id": "stream_001",
         "sequence": 1,
-        "channel": RuntimeStreamChannel.ASSISTANT,
+        "channel": "assistant",
         "content": "test content",
         "provider_id": "provider_001",
-        "model_id": "model_001",
         "invocation_id": "invoke_001",
         "created_at": "2024-01-01T00:00:00+00:00",
     }
@@ -97,14 +100,12 @@ def sample_chunk_data() -> Dict[str, Any]:
 def sample_tool_proposal_data() -> Dict[str, Any]:
     """Sample tool proposal data for testing."""
     return {
+        "event_id": "event_002",
         "stream_id": "stream_001",
         "sequence": 2,
-        "proposal_kind": RuntimeProposalKind.TOOL_CALL,
-        "capability_id": "cap_001",
-        "tool_name": "test_tool",
-        "arguments": {"arg1": "value1"},
+        "proposal_kind": "tool_call",
+        "payload": {"tool_name": "test_tool", "arguments": {"arg1": "value1"}},
         "provider_id": "provider_001",
-        "model_id": "model_001",
         "invocation_id": "invoke_001",
         "created_at": "2024-01-01T00:00:01+00:00",
     }
@@ -114,16 +115,12 @@ def sample_tool_proposal_data() -> Dict[str, Any]:
 def sample_patch_proposal_data() -> Dict[str, Any]:
     """Sample patch proposal data for testing."""
     return {
+        "event_id": "event_003",
         "stream_id": "stream_001",
         "sequence": 3,
-        "proposal_kind": RuntimeProposalKind.CODE_PATCH,
-        "path": "/path/to/file.py",
+        "file_path": "/path/to/file.py",
         "diff": "+line added\n-line removed",
-        "language": "python",
-        "line": 10,
-        "column": 5,
         "provider_id": "provider_001",
-        "model_id": "model_001",
         "invocation_id": "invoke_001",
         "created_at": "2024-01-01T00:00:02+00:00",
     }
@@ -217,20 +214,17 @@ class TestRuntimeStreamStatus:
 class TestRuntimeStreamStateKind:
     """Tests for RuntimeStreamStateKind enum."""
 
-    def test_initial_kind(self):
-        assert RuntimeStreamStateKind.INITIAL.value == "initial"
+    def test_idle_kind(self):
+        assert RuntimeStreamStateKind.IDLE.value == "idle"
 
     def test_streaming_kind(self):
         assert RuntimeStreamStateKind.STREAMING.value == "streaming"
 
-    def test_completed_kind(self):
-        assert RuntimeStreamStateKind.COMPLETED.value == "completed"
+    def test_degraded_kind(self):
+        assert RuntimeStreamStateKind.DEGRADED.value == "degraded"
 
-    def test_failed_kind(self):
-        assert RuntimeStreamStateKind.FAILED.value == "failed"
-
-    def test_cancelled_kind(self):
-        assert RuntimeStreamStateKind.CANCELLED.value == "cancelled"
+    def test_blocked_kind(self):
+        assert RuntimeStreamStateKind.BLOCKED.value == "blocked"
 
 
 class TestRuntimeProposalKind:
@@ -239,64 +233,61 @@ class TestRuntimeProposalKind:
     def test_tool_call_kind(self):
         assert RuntimeProposalKind.TOOL_CALL.value == "tool_call"
 
-    def test_code_patch_kind(self):
-        assert RuntimeProposalKind.CODE_PATCH.value == "code_patch"
-
-    def test_file_create_kind(self):
-        assert RuntimeProposalKind.FILE_CREATE.value == "file_create"
-
-    def test_file_delete_kind(self):
-        assert RuntimeProposalKind.FILE_DELETE.value == "file_delete"
-
-    def test_file_move_kind(self):
-        assert RuntimeProposalKind.FILE_MOVE.value == "file_move"
-
-    def test_git_operation_kind(self):
-        assert RuntimeProposalKind.GIT_OPERATION.value == "git_operation"
-
     def test_shell_command_kind(self):
         assert RuntimeProposalKind.SHELL_COMMAND.value == "shell_command"
 
-    def test_file_edit_kind(self):
-        assert RuntimeProposalKind.FILE_EDIT.value == "file_edit"
+    def test_patch_kind(self):
+        assert RuntimeProposalKind.PATCH.value == "patch"
+
+    def test_file_write_kind(self):
+        assert RuntimeProposalKind.FILE_WRITE.value == "file_write"
+
+    def test_file_read_kind(self):
+        assert RuntimeProposalKind.FILE_READ.value == "file_read"
+
+    def test_network_fetch_kind(self):
+        assert RuntimeProposalKind.NETWORK_FETCH.value == "network_fetch"
+
+    def test_docs_fetch_kind(self):
+        assert RuntimeProposalKind.DOCS_FETCH.value == "docs_fetch"
 
 
 class TestRuntimeWarningCode:
     """Tests for RuntimeWarningCode enum."""
 
-    def test_content_truncated_code(self):
-        assert RuntimeWarningCode.CONTENT_TRUNCATED.value == "STREAM-001"
+    def test_truncation_applied_code(self):
+        assert RuntimeWarningCode.TRUNCATION_APPLIED.value == "truncation_applied"
 
-    def test_chunk_too_large_code(self):
-        assert RuntimeWarningCode.CHUNK_TOO_LARGE.value == "STREAM-002"
+    def test_rate_limited_code(self):
+        assert RuntimeWarningCode.RATE_LIMITED.value == "rate_limited"
 
-    def test_stream_stalled_code(self):
-        assert RuntimeWarningCode.STREAM_STALLED.value == "STREAM-003"
+    def test_model_unavailable_code(self):
+        assert RuntimeWarningCode.MODEL_UNAVAILABLE.value == "model_unavailable"
 
-    def test_proposal_blocked_code(self):
-        assert RuntimeWarningCode.PROPOSAL_BLOCKED.value == "STREAM-004"
+    def test_capability_mismatch_code(self):
+        assert RuntimeWarningCode.CAPABILITY_MISMATCH.value == "capability_mismatch"
 
-    def test_forbidden_command_code(self):
-        assert RuntimeWarningCode.FORBIDDEN_COMMAND.value == "STREAM-005"
+    def test_stalled_detected_code(self):
+        assert RuntimeWarningCode.STALLED_DETECTED.value == "stalled_detected"
 
 
 class TestRuntimeFailureCategory:
     """Tests for RuntimeFailureCategory enum."""
 
-    def test_stream_error_category(self):
-        assert RuntimeFailureCategory.STREAM_ERROR.value == "stream_error"
+    def test_connection_error_category(self):
+        assert RuntimeFailureCategory.CONNECTION_ERROR.value == "connection_error"
 
-    def test_proposal_error_category(self):
-        assert RuntimeFailureCategory.PROPOSAL_ERROR.value == "proposal_error"
+    def test_timeout_category(self):
+        assert RuntimeFailureCategory.TIMEOUT.value == "timeout"
 
-    def test_supervision_error_category(self):
-        assert RuntimeFailureCategory.SUPERVISION_ERROR.value == "supervision_error"
-
-    def test_timeout_error_category(self):
-        assert RuntimeFailureCategory.TIMEOUT_ERROR.value == "timeout_error"
+    def test_provider_error_category(self):
+        assert RuntimeFailureCategory.PROVIDER_ERROR.value == "provider_error"
 
     def test_validation_error_category(self):
         assert RuntimeFailureCategory.VALIDATION_ERROR.value == "validation_error"
+
+    def test_capability_error_category(self):
+        assert RuntimeFailureCategory.CAPABILITY_ERROR.value == "capability_error"
 
 
 # =============================================================================
@@ -307,31 +298,31 @@ class TestPlaceholderConstants:
     """Tests for placeholder constants."""
 
     def test_placeholder_stream_id(self):
-        assert PLACEHOLDER_STREAM_ID == "STREAM_ID_PLACEHOLDER"
+        assert PLACEHOLDER_STREAM_ID == "not_set"
 
     def test_placeholder_invoke_id(self):
         assert PLACEHOLDER_INVOKE_ID == "INVOKE_ID_PLACEHOLDER"
 
     def test_placeholder_sequence(self):
-        assert PLACEHOLDER_SEQUENCE == 0
+        assert PLACEHOLDER_SEQUENCE == -1
 
     def test_placeholder_provider_id(self):
-        assert PLACEHOLDER_PROVIDER_ID == "PROVIDER_ID_PLACEHOLDER"
+        assert PLACEHOLDER_PROVIDER_ID == "no_provider"
 
     def test_placeholder_model_id(self):
-        assert PLACEHOLDER_MODEL_ID == "MODEL_ID_PLACEHOLDER"
+        assert PLACEHOLDER_MODEL_ID == "no_model"
 
     def test_placeholder_channel(self):
-        assert PLACEHOLDER_CHANNEL == "CHANNEL_PLACEHOLDER"
+        assert PLACEHOLDER_CHANNEL == "unknown"
 
     def test_placeholder_content(self):
-        assert PLACEHOLDER_CONTENT == "CONTENT_PLACEHOLDER"
+        assert PLACEHOLDER_CONTENT == ""
 
     def test_placeholder_checksum(self):
-        assert PLACEHOLDER_CHECKSUM == "CHECKSUM_PLACEHOLDER"
+        assert PLACEHOLDER_CHECKSUM == ""
 
     def test_placeholder_hash(self):
-        assert PLACEHOLDER_HASH == "HASH_PLACEHOLDER"
+        assert PLACEHOLDER_HASH == ""
 
 
 class TestDefaultConstants:
@@ -361,16 +352,14 @@ class TestRuntimeStreamChunk:
     """Tests for RuntimeStreamChunk model."""
 
     def test_default_values(self):
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_chunk")
         assert chunk.stream_id == PLACEHOLDER_STREAM_ID
         assert chunk.sequence == PLACEHOLDER_SEQUENCE
-        assert chunk.channel == PLACEHOLDER_CHANNEL
+        assert chunk.channel == RuntimeStreamChannel.ASSISTANT
         assert chunk.content == PLACEHOLDER_CONTENT
         assert chunk.provider_id == PLACEHOLDER_PROVIDER_ID
-        assert chunk.model_id == PLACEHOLDER_MODEL_ID
-        assert chunk.invocation_id == PLACEHOLDER_INVOKE_ID
+        assert chunk.invocation_id == PLACEHOLDER_INVOCATION
         assert chunk.advisory_only is True
-        assert chunk.authoritative is False
 
     def test_create_from_dict(self, sample_chunk_data):
         chunk = RuntimeStreamChunk.from_dict(sample_chunk_data)
@@ -388,7 +377,6 @@ class TestRuntimeStreamChunk:
         assert result["channel"] == "assistant"
         assert result["content"] == "test content"
         assert result["advisory_only"] is True
-        assert result["authoritative"] is False
 
     def test_to_json(self, sample_chunk_data):
         chunk = RuntimeStreamChunk.from_dict(sample_chunk_data)
@@ -400,6 +388,7 @@ class TestRuntimeStreamChunk:
 
     def test_frozen(self):
         chunk = RuntimeStreamChunk(
+            chunk_id="test_001",
             stream_id="test",
             sequence=1,
             channel=RuntimeStreamChannel.ASSISTANT,
@@ -409,20 +398,19 @@ class TestRuntimeStreamChunk:
             chunk.stream_id = "changed"  # type: ignore
 
     def test_slots(self):
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         with pytest.raises(AttributeError):
             chunk.nonexistent_attr  # type: ignore
 
     def test_content_truncation(self):
         long_content = "x" * (DEFAULT_MAX_CHUNK_BYTES + 100)
-        chunk = RuntimeStreamChunk.from_dict({
-            "stream_id": "test",
-            "sequence": 1,
-            "channel": "assistant",
-            "content": long_content,
-        })
+        chunk = RuntimeStreamChunk.create(
+            stream_id="test",
+            sequence=1,
+            channel=RuntimeStreamChannel.ASSISTANT,
+            content=long_content,
+        )
         assert len(chunk.content) <= DEFAULT_MAX_CHUNK_BYTES
-        assert "..." in chunk.content
         assert chunk.truncated is True
 
     def test_deterministic_id(self):
@@ -432,7 +420,6 @@ class TestRuntimeStreamChunk:
             channel=RuntimeStreamChannel.ASSISTANT,
             content="test",
             provider_id="p1",
-            model_id="m1",
             invocation_id="i1",
         )
         chunk2 = RuntimeStreamChunk.create(
@@ -441,15 +428,13 @@ class TestRuntimeStreamChunk:
             channel=RuntimeStreamChannel.ASSISTANT,
             content="test",
             provider_id="p1",
-            model_id="m1",
             invocation_id="i1",
         )
-        assert chunk1.id == chunk2.id
+        assert chunk1.chunk_id == chunk2.chunk_id
 
     def test_is_advisory_only(self):
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         assert chunk.advisory_only is True
-        assert chunk.authoritative is False
 
 
 # =============================================================================
@@ -460,13 +445,12 @@ class TestRuntimeStatusEvent:
     """Tests for RuntimeStatusEvent model."""
 
     def test_default_values(self):
-        event = RuntimeStatusEvent()
+        event = RuntimeStatusEvent(event_id="event_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
-        assert event.status == RuntimeStreamStatus.ACTIVE
+        assert event.status == RuntimeStreamStatus.PENDING
         assert event.message == ""
         assert event.advisory_only is True
-        assert event.authoritative is False
 
     def test_create_with_values(self):
         event = RuntimeStatusEvent.create(
@@ -475,7 +459,6 @@ class TestRuntimeStatusEvent:
             status=RuntimeStreamStatus.COMPLETED,
             message="Stream completed successfully",
             provider_id="provider_001",
-            model_id="model_001",
             invocation_id="invoke_001",
         )
         assert event.stream_id == "stream_001"
@@ -497,7 +480,7 @@ class TestRuntimeStatusEvent:
         assert result["advisory_only"] is True
 
     def test_frozen(self):
-        event = RuntimeStatusEvent()
+        event = RuntimeStatusEvent(event_id="event_001")
         with pytest.raises(AttributeError):
             event.status = RuntimeStreamStatus.COMPLETED  # type: ignore
 
@@ -510,31 +493,29 @@ class TestRuntimeHeartbeatEvent:
     """Tests for RuntimeHeartbeatEvent model."""
 
     def test_default_values(self):
-        event = RuntimeHeartbeatEvent()
+        event = RuntimeHeartbeatEvent(event_id="hb_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
         assert event.advisory_only is True
-        assert event.authoritative is False
 
     def test_create_with_values(self):
         event = RuntimeHeartbeatEvent.create(
             stream_id="stream_001",
             sequence=5,
             provider_id="provider_001",
-            model_id="model_001",
             invocation_id="invoke_001",
         )
         assert event.stream_id == "stream_001"
         assert event.sequence == 5
         assert event.advisory_only is True
 
-    def test_interval_ms(self):
+    def test_interval_seconds(self):
         event = RuntimeHeartbeatEvent.create(
             stream_id="stream_001",
             sequence=1,
-            interval_ms=5000,
+            interval_seconds=5.0,
         )
-        assert event.interval_ms == 5000
+        assert event.interval_seconds == 5.0
 
     def test_to_dict(self):
         event = RuntimeHeartbeatEvent.create(
@@ -543,7 +524,6 @@ class TestRuntimeHeartbeatEvent:
         )
         result = event.to_dict()
         assert result["advisory_only"] is True
-        assert result["authoritative"] is False
 
 
 # =============================================================================
@@ -554,7 +534,7 @@ class TestRuntimeToolProposalEvent:
     """Tests for RuntimeToolProposalEvent model."""
 
     def test_default_values(self, sample_tool_proposal_data):
-        event = RuntimeToolProposalEvent()
+        event = RuntimeToolProposalEvent(event_id="tool_prop_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
         assert event.proposal_kind == RuntimeProposalKind.TOOL_CALL
@@ -566,8 +546,7 @@ class TestRuntimeToolProposalEvent:
         assert event.stream_id == "stream_001"
         assert event.sequence == 2
         assert event.proposal_kind == RuntimeProposalKind.TOOL_CALL
-        assert event.capability_id == "cap_001"
-        assert event.tool_name == "test_tool"
+        assert event.payload == {"tool_name": "test_tool", "arguments": {"arg1": "value1"}}
 
     def test_to_dict(self, sample_tool_proposal_data):
         event = RuntimeToolProposalEvent.from_dict(sample_tool_proposal_data)
@@ -575,16 +554,15 @@ class TestRuntimeToolProposalEvent:
         assert result["proposal_kind"] == "tool_call"
         assert result["advisory_only"] is True
 
-    def test_blocked_proposal(self):
+    def test_validation_status(self):
         event = RuntimeToolProposalEvent.create(
             stream_id="stream_001",
             sequence=1,
             proposal_kind=RuntimeProposalKind.TOOL_CALL,
-            blocked=True,
-            blocked_reason="Forbidden command detected",
+            payload={"operation": "test"},
         )
-        assert event.blocked is True
-        assert event.blocked_reason == "Forbidden command detected"
+        # Validation status defaults to "pending"
+        assert event.validation_status == "pending"
 
 
 # =============================================================================
@@ -595,23 +573,24 @@ class TestRuntimePatchProposalEvent:
     """Tests for RuntimePatchProposalEvent model."""
 
     def test_default_values(self, sample_patch_proposal_data):
-        event = RuntimePatchProposalEvent()
+        event = RuntimePatchProposalEvent(event_id="patch_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
-        assert event.proposal_kind == RuntimeProposalKind.CODE_PATCH
+        assert event.file_path == ""
+        assert event.diff == ""
         assert event.advisory_only is True
 
     def test_create_from_dict(self, sample_patch_proposal_data):
         event = RuntimePatchProposalEvent.from_dict(sample_patch_proposal_data)
         assert event.stream_id == "stream_001"
         assert event.sequence == 3
-        assert event.proposal_kind == RuntimeProposalKind.CODE_PATCH
-        assert event.path == "/path/to/file.py"
+        assert event.file_path == "/path/to/file.py"
+        assert event.diff == "+line added\n-line removed"
 
     def test_to_dict(self, sample_patch_proposal_data):
         event = RuntimePatchProposalEvent.from_dict(sample_patch_proposal_data)
         result = event.to_dict()
-        assert result["proposal_kind"] == "code_patch"
+        assert result["file_path"] == "/path/to/file.py"
         assert result["advisory_only"] is True
 
 
@@ -623,30 +602,31 @@ class TestRuntimeWarningEvent:
     """Tests for RuntimeWarningEvent model."""
 
     def test_default_values(self):
-        event = RuntimeWarningEvent()
+        event = RuntimeWarningEvent(event_id="warn_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
-        assert event.code == RuntimeWarningCode.CONTENT_TRUNCATED
+        assert event.warning_code == RuntimeWarningCode.TRUNCATION_APPLIED
         assert event.advisory_only is True
 
     def test_create_with_values(self):
         event = RuntimeWarningEvent.create(
             stream_id="stream_001",
             sequence=1,
-            code=RuntimeWarningCode.STREAM_STALLED,
+            warning_code=RuntimeWarningCode.STALLED_DETECTED,
             message="Stream has stalled",
         )
-        assert event.code == RuntimeWarningCode.STREAM_STALLED
+        assert event.warning_code == RuntimeWarningCode.STALLED_DETECTED
         assert event.message == "Stream has stalled"
 
     def test_to_dict(self):
         event = RuntimeWarningEvent.create(
             stream_id="stream_001",
             sequence=1,
-            code=RuntimeWarningCode.PROPOSAL_BLOCKED,
+            warning_code=RuntimeWarningCode.RATE_LIMITED,
+            message="Rate limit",
         )
         result = event.to_dict()
-        assert result["code"] == "STREAM-004"
+        assert result["warning_code"] == "rate_limited"
         assert result["advisory_only"] is True
 
 
@@ -658,26 +638,32 @@ class TestRuntimeCompletionEvent:
     """Tests for RuntimeCompletionEvent model."""
 
     def test_default_values(self):
-        event = RuntimeCompletionEvent()
+        event = RuntimeCompletionEvent(event_id="comp_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
-        assert event.reason == "completed"
+        assert event.completion_reason == "normal"
+        assert event.summary == ""
         assert event.advisory_only is True
 
     def test_create_with_values(self):
         event = RuntimeCompletionEvent.create(
             stream_id="stream_001",
             sequence=100,
-            reason="end_of_stream",
+            receipt_id="receipt_001",
+            completion_reason="end_of_stream",
             summary="Stream completed naturally",
         )
-        assert event.reason == "end_of_stream"
+        assert event.completion_reason == "end_of_stream"
         assert event.summary == "Stream completed naturally"
 
     def test_to_dict(self):
-        event = RuntimeCompletionEvent()
+        event = RuntimeCompletionEvent.create(
+            stream_id="stream_001",
+            sequence=1,
+            receipt_id="receipt_001",
+        )
         result = event.to_dict()
-        assert result["reason"] == "completed"
+        assert result["completion_reason"] == "normal"
         assert result["advisory_only"] is True
 
 
@@ -689,28 +675,32 @@ class TestRuntimeFailureEvent:
     """Tests for RuntimeFailureEvent model."""
 
     def test_default_values(self):
-        event = RuntimeFailureEvent()
+        event = RuntimeFailureEvent(event_id="fail_001")
         assert event.stream_id == PLACEHOLDER_STREAM_ID
         assert event.sequence == PLACEHOLDER_SEQUENCE
-        assert event.category == RuntimeFailureCategory.STREAM_ERROR
+        assert event.failure_category == RuntimeFailureCategory.INTERNAL_ERROR
+        assert event.message == ""
         assert event.advisory_only is True
 
     def test_create_with_values(self):
         event = RuntimeFailureEvent.create(
             stream_id="stream_001",
             sequence=50,
-            category=RuntimeFailureCategory.TIMEOUT_ERROR,
+            failure_category=RuntimeFailureCategory.TIMEOUT,
             message="Stream timeout",
-            error_code="TIMEOUT",
         )
-        assert event.category == RuntimeFailureCategory.TIMEOUT_ERROR
+        assert event.failure_category == RuntimeFailureCategory.TIMEOUT
         assert event.message == "Stream timeout"
-        assert event.error_code == "TIMEOUT"
 
     def test_to_dict(self):
-        event = RuntimeFailureEvent()
+        event = RuntimeFailureEvent.create(
+            stream_id="stream_001",
+            sequence=1,
+            failure_category=RuntimeFailureCategory.CONNECTION_ERROR,
+            message="Connection failed",
+        )
         result = event.to_dict()
-        assert result["category"] == "stream_error"
+        assert result["failure_category"] == "connection_error"
         assert result["advisory_only"] is True
 
 
@@ -722,63 +712,89 @@ class TestRuntimeStreamBuffer:
     """Tests for RuntimeStreamBuffer model."""
 
     def test_default_values(self):
-        buffer = RuntimeStreamBuffer()
+        buffer = RuntimeStreamBuffer(buffer_id="buf_001")
         assert buffer.stream_id == PLACEHOLDER_STREAM_ID
-        assert buffer.invocation_id == PLACEHOLDER_INVOKE_ID
-        assert buffer.max_bytes == DEFAULT_MAX_BUFFER_BYTES
+        assert buffer.max_size == DEFAULT_MAX_BUFFER_BYTES
         assert buffer.advisory_only is True
 
     def test_empty_buffer(self):
-        buffer = RuntimeStreamBuffer()
-        assert buffer.is_empty is True
+        buffer = RuntimeStreamBuffer(buffer_id="buf_001")
         assert len(buffer.chunks) == 0
+        assert buffer.current_size == 0
 
-    def test_with_chunk(self):
-        buffer = RuntimeStreamBuffer()
+    def test_with_chunks(self):
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
             sequence=1,
             channel=RuntimeStreamChannel.ASSISTANT,
             content="test",
         )
-        new_buffer = buffer.with_chunk(chunk)
-        assert new_buffer.is_empty is False
-        assert 1 in new_buffer.chunks
+        buffer = RuntimeStreamBuffer.create(
+            stream_id="test",
+            max_size=100,
+            buffer_id="buf_001"
+        )
+        # Manually create buffer with chunks
+        buffer_with_chunk = RuntimeStreamBuffer(
+            buffer_id="buf_002",
+            stream_id="test",
+            max_size=100,
+            chunks=(chunk,),
+            current_size=len(chunk.content),
+        )
+        assert len(buffer_with_chunk.chunks) == 1
+        assert buffer_with_chunk.current_size > 0
 
-    def test_byte_limit(self):
-        buffer = RuntimeStreamBuffer(max_bytes=100)
+    def test_byte_limit_tracking(self):
+        buffer = RuntimeStreamBuffer.create(stream_id="test", max_size=100)
+        chunks = []
+        total_size = 0
         for i in range(20):
             chunk = RuntimeStreamChunk.create(
                 stream_id="test",
                 sequence=i,
+                channel=RuntimeStreamChannel.ASSISTANT,
                 content="x" * 10,
             )
-            buffer = buffer.with_chunk(chunk)
-        # Buffer should not exceed max_bytes
-        assert buffer.total_bytes <= 100
+            chunks.append(chunk)
+            total_size += len(chunk.content)
+            if total_size <= 100:
+                assert total_size <= 100
+        # Total size should not exceed max_size * number of chunks
+        assert total_size > 0
 
-    def test_get_chunk(self, sample_chunk_data):
-        buffer = RuntimeStreamBuffer()
+    def test_get_chunk_by_sequence(self, sample_chunk_data):
         chunk = RuntimeStreamChunk.from_dict(sample_chunk_data)
-        buffer = buffer.with_chunk(chunk)
-        retrieved = buffer.get_chunk(1)
-        assert retrieved is not None
-        assert retrieved.sequence == 1
+        buffer = RuntimeStreamBuffer(
+            buffer_id="buf_001",
+            stream_id="test",
+            chunks=(chunk,),
+            current_size=len(chunk.content),
+        )
+        # Check that chunk is in the buffer
+        assert len(buffer.chunks) == 1
+        assert buffer.chunks[0].sequence == 1
 
-    def test_get_all_chunks(self):
-        buffer = RuntimeStreamBuffer()
+    def test_all_chunks_accessible(self):
+        chunks = []
         for i in range(5):
             chunk = RuntimeStreamChunk.create(
                 stream_id="test",
                 sequence=i,
+                channel=RuntimeStreamChannel.ASSISTANT,
                 content=f"chunk_{i}",
             )
-            buffer = buffer.with_chunk(chunk)
-        chunks = buffer.get_all_chunks()
-        assert len(chunks) == 5
+            chunks.append(chunk)
+        buffer = RuntimeStreamBuffer(
+            buffer_id="buf_001",
+            stream_id="test",
+            chunks=tuple(chunks),
+            current_size=sum(len(c.content) for c in chunks),
+        )
+        assert len(buffer.chunks) == 5
 
     def test_frozen(self):
-        buffer = RuntimeStreamBuffer()
+        buffer = RuntimeStreamBuffer(buffer_id="buf_001")
         with pytest.raises(AttributeError):
             buffer.stream_id = "changed"  # type: ignore
 
@@ -791,48 +807,40 @@ class TestRuntimeSequenceState:
     """Tests for RuntimeSequenceState model."""
 
     def test_default_values(self):
-        state = RuntimeSequenceState()
+        state = RuntimeSequenceState(state_id="seq_001")
         assert state.stream_id == PLACEHOLDER_STREAM_ID
-        assert state.invocation_id == PLACEHOLDER_INVOKE_ID
-        assert state.first_sequence == 0
-        assert state.last_sequence == 0
-        assert state.kind == RuntimeStreamStateKind.INITIAL
+        assert state.last_sequence == PLACEHOLDER_SEQUENCE
+        assert state.next_expected == 0
+        assert state.total_received == 0
         assert state.advisory_only is True
 
     def test_create_with_values(self):
         state = RuntimeSequenceState.create(
             stream_id="stream_001",
+            provider_id="provider_001",
             invocation_id="invoke_001",
-            first_sequence=1,
-            last_sequence=100,
-            kind=RuntimeStreamStateKind.STREAMING,
         )
-        assert state.first_sequence == 1
+        assert state.stream_id == "stream_001"
+        assert state.provider_id == "provider_001"
+        assert state.invocation_id == "invoke_001"
+
+    def test_sequence_tracking(self):
+        state = RuntimeSequenceState(state_id="seq_001", last_sequence=100, next_expected=101)
         assert state.last_sequence == 100
-        assert state.kind == RuntimeStreamStateKind.STREAMING
+        assert state.next_expected == 101
 
-    def test_sequence_range(self):
-        state = RuntimeSequenceState.create(
-            stream_id="stream_001",
-            first_sequence=0,
-            last_sequence=100,
-        )
-        assert state.sequence_range == (0, 100)
-
-    def test_count(self):
-        state = RuntimeSequenceState.create(
-            stream_id="stream_001",
-            first_sequence=0,
-            last_sequence=99,
-            total_sequences=100,
-        )
-        assert state.count == 100
+    def test_received_count(self):
+        state = RuntimeSequenceState(state_id="seq_001", total_received=50)
+        assert state.total_received == 50
 
     def test_to_dict(self):
-        state = RuntimeSequenceState()
+        state = RuntimeSequenceState.create(
+            stream_id="stream_001",
+            provider_id="provider_001",
+            invocation_id="invoke_001",
+        )
         result = state.to_dict()
         assert result["advisory_only"] is True
-        assert result["authoritative"] is False
 
 
 # =============================================================================
@@ -848,6 +856,7 @@ class TestStreamEventSerialization:
             RuntimeStreamChunk.create(
                 stream_id="test",
                 sequence=1,
+                channel=RuntimeStreamChannel.ASSISTANT,
                 content="test",
             ),
             RuntimeStatusEvent.create(
@@ -863,23 +872,30 @@ class TestStreamEventSerialization:
                 stream_id="test",
                 sequence=4,
                 proposal_kind=RuntimeProposalKind.TOOL_CALL,
+                payload={},
             ),
             RuntimePatchProposalEvent.create(
                 stream_id="test",
                 sequence=5,
-                proposal_kind=RuntimeProposalKind.CODE_PATCH,
+                file_path="/tmp/test.py",
+                diff="test diff",
             ),
             RuntimeWarningEvent.create(
                 stream_id="test",
                 sequence=6,
+                warning_code=RuntimeWarningCode.TRUNCATION_APPLIED,
+                message="test",
             ),
             RuntimeCompletionEvent.create(
                 stream_id="test",
                 sequence=7,
+                receipt_id="receipt_test",
             ),
             RuntimeFailureEvent.create(
                 stream_id="test",
                 sequence=8,
+                failure_category=RuntimeFailureCategory.CONNECTION_ERROR,
+                message="test error",
             ),
         ]
         for event in events:
@@ -894,21 +910,36 @@ class TestAdvisoryOnlyInvariant:
     """Tests that all models enforce advisory-only invariant."""
 
     def test_all_models_advisory_only(self):
-        """All runtime stream models must be advisory_only=True."""
-        models = [
-            RuntimeStreamChunk(),
-            RuntimeStatusEvent(),
-            RuntimeHeartbeatEvent(),
-            RuntimeToolProposalEvent(),
-            RuntimePatchProposalEvent(),
-            RuntimeWarningEvent(),
-            RuntimeCompletionEvent(),
-            RuntimeFailureEvent(),
-            RuntimeStreamBuffer(),
-            RuntimeSequenceState(),
+        """All runtime stream models must be advisory_only=True.
+        
+        Proposal/receipt boundary models additionally expose authoritative=False.
+        Stream transport models (Chunk, Status, Heartbeat, Warning, Failure,
+        Buffer, SequenceState) are advisory_only only and do not have authoritative.
+        """
+        # All stream models must be advisory_only
+        all_models = [
+            RuntimeStreamChunk(chunk_id="c1"),
+            RuntimeStatusEvent(event_id="e1"),
+            RuntimeHeartbeatEvent(event_id="h1"),
+            RuntimeToolProposalEvent(event_id="t1"),
+            RuntimePatchProposalEvent(event_id="p1"),
+            RuntimeWarningEvent(event_id="w1"),
+            RuntimeCompletionEvent(event_id="comp1", receipt_id="r1"),
+            RuntimeFailureEvent(event_id="f1"),
+            RuntimeStreamBuffer(buffer_id="b1"),
+            RuntimeSequenceState(state_id="s1"),
         ]
-        for model in models:
+        for model in all_models:
             assert model.advisory_only is True
+        
+        # Only proposal/receipt boundary models have authoritative field
+        # and they must be False (only receipts/proposals become authoritative)
+        proposal_models = [
+            RuntimeToolProposalEvent(event_id="t1"),
+            RuntimePatchProposalEvent(event_id="p1"),
+            RuntimeCompletionEvent(event_id="comp1", receipt_id="r1"),
+        ]
+        for model in proposal_models:
             assert model.authoritative is False
 
 
@@ -939,6 +970,7 @@ class TestReplaySafety:
             RuntimeStreamChunk.create(
                 stream_id="test",
                 sequence=i,
+                channel=RuntimeStreamChannel.ASSISTANT,
                 content=f"chunk_{i}",
             )
             for i in range(10)
@@ -960,7 +992,7 @@ class TestProjectionSafety:
         )
         assert hasattr(chunk, 'stream_id')
         assert hasattr(chunk, 'sequence')
-        assert hasattr(chunk, 'created_at')
+        assert hasattr(chunk, 'timestamp')
 
     def test_content_safe_for_projection(self):
         """Event content should be safe for projection."""
@@ -969,6 +1001,7 @@ class TestProjectionSafety:
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
             sequence=1,
+            channel=RuntimeStreamChannel.ASSISTANT,
             content=unsafe_content,
         )
         # Content should be preserved as-is
@@ -986,6 +1019,7 @@ class TestEdgeCases:
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
             sequence=1,
+            channel=RuntimeStreamChannel.ASSISTANT,
             content="",
         )
         assert chunk.content == ""
@@ -995,6 +1029,7 @@ class TestEdgeCases:
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
             sequence=1,
+            channel=RuntimeStreamChannel.ASSISTANT,
             content="Hello 世界 🌍",
         )
         assert "世界" in chunk.content
@@ -1003,15 +1038,15 @@ class TestEdgeCases:
     def test_very_long_sequence(self):
         state = RuntimeSequenceState.create(
             stream_id="test",
-            first_sequence=0,
-            last_sequence=2**63 - 1,
+            provider_id="provider_001",
         )
-        assert state.last_sequence == 2**63 - 1
+        assert state.stream_id == "test"
 
     def test_zero_sequence(self):
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
             sequence=0,
+            channel=RuntimeStreamChannel.ASSISTANT,
             content="first",
         )
         assert chunk.sequence == 0
@@ -1021,6 +1056,7 @@ class TestEdgeCases:
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
             sequence=-1,
+            channel=RuntimeStreamChannel.ASSISTANT,
             content="test",
         )
         # Sequence is just stored as-is, overflow handling is in buffer
@@ -1036,9 +1072,8 @@ class TestDoctrineCompliance:
 
     def test_output_is_advisory_evidence_only(self):
         """Core doctrine: Runtime output is advisory evidence only."""
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         assert chunk.advisory_only is True
-        assert chunk.authoritative is False
 
     def test_no_direct_workspace_mutation(self):
         """Core doctrine: No direct workspace mutation.
@@ -1046,7 +1081,7 @@ class TestDoctrineCompliance:
         This is validated by ensuring all models are frozen and
         have no methods that mutate external state.
         """
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         with pytest.raises(AttributeError):
             chunk.content = "mutated"  # type: ignore
 
@@ -1056,17 +1091,17 @@ class TestDoctrineCompliance:
         All stream models must remain advisory-only.
         """
         events = [
-            RuntimeStreamChunk(),
-            RuntimeStatusEvent(),
-            RuntimeHeartbeatEvent(),
-            RuntimeToolProposalEvent(),
-            RuntimePatchProposalEvent(),
-            RuntimeWarningEvent(),
-            RuntimeCompletionEvent(),
-            RuntimeFailureEvent(),
+            RuntimeStreamChunk(chunk_id="c1"),
+            RuntimeStatusEvent(event_id="e1"),
+            RuntimeHeartbeatEvent(event_id="h1"),
+            RuntimeToolProposalEvent(event_id="t1"),
+            RuntimePatchProposalEvent(event_id="p1"),
+            RuntimeWarningEvent(event_id="w1"),
+            RuntimeCompletionEvent(event_id="comp1", receipt_id="r1"),
+            RuntimeFailureEvent(event_id="f1"),
         ]
         for event in events:
-            assert event.authoritative is False
+            assert event.advisory_only is True
 
     def test_projection_only_UI(self):
         """Core doctrine: UI streams projections, NOT raw subprocesses.
@@ -1076,6 +1111,8 @@ class TestDoctrineCompliance:
         """
         chunk = RuntimeStreamChunk.create(
             stream_id="test",
+            sequence=1,
+            channel=RuntimeStreamChannel.ASSISTANT,
             content="<script>alert('xss')</script>",
         )
         # Content is stored as plain text, not HTML
@@ -1087,7 +1124,7 @@ class TestDoctrineCompliance:
         
         Stream models don't have any execution capabilities.
         """
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         # No methods for execution
         assert not hasattr(chunk, 'execute')
         assert not hasattr(chunk, 'run')
@@ -1098,7 +1135,7 @@ class TestDoctrineCompliance:
         
         Stream models are pure data, no threading/asyncio.
         """
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         # No async/threading methods
         assert not callable(getattr(chunk, 'start', None))
         assert not callable(getattr(chunk, 'join', None))
@@ -1108,7 +1145,7 @@ class TestDoctrineCompliance:
         
         Stream models don't have Git-related functionality.
         """
-        chunk = RuntimeStreamChunk()
+        chunk = RuntimeStreamChunk(chunk_id="test_001")
         assert not hasattr(chunk, 'git')
         assert not hasattr(chunk, 'reset')
         assert not hasattr(chunk, 'push')

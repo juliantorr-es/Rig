@@ -221,13 +221,13 @@ All 13 gates must pass before promotion execution. Gates are checked in dependen
    │
    YES: Proceed to merge execution
    │
-2. Execute promotion merge:
+2. Execute promotion merge (Internal implementation detail of work_promote.py):
    ├─ Switch to preproduction branch
    ├─ Verify preproduction worktree is clean
-   ├─ Run: git merge --no-ff --no-edit <source_branch> -m "Promote <task_id>: <mission_id>"
+   ├─ Run internal merge operation
    │
    ├─ If merge fails:
-   │   ├─ git merge --abort
+   │   ├─ Abort internal merge
    │   ├─ Switch back to source branch
    │   └─ Append preproduction_promotion_blocked event
    │
@@ -275,11 +275,11 @@ python3 scripts/work_promote.py <task_id> \
 
 ### Post-Promotion Validation
 
-After successful promotion, agents should run:
+After successful promotion, agents should run validation:
 ```bash
-git checkout preproduction
 python3 scripts/work_doctor.py <task_id>
-# Run any configured preproduction validation commands
+# Note: Agents must not checkout the preproduction branch directly.
+# Run validation from the current worktree or use governed tools.
 ```
 
 ---
