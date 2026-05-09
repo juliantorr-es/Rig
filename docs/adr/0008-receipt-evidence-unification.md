@@ -24,6 +24,7 @@ Create a **EvidenceDomain** deep module that unifies all receipt/evidence concer
 - `EvidenceDomain.derive_from_progress(event: ProgressEvent) -> Optional[ReceiptEnvelope]` — auto-derivation
 - `EvidenceDomain.validate(envelope: ReceiptEnvelope) -> ValidationResult` — integrity checks
 - `EvidenceDomain.get_store(repo_root: Path) -> ReceiptStore` — store accessor
+- `EvidenceDomain` also owns intake packets, sync receipts, replay receipts, and forensic reconstruction inputs as evidence lineage, not just generic receipts
 
 ### Architecture
 - `evidence_domain.py` — public interface with 6 methods
@@ -52,6 +53,8 @@ All direct calls to `build_receipt_envelope()` and direct `ReceiptEnvelope` inst
 - Test: in-memory store, mock derivation, passthrough validation
 
 **Cross-package impact**: Currently `receipt_envelope.py` imports `write_json` from `rig_tools.core.io`. After deepening, this dependency moves to `_store.py` internal, not exposed at the seam.
+
+**Topology contract**: Evidence continuity includes intake packets, sync receipts, replay reads, and reconstruction traces. Filesystem layout is part of the evidence model, but the domain still owns derivation, validation, and append/query semantics.
 
 ## Files Involved
 

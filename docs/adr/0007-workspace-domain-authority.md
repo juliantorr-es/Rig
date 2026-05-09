@@ -1,8 +1,14 @@
 # Workspace Domain Authority
 
+**ADR 0007 — Canonical**
+
 The **Workspace** concept (CONTEXT.md: "A governed environment for work items") is defined in CONTEXT.md as the central domain authority, but the implementation is shallow. `WorkspaceDomain` in `workspace.py` mixes git operations, path management, and validation coordination. Separate files (`workspace_status.py`, `workspace_audit.py`, `workspace_hygiene.py`, `workspace_runtime.py`) each define their own workspace-related logic. Delete `workspace.py` and complexity scatters across domain modules. We should deepen into a single **WorkspaceDomain** that owns all workspace concerns.
 
 **Status**: proposed
+
+**Related ADRs**:
+- [0006 Ingress Interpretation](0006-ingress-interpretation.md) — ingress packets feed workspace evidence and replay
+- [0008 Receipt/Evidence Unification](0008-receipt-evidence-unification.md) — workspace audit should consume the unified evidence seam
 
 ## Context
 

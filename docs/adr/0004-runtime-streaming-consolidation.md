@@ -4,7 +4,7 @@
 
 This ADR **evolved** from an initial proposal to consolidate ALL 14 runtime modules (16,010 lines) into one `RuntimeDomain`. That approach was **rejected** after dependency analysis revealed **3 distinct operational strata** that should NOT be unified. This document canonizes the refined approach: **deepen Cluster 2 only** — the streaming subsystem.
 
-**Status**: proposed
+**Status**: accepted
 
 **Related ADRs**:
 - [0002 Projection Domain Consolidation](0002-projection-domain-consolidation.md) — projection semantics remain separate; streaming owns refresh orchestration only
@@ -66,6 +66,9 @@ Two distinct identity concepts:
 - Whether replay should expect recurrence
 
 **Invariant**: Streaming domain classifies operational failures but **must preserve underlying causality and diagnostic lineage**. Presentation formatting is the CLI's responsibility.
+
+### 3b. Agent Execution / Tool Routing Separation
+Agent sandboxing, tool-call normalization, and model-runtime routing are **not** runtime streaming concerns. They belong to the agent-execution/control plane, not Cluster 2 streaming. Do **not** collapse agent tool routing into runtime streaming just because both emit operational events.
 
 ### 4. Factory Discipline
 - `from_repo_root(repo_root: Path) -> RuntimeStreaming`: **Cold instance** — pure data and wiring only. No sockets, no processes, no threads, no I/O.

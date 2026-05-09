@@ -20,10 +20,11 @@ These ADRs propose **deepening opportunities** — refactors to turn shallow mod
 | [0001](0001-command-layer-consolidation.md) | proposed | Command Layer | CLI | 47 |
 | [0002](0002-projection-domain-consolidation.md) | proposed | Projection Domain | UI | 85 |
 | [0003](0003-governance-engine-deepening.md) | proposed | Governance Engine | Intent | 75 |
-| [0004](0004-runtime-streaming-consolidation.md) | proposed | Runtime Streaming | Execution | 5,915 (Cluster 2) |
-| [0005](0005-public-intake-connector-seam.md) | proposed | Public Intake | Connector | ~120 |
-| [0006](0006-workspace-domain-authority.md) | proposed | Workspace Domain | Worktree | 82 |
-| [0007](0007-receipt-evidence-unification.md) | proposed | Evidence Domain | Receipt | 101 |
+| [0004](0004-runtime-streaming-consolidation.md) | accepted | Runtime Streaming | Execution | 5,915 (Cluster 2) |
+| [0005](0005-public-intake-connector-seam.md) | superseded by ADR-0006 | Public Intake | Connector | ~120 |
+| [0006](0006-ingress-interpretation.md) | proposed | Ingress Interpretation | Ingress | 54 |
+| [0007](0007-workspace-domain-authority.md) | proposed | Workspace Domain | Worktree | 82 |
+| [0008](0008-receipt-evidence-unification.md) | proposed | Evidence Domain | Receipt | 101 |
 
 Each candidate follows the **improve-codebase-architecture** skill methodology:
 - Applies the **deletion test** to identify shallow modules

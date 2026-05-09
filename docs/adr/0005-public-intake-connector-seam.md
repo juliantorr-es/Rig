@@ -2,11 +2,12 @@
 
 The **Public Intake** concept (CONTEXT.md: intake of proposals/funding from external sources) has connectors as shallow adapters. `GoogleFormsIntakeAdapter`, `GoogleSheetsSyncAdapter`, `GitHubIssueSyncAdapter` each independently normalize external data, and `commands_public_intake.py` instantiates them directly via a hardcoded dict. Delete a connector and nothing concentrates — the hardcoded map just breaks. We need a proper **seam** with a connector registry.
 
-**Status**: proposed
+**Status**: superseded by ADR-0006
 
 **Related ADRs**:
 - [0003 Governance Engine Deepening](0003-governance-engine-deepening.md) — intake may feed into governance decisions
-- [0006 Workspace Domain Authority](0006-workspace-domain-authority.md) — intake packets may become workspace evidence
+- [0006 Ingress Interpretation](0006-ingress-interpretation.md) — ingress interpretation owns packet normalization and evidence continuity
+- [0007 Workspace Domain Authority](0007-workspace-domain-authority.md) — intake packets may become workspace evidence
 
 ## Context
 
@@ -41,9 +42,9 @@ The **Public Intake** concept (CONTEXT.md: intake of proposals/funding from exte
 
 ## Decision
 
-Create a proper **seam** at `src/rig/domain/intake_registry.py` with **explicit inventory ownership** (not semantic ownership).
+This ADR is superseded by ADR 0006. The earlier registry seam proposal is intentionally rejected: connector inventory remains static and private, but routing is owned by ingress interpretation, not a public registry API.
 
-### IntakeStore Design
+### Legacy IntakeStore Design
 
 ```python
 # intake_store.py
@@ -73,7 +74,7 @@ class IntakeStore:
         ...
 ```
 
-### Implementation Pattern (Option C: Explicit Registration in Factory)
+### Legacy Implementation Pattern (Rejected)
 
 ```python
 # intake_registry.py

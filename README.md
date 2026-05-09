@@ -272,6 +272,7 @@ bash scripts/check.sh
 | [docs/architecture/doctrine-map.md](./docs/architecture/doctrine-map.md) | Architectural layer boundaries |
 | [docs/architecture/documentation-governance.md](./docs/architecture/documentation-governance.md) | How documentation is managed |
 | [docs/architecture/current-vs-future.md](./docs/architecture/current-vs-future.md) | Implementation status map |
+| [docs/adr/README.md](./docs/adr/README.md) | ADR index and convergence status |
 | [docs/quickstart.md](./docs/quickstart.md) | Detailed getting started guide |
 | [docs/troubleshooting.md](./docs/troubleshooting.md) | Debugging and failure ergonomics |
 

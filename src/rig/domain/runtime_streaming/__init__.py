@@ -22,7 +22,23 @@ runtime_supervisor.py, runtime_websocket.py, runtime_projection.py).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Slice 2: Re-export Cluster 2 types for TYPE_CHECKING to enable migration
+    # These allow Cluster 3 consumers to import from runtime_streaming instead
+    from rig.domain.runtime_stream import (
+        RuntimeStreamEvent,
+        RuntimeStreamChunk,
+        RuntimeSequenceState,
+        RuntimeStreamBuffer,
+    )
+    from rig.domain.runtime_supervisor import RuntimeSupervisor
+    from rig.domain.runtime_projection import RuntimeStreamProjection
+    from rig.domain.runtime_websocket import (
+        WebSocketStreamIntegrator,
+        WebSocketStreamMessage,
+    )
 
 
 # =============================================================================

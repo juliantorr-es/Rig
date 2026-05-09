@@ -1,5 +1,11 @@
 # ADR 0006: Ingress Interpretation & Evidence Continuity
 
+**Status**: proposed
+
+**Related ADRs**:
+- [0005 Public Intake Connector Seam](0005-public-intake-connector-seam.md) — superseded by this ADR
+- [0008 Receipt/Evidence Unification](0008-receipt-evidence-unification.md) — ingress artifacts become evidence inputs
+
 ## Context
 Rig’s intake logic (Google Forms, GitHub) currently has routing and persistence seams scattered across the CLI and partially extracted into domain helpers. To maintain operational coherence, this logic must converge into a dedicated, deep domain module that separates acquisition from interpretation.
 
@@ -7,8 +13,9 @@ Rig’s intake logic (Google Forms, GitHub) currently has routing and persistenc
 1. **Deterministic Evidence Interpreter**: The `IntakeModule` is a network-pure layer that interprets raw ingress artifacts into canonical `PublicIntakePacket` objects.
 2. **Fetch/Interpret Split**: Acquisition (IO/Auth/Network) remains in the operational shell (CLI). Interpretation (Normalization/Validation) moves to the module.
 3. **Evidence Topology Sovereignty**: The module preserves the existing filesystem topology (`.build/rig/public_intake/`) and evidence schemas. Implementation-era module boundaries must not leak into the Replay Engine; replay reads the evidence directly.
-4. **Private Inventory**: Connector routing is a static internal detail of the module. We explicitly reject runtime registration or plugin architectures to preserve cognitive locality and determinism.
+4. **Private Inventory**: Connector routing is a static internal detail of the module. We explicitly reject runtime registration or plugin architectures to preserve cognitive locality and determinism. This supersedes ADR 0005’s registry-seam proposal.
 5. **Manager-over-Path**: The `IntakeStore` acts as a steward of the evidence path, not a creator of a new persistence format.
+6. **Ingress evidence continuity**: Intake packets, sync receipts, replay reads, and forensic reconstruction all share the same filesystem topology and evidence lineage. The module interprets ingress; it does not own downstream persistence policy.
 
 ## Consequences
 - **Positive**: Replay remains forensic, offline-capable, and decoupled from module refactors.

@@ -18,6 +18,7 @@ Depen `GovernanceEngine` to own all governance:
 - Absorb preflight logic from `IntentDispatcher._preflight()`
 - Absorb capability checks
 - Own gate evaluation with workspace state, proposal status, evidence validation
+- Treat "is this allowed?" as the canonical seam for proposal lifecycle and funding-governance gating
 - Expose single interface: `GovernanceEngine.evaluate(intent: Intent, context: EvaluationContext) -> GateDecision`
 - `IntentDispatcher` becomes thin adapter: receives intent, calls `GovernanceEngine.evaluate()`, routes to handler if allowed
 

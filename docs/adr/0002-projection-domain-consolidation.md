@@ -18,6 +18,8 @@ The **Projection** concept (defined in CONTEXT.md as "A derived view of the doma
 Create a **ProjectionDomain** deep module that:
 - Owns all projection types (widget, intent, layout, etc.)
 - Owns building logic with internal seams for contracts and reconciliation
+- Owns lifecycle projections as first-class derived views, including proposal lifecycle state and canonical projection enrichment
+- Treats the frontend renderer as a projection consumer, not a source of truth
 - Exposes single interface: `build_projection(repo_root: Path, config: Optional[ProjectionConfig] = None) -> UIProjection`
 - Internal modules (`_builder.py`, `_contracts.py`, `_reconciliation.py`) become private
 - CLI and UI consume only through the public interface

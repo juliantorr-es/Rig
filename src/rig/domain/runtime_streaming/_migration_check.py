@@ -13,13 +13,12 @@ from __future__ import annotations
 import ast
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
-
+from typing import Any
 
 # Legacy Cluster 2 modules being migrated
 LEGACY_MODULES = frozenset({
     "rig.domain.runtime_stream",
-    "rig.domain.runtime_supervisor", 
+    "rig.domain.runtime_supervisor",
     "rig.domain.runtime_websocket",
     "rig.domain.runtime_projection",
 })
@@ -27,39 +26,37 @@ LEGACY_MODULES = frozenset({
 # New streaming domain module
 NEW_MODULE = "rig.domain.runtime_streaming"
 
-
 class ImportSite:
     """Represents an import site in the codebase."""
-    
+
     def __init__(
         self,
         file_path: Path,
         line_number: int,
         import_statement: str,
-        imported_names: List[str],
+        imported_names: list[str],
     ) -> None:
         self.file_path = file_path
         self.line_number = line_number
         self.import_statement = import_statement
         self.imported_names = imported_names
-    
+
     def __repr__(self) -> str:
         return (
             f"ImportSite({self.file_path}:{self.line_number}, "
             f"imports={self.imported_names})"
         )
 
-
-def find_imports_in_file(file_path: Path) -> List[ImportSite]:
+def find_imports_in_file(file_path: Path) -> list[ImportSite]:
     """Find all imports from legacy Cluster 2 modules in a file."""
     try:
         source = file_path.read_text()
         tree = ast.parse(source, filename=str(file_path))
     except (SyntaxError, UnicodeDecodeError):
         return []
-    
-    import_sites: List[ImportSite] = []
-    
+
+    import_sites: list[ImportSite] = []
+
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
@@ -83,79 +80,74 @@ def find_imports_in_file(file_path: Path) -> List[ImportSite]:
                         import_statement=f"import {alias.name}",
                         imported_names=[alias.name],
                     ))
-    
+
     return import_sites
 
-
-def scan_directory(root_path: Path) -> Dict[str, List[ImportSite]]:
+def scan_directory(root_path: Path) -> dict[str, list[ImportSite]]:
     """Scan a directory tree for legacy imports.
-    
+
     Returns dict mapping legacy module name to list of ImportSite objects.
     """
-    results: Dict[str, List[ImportSite]] = {module: [] for module in LEGACY_MODULES}
-    
+    results: dict[str, list[ImportSite]] = {module: [] for module in LEGACY_MODULES}
+
     for py_file in root_path.rglob("*.py"):
         if py_file.name.startswith("_"):
             continue
         for import_site in find_imports_in_file(py_file):
             results[import_site.import_statement.split(" ")[1]].append(import_site)
-    
+
     return results
 
-
-def get_migration_summary(root_path: Path) -> Dict[str, any]:
+def get_migration_summary(root_path: Path) -> dict[str, Any]:
     """Get a summary of migration progress.
-    
+
     Returns dict with:
     - total_legacy_imports: total number of imports from legacy modules
     - by_module: breakdown by legacy module
     - by_file: files with the most legacy imports
     """
     results = scan_directory(root_path)
-    
+
     total = sum(len(sites) for sites in results.values())
     by_module = {module: len(sites) for module, sites in results.items()}
-    
+
     # Find files with most legacy imports
-    file_counts: Dict[Path, int] = {}
+    file_counts: dict[Path, int] = {}
     for sites in results.values():
         for site in sites:
             file_counts[site.file_path] = file_counts.get(site.file_path, 0) + 1
-    
+
     sorted_files = sorted(file_counts.items(), key=lambda x: x[1], reverse=True)
-    
+
     return {
         "total_legacy_imports": total,
         "by_module": by_module,
         "by_file": [{"file": str(f), "count": c} for f, c in sorted_files[:20]],
     }
 
-
-def check_new_imports(file_path: Path) -> List[ImportSite]:
+def check_new_imports(file_path: Path) -> list[ImportSite]:
     """Check if a file contains imports from legacy Cluster 2 modules.
-    
+
     Used for CI gating: new files should not import from legacy modules.
     """
     return find_imports_in_file(file_path)
 
-
-def validate_no_legacy_imports(file_paths: List[Path]) -> Tuple[bool, List[ImportSite]]:
+def validate_no_legacy_imports(file_paths: list[Path]) -> tuple[bool, list[ImportSite]]:
     """Validate that none of the given files import from legacy modules.
-    
+
     Returns (is_valid, list_of_violations).
     """
-    violations: List[ImportSite] = []
+    violations: list[ImportSite] = []
     for file_path in file_paths:
         violations.extend(check_new_imports(file_path))
-    
-    return len(violations) == 0, violations
 
+    return len(violations) == 0, violations
 
 if __name__ == "__main__":
     # CLI entry point for migration visibility
     import argparse
     import json
-    
+
     parser = argparse.ArgumentParser(
         description="ADR 0004 Migration Import Visibility Tool"
     )
@@ -181,9 +173,9 @@ if __name__ == "__main__":
         action="store_true",
         help="Output results as JSON",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.check:
         # Check specific files
         violations, _ = validate_no_legacy_imports(args.check)
@@ -201,7 +193,7 @@ if __name__ == "__main__":
             else:
                 print("No legacy imports found.")
                 sys.exit(0)
-    
+
     if args.summary:
         summary = get_migration_summary(args.root)
         if args.json:
@@ -216,7 +208,7 @@ if __name__ == "__main__":
             print("\nTop files by import count:")
             for item in summary['by_file'][:10]:
                 print(f"  {item['file']}: {item['count']}")
-    
+
     # Default: print summary
     summary = get_migration_summary(args.root)
     print(json.dumps(summary, indent=2))
