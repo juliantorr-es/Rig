@@ -31,7 +31,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, FrozenSet, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rig.domain.runtime_stream import (
+    from rig.domain.runtime_streaming import (
+        RuntimeProposalKind,
         RuntimeStreamChunk,
         RuntimeStatusEvent,
         RuntimeHeartbeatEvent,
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
         RuntimeSequenceState,
         RuntimeStreamChannel,
         RuntimeStreamStatus,
-        RuntimeProposalKind,
         RuntimeWarningCode,
         RuntimeFailureCategory,
     )
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
         IntentProjection,
         UIProjection,
     )
-from rig.domain.runtime_stream import (
+from rig.domain.runtime_streaming._types import (
     PLACEHOLDER_STREAM_ID,
     PLACEHOLDER_SEQUENCE,
     PLACEHOLDER_PROVIDER,

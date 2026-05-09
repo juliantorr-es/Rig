@@ -312,6 +312,78 @@ After Cluster 2 is proven stable:
 
 ---
 
+## Convergence Progress
+
+### Slice 1: Façade Creation (Completed)
+- Created `src/rig/domain/runtime_streaming/` package with `__init__.py` public façade
+- Created internal delegation modules: `_types.py`, `_stream.py`, `_supervision.py`, `_transport.py`, `_projection_refresh.py`, `_migration_check.py`
+- Created `RuntimeStreaming` class with public methods: `from_repo_root()`, `create_stream()`, `submit_proposal()`, `get_projection()`, `get_events()`, `subscribe_events()`
+- Added deprecation warnings to legacy Cluster 2 modules
+- Baseline legacy import count: **27**
+
+### Slice 2: Cluster 3 Consumer Migration (Completed)
+- TYPE_CHECKING re-exports in `RuntimeStreaming.__init__.py` for Cluster 2 types
+- Migrated `runtime_benchmark.py` TYPE_CHECKING imports from 4 legacy modules → `RuntimeStreaming`
+- Migrated `runtime_doctor.py` TYPE_CHECKING imports from 4 legacy modules → `RuntimeStreaming`
+- Migrated `runtime_replay.py` TYPE_CHECKING imports from 3 legacy modules → `RuntimeStreaming`
+- Remaining legacy imports: **20**
+- **Net reduction: 7 legacy imports eliminated from Cluster 3 consumer code**
+
+### Slice 3: Internal TYPE_CHECKING Migration (Completed)
+- Extended TYPE_CHECKING re-exports in `RuntimeStreaming.__init__.py` for additional Cluster 2 types
+- Migrated `runtime_websocket.py` TYPE_CHECKING imports from `runtime_stream`, `runtime_projection`, `runtime_supervisor` → `RuntimeStreaming`
+- Remaining legacy imports: **14**
+- **Net reduction: 6 legacy TYPE_CHECKING imports eliminated from internal Cluster 2**
+
+### Slice 4: Cluster 2 TYPE_CHECKING + Real Path Routing (Completed)
+- **Part A - Import migrations**:
+  - Added comprehensive TYPE_CHECKING re-exports in `RuntimeStreaming.__init__.py` for: `RuntimeProposalKind`, all event kinds from runtime_stream, all process types from runtime_supervisor, builder types from runtime_projection
+  - Migrated `runtime_supervisor.py` TYPE_CHECKING imports from `runtime_stream` → `RuntimeStreaming`
+  - Migrated `runtime_projection.py` TYPE_CHECKING imports from `runtime_stream` → `RuntimeStreaming`
+- **Part B - Real path routing**:
+  - Added `generate_stream_lineage_id()` and `generate_stream_instance_id()` helpers in `_stream.py` for stream identity generation
+  - Updated `RuntimeStreaming.create_stream()` to delegate stream ID generation to `_stream.py` helpers instead of inline implementation
+  - Runtime behavior preserved: No sockets, processes, or I/O introduced; cold factory maintained; activation boundary at `create_stream()` unchanged
+- Legacy import count before Slice 4: **14**
+- Legacy import count after Slice 4: **11**
+- **Net reduction: 3 legacy imports eliminated in Slice 4 (16 total from all slices)**
+- Validation: `python -m compileall -q src/rig/domain/runtime_streaming/* src/rig/domain/runtime_*.py` - PASSED
+- Validation: `python -m rig.domain.runtime_streaming._migration_check --summary` - confirmed count decreased from 14 to 11
+- Runtime behavior: No intentional changes. Cold factory discipline preserved (`from_repo_root` remains cold). `create_stream()` remains activation boundary. `get_projection()` continues to return `Optional`/`None`.
+- Implementation extraction remains deferred: No real implementation moved from legacy modules; only type re-routing and delegation helpers added.
+
+### Slice 5: Type Authority Canonicalization + Internal Runtime Migration (Completed)
+- **Part A - Type authority consolidation**:
+  - Made `runtime_streaming/_types.py` the canonical authority for `StreamHandle`, `StreamLineageId`, `StreamInstanceId`
+  - Updated `runtime_streaming/__init__.py` to import and re-export these types from `_types.py` instead of redefining them
+  - Removed duplicate type definitions from `__init__.py`
+  - Added constants to `_types.py`: `PLACEHOLDER_STREAM_ID`, `PLACEHOLDER_SEQUENCE`, `PLACEHOLDER_CHANNEL`, `PLACEHOLDER_CONTENT`, `PLACEHOLDER_PROVIDER`, `PLACEHOLDER_INVOCATION`, `PLACEHOLDER_RECEIPT`, `PLACEHOLDER_NO_RECEIPT`, `PLACEHOLDER_TIMESTAMP`, `DEFAULT_MAX_CHUNK_SIZE`, `DEFAULT_MAX_BUFFER_SIZE`, `DEFAULT_MAX_SEQUENCE_GAP`, `DEFAULT_STREAM_TIMEOUT_SECONDS`, `DEFAULT_HEARTBEAT_INTERVAL_SECONDS`, `DEFAULT_STALLED_THRESHOLD_SECONDS`
+  - Added runtime re-exports for constants in `__init__.py` from `_types.py`
+- **Part B - Internal runtime import reduction**:
+  - Migrated `runtime_supervisor.py` runtime imports from `runtime_stream` → `runtime_streaming._types`
+  - Migrated `runtime_websocket.py` runtime imports from `runtime_stream` → `runtime_streaming._types`
+  - Migrated `runtime_projection.py` runtime imports from `runtime_stream` → `runtime_streaming._types`
+- **Part C - Optional narrow runtime path**: Not attempted; Part A and Part B achieved sufficient reduction
+- **Type authority test**: Created `tests/test_runtime_streaming_types.py` with `test_canonical_type_authority()` verifying that `StreamHandle`, `StreamLineageId`, `StreamInstanceId` from public façade and `_types.py` refer to the same objects
+- Legacy import count before Slice 5: **11**
+- Legacy import count after Slice 5: **8**
+- **Net reduction: 3 legacy imports eliminated in Slice 5 (19 total from all slices)**
+- Validation: `python -m compileall -q src/rig/domain/runtime_streaming/* src/rig/domain/runtime_*.py` - PASSED
+- Validation: `python3.14 -m pyright --project pyrightconfig.json src/rig/domain/runtime_streaming` - 0 errors, 0 warnings, 0 informations
+- Validation: `python -m rig.domain.runtime_streaming._migration_check --summary` - confirmed count = 8
+- Validation: `python3.14 -m pytest tests/test_runtime_streaming_types.py -v` - 3 tests passed
+- Runtime behavior: No intentional changes. Cold factory discipline preserved. All types now have single canonical definition.
+- Implementation extraction remains deferred: Type definitions consolidated but implementation internals unchanged.
+- Remaining legacy imports: 8 total (4 from runtime_projection, 3 from runtime_stream, 1 from runtime_supervisor) - all in test files except 1 in runtime_websocket.py (from runtime_projection, projection-specific types)
+- Rationale for remaining: projection-specific types (`RuntimeStreamProjection`, `RuntimeStreamProjectionBuffer`, `RuntimeProjectionBuilder`, etc.) belong to Projection Domain (ADR 0002) and should not be moved into streaming's type authority without semantic separation. Test files import legacy types for testing purposes.
+
+### Slice 6: Remaining Work
+- End-to-end projection semantic extraction into ADR 0002 domain to enable streaming to import projection types from canonical projection package
+- Final deletion of legacy Cluster 2 modules once all consumers migrated
+- Remove compatibility shims
+
+---
+
 ## Summary
 
 This ADR represents **architectural maturity**: we started with a broad unification proposal, discovered it was semantically wrong, and refined to a focused deepening of the only cluster that passes the semantic compression test. The streaming loop is the only operational concept currently exhibiting strong enough cohesion and temporal coupling to justify deepening.

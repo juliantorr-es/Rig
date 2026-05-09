@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, FrozenSet, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rig.domain.runtime_stream import (
+    from rig.domain.runtime_streaming import (
         RuntimeStreamChunk,
         RuntimeStatusEvent,
         RuntimeHeartbeatEvent,
@@ -59,13 +59,9 @@ if TYPE_CHECKING:
         RuntimeWarningCode,
         RuntimeFailureCategory,
         RuntimeStreamEvent,
-    )
-    from rig.domain.runtime_projection import (
         RuntimeStreamProjection,
         RuntimeStreamProjectionBuffer,
         RuntimeProjectionBuilder,
-    )
-    from rig.domain.runtime_supervisor import (
         RuntimeProcessHandle,
         RuntimeSupervisor,
         RuntimeSupervisorDecision,
@@ -73,7 +69,7 @@ if TYPE_CHECKING:
     )
     from aiohttp import web
 
-from rig.domain.runtime_stream import (
+from rig.domain.runtime_streaming._types import (
     PLACEHOLDER_STREAM_ID,
     PLACEHOLDER_SEQUENCE,
     PLACEHOLDER_PROVIDER,

@@ -29,10 +29,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rig.domain.runtime_stream import RuntimeStreamEvent
-    from rig.domain.runtime_supervisor import RuntimeSupervisor
-    from rig.domain.runtime_projection import RuntimeStreamProjection
-    from rig.domain.runtime_websocket import WebSocketStreamMessage
+    from rig.domain.runtime_streaming import (
+        RuntimeStreamEvent,
+        RuntimeSupervisor,
+        RuntimeStreamProjection,
+        WebSocketStreamMessage,
+    )
     from rig.domain.runtime_replay import RuntimeReplayEngine
 
 # ---------------------------------------------------------------------------

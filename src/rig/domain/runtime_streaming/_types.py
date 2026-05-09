@@ -22,6 +22,25 @@ StreamInstanceId = str  # Operational: monotonic sequence, activation occurrence
 
 # Projection refresh orchestration types (NOT projection semantics - see ADR 0002)
 
+# Stream constants - canonical definitions (migrated from runtime_stream.py)
+PLACEHOLDER_STREAM_ID = "not_set"
+PLACEHOLDER_SEQUENCE = -1
+PLACEHOLDER_CHANNEL = "unknown"
+PLACEHOLDER_CONTENT = ""
+PLACEHOLDER_PROVIDER = "no_provider"
+PLACEHOLDER_INVOCATION = "no_invocation"
+PLACEHOLDER_RECEIPT = "no_receipt"
+PLACEHOLDER_NO_RECEIPT = "no_receipt"
+PLACEHOLDER_TIMESTAMP = "1970-01-01T00:00:00Z"
+
+# Default streaming configuration
+DEFAULT_MAX_CHUNK_SIZE = 1024 * 1024  # 1 MB
+DEFAULT_MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB
+DEFAULT_MAX_SEQUENCE_GAP = 100
+DEFAULT_STREAM_TIMEOUT_SECONDS = 300.0
+DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 5.0
+DEFAULT_STALLED_THRESHOLD_SECONDS = 30.0
+
 
 class ProjectionRefreshState:
     """Refresh orchestration state. Streaming domain authority."""
@@ -75,6 +94,22 @@ __all__ = [
     # Cluster 2 types
     "StreamLineageId",
     "StreamInstanceId",
+    # Constants
+    "PLACEHOLDER_STREAM_ID",
+    "PLACEHOLDER_SEQUENCE",
+    "PLACEHOLDER_CHANNEL",
+    "PLACEHOLDER_CONTENT",
+    "PLACEHOLDER_PROVIDER",
+    "PLACEHOLDER_INVOCATION",
+    "PLACEHOLDER_RECEIPT",
+    "PLACEHOLDER_NO_RECEIPT",
+    "PLACEHOLDER_TIMESTAMP",
+    "DEFAULT_MAX_CHUNK_SIZE",
+    "DEFAULT_MAX_BUFFER_SIZE",
+    "DEFAULT_MAX_SEQUENCE_GAP",
+    "DEFAULT_STREAM_TIMEOUT_SECONDS",
+    "DEFAULT_HEARTBEAT_INTERVAL_SECONDS",
+    "DEFAULT_STALLED_THRESHOLD_SECONDS",
     "ProjectionRefreshState",
     "StreamBackpressurePolicy",
     "StreamLifecyclePhase",

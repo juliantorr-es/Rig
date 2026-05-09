@@ -25,16 +25,37 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # Slice 2: Re-export Cluster 2 types for TYPE_CHECKING to enable migration
-    # These allow Cluster 3 consumers to import from runtime_streaming instead
+    # Slice 2-4: Re-export Cluster 2 types for TYPE_CHECKING to enable migration
+    # These allow Cluster 3 consumers and internal Cluster 2 modules to import from runtime_streaming instead
     from rig.domain.runtime_stream import (
+        RuntimeProposalKind,
         RuntimeStreamEvent,
         RuntimeStreamChunk,
         RuntimeSequenceState,
         RuntimeStreamBuffer,
+        RuntimeStreamChannel,
+        RuntimeStreamStatus,
+        RuntimeStatusEvent,
+        RuntimeHeartbeatEvent,
+        RuntimeToolProposalEvent,
+        RuntimePatchProposalEvent,
+        RuntimeWarningEvent,
+        RuntimeCompletionEvent,
+        RuntimeFailureEvent,
+        RuntimeWarningCode,
+        RuntimeFailureCategory,
     )
-    from rig.domain.runtime_supervisor import RuntimeSupervisor
-    from rig.domain.runtime_projection import RuntimeStreamProjection
+    from rig.domain.runtime_supervisor import (
+        RuntimeProcessHandle,
+        RuntimeSupervisor,
+        RuntimeSupervisorDecision,
+        RuntimeSupervisorReceipt,
+    )
+    from rig.domain.runtime_projection import (
+        RuntimeStreamProjection,
+        RuntimeStreamProjectionBuffer,
+        RuntimeProjectionBuilder,
+    )
     from rig.domain.runtime_websocket import (
         WebSocketStreamIntegrator,
         WebSocketStreamMessage,
@@ -44,31 +65,32 @@ if TYPE_CHECKING:
 # =============================================================================
 # Streaming Domain Types (Cluster 2 Authority)
 # =============================================================================
+# Streaming Domain Type Authority
+# Canonical types and constants are defined in _types.py; re-exported here for public API
+# =============================================================================
 
-# Stream identity types
-StreamLineageId = str  # Deterministic: repo_root + semantic_config + workspace_namespace
-StreamInstanceId = str  # Operational: monotonic sequence, activation occurrence
-
-
-class StreamHandle:
-    """Opaque handle to an active stream. Owned by streaming domain.
-    
-    Contains both lineage and instance identifiers.
-    """
-    
-    def __init__(
-        self, 
-        stream_lineage_id: StreamLineageId,
-        stream_instance_id: StreamInstanceId,
-    ) -> None:
-        self.stream_lineage_id = stream_lineage_id
-        self.stream_instance_id = stream_instance_id
-    
-    def __repr__(self) -> str:
-        return (
-            f"StreamHandle(lineage={self.stream_lineage_id!r}, "
-            f"instance={self.stream_instance_id!r})"
-        )
+from rig.domain.runtime_streaming._types import (
+    # Types
+    StreamHandle,
+    StreamLineageId,
+    StreamInstanceId,
+    # Constants (runtime)
+    PLACEHOLDER_STREAM_ID,
+    PLACEHOLDER_SEQUENCE,
+    PLACEHOLDER_CHANNEL,
+    PLACEHOLDER_CONTENT,
+    PLACEHOLDER_PROVIDER,
+    PLACEHOLDER_INVOCATION,
+    PLACEHOLDER_RECEIPT,
+    PLACEHOLDER_NO_RECEIPT,
+    PLACEHOLDER_TIMESTAMP,
+    DEFAULT_MAX_CHUNK_SIZE,
+    DEFAULT_MAX_BUFFER_SIZE,
+    DEFAULT_MAX_SEQUENCE_GAP,
+    DEFAULT_STREAM_TIMEOUT_SECONDS,
+    DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+    DEFAULT_STALLED_THRESHOLD_SECONDS,
+)
 
 
 class Subscription:
@@ -207,15 +229,19 @@ class RuntimeStreaming:
         """
         self._ensure_initialized()
         
+        
+        from rig.domain.runtime_streaming._stream import (
+            generate_stream_lineage_id,
+            generate_stream_instance_id,
+        )
+        
         # Generate deterministic lineage_id from config and repo_root
-        import hashlib
-        config_str = str(config) if config else ""
-        config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:16]
-        lineage_id: StreamLineageId = f"{self._repo_root.name}_{config_hash}"
+        lineage_id: StreamLineageId = generate_stream_lineage_id(
+            self._repo_root.name, config
+        )
         
         # Instance ID is non-deterministic (operational)
-        instance_id: StreamInstanceId = f"inst_{id(config)}"
-        
+        instance_id: StreamInstanceId = generate_stream_instance_id(config)
         # Emit StreamCreated event to subscribers
         self._emit_event(StreamCreated())
         

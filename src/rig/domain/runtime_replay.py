@@ -27,14 +27,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rig.domain.runtime_stream import (
+    from rig.domain.runtime_streaming import (
         RuntimeStreamChunk,
         RuntimeStreamEvent,
         RuntimeSequenceState,
         RuntimeStreamBuffer,
+        RuntimeStreamProjection,
+        WebSocketStreamMessage,
     )
-    from rig.domain.runtime_projection import RuntimeStreamProjection
-    from rig.domain.runtime_websocket import WebSocketStreamMessage
 
 # ---------------------------------------------------------------------------
 # Constants
