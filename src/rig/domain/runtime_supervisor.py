@@ -124,6 +124,12 @@ PLACEHOLDER_PID = -1
 PLACEHOLDER_EXIT_CODE = -1
 PLACEHOLDER_SUPERVISOR_ID = "no_supervisor"
 PLACEHOLDER_DECISION_ID = "no_decision"
+PLACEHOLDER_COMMAND = "no_command"
+PLACEHOLDER_INVOKE_ID = "INVOKE_ID_PLACEHOLDER"
+
+# Forbidden commands
+FORBIDDEN_COMMANDS = frozenset(["rm", "mv", "git", "dd", "mkfs", "fdisk", "format"])
+FORBIDDEN_COMMAND_PREFIXES = frozenset(["sudo ", "chmod ", "chown "])
 
 # Process supervision defaults
 DEFAULT_PROCESS_TIMEOUT_SECONDS = 300.0
@@ -131,6 +137,8 @@ DEFAULT_GRACEFUL_SHUTDOWN_SECONDS = 5.0
 DEFAULT_BUFFER_FLUSH_INTERVAL = 0.1  # 100ms
 DEFAULT_MAX_STDOUT_SIZE = 10 * 1024 * 1024  # 10 MB
 DEFAULT_MAX_STDERR_SIZE = 10 * 1024 * 1024  # 10 MB
+DEFAULT_MAX_STDOUT_BYTES = DEFAULT_MAX_STDOUT_SIZE
+DEFAULT_MAX_STDERR_BYTES = DEFAULT_MAX_STDERR_SIZE
 
 
 # =============================================================================
