@@ -57,6 +57,10 @@ import {
   SvgInstrumentationLayer,
   ProjectionGeometryMapper,
   SvgAnimationState,
+  SvgReconciliationLoopIndicator,
+  SvgReconciliationCadenceIndicator,
+  SvgDampingIndicator,
+  SvgConvergenceIndicator,
   point,
   rect,
   size,
@@ -66,7 +70,77 @@ import {
 
 import { RuntimeInstrumentationState } from '../runtime-instrumentation.js';
 
+// Module Exports
 // =============================================================================
+
+export {
+  _createPanelHeader as createTopologyHeader,
+  _renderTopology as renderTopology
+};
+=======
+// =============================================================================
+// Reconciliation Visibility for Topology Panel (PHASE 8)
+// =============================================================================
+
+function _renderReconciliationLayer(parentEl, topologyState) {
+  /** Render reconciliation state in topology panel
+   * Shows loop indicators for all active reconciliation loops
+   */
+  const reconcileData = topologyState.getReconciliationState && topologyState.getReconciliationState();
+  
+  if (!reconcileData || !reconcileData.loops || reconcileData.loops.length === 0) {
+    return null;
+  }
+
+  const reconcileContainer = document.createElement('div');
+  reconcileContainer.className = 'topology-reconciliation-layer';
+  reconcileContainer.style.position = 'absolute';
+  reconcileContainer.style.top = '8px';
+  reconcileContainer.style.right = '8px';
+  reconcileContainer.style.display = 'flex';
+  reconcileContainer.style.gap = '4px';
+  reconcileContainer.style.zIndex = 100;
+
+  // Render small loop indicators for each active loop
+  const svgSize = 24;
+  
+  for (const loop of reconcileData.loops) {
+    const loopEl = document.createElement('div');
+    loopEl.className = 'topology-loop-indicator';
+    loopEl.title = `${loop.loopId}: ${loop.status}`;
+    loopEl.style.width = svgSize + 'px';
+    loopEl.style.height = svgSize + 'px';
+
+    const bounds = rect(0, 0, svgSize, svgSize);
+    const indicator = new SvgReconciliationLoopIndicator(
+      `topology-${loop.loopId}`,
+      bounds,
+      {
+        loopId: loop.loopId,
+        controllerType: loop.controllerType,
+        status: loop.status,
+        iterations: loop.iterations || 0,
+        convergence: loop.convergence || 0,
+        dampingActive: loop.dampingActive || false,
+        oscillationDetected: loop.oscillationDetected || false
+      }
+    );
+    indicator.render(loopEl);
+    reconcileContainer.appendChild(loopEl);
+  }
+
+  return reconcileContainer;
+}
+
+// =============================================================================
+// Module Exports
+// =============================================================================
+
+export {
+  _createPanelHeader as createTopologyHeader,
+  _renderTopology as renderTopology,
+  _renderReconciliationLayer as renderReconciliationLayer
+};=============================================================================
 // Constants
 // =============================================================================
 

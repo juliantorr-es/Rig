@@ -2,6 +2,21 @@
 
 This audit identifies which Kubernetes-inspired control-plane principles Rig should adopt, and which Kubernetes-shaped patterns would be cargo cult. The target is a local governed operational runtime substrate, not a cluster orchestrator.
 
+Rig is converging toward a replay-safe governed operational runtime substrate. The goal is to adopt control-plane semantics that improve reconciliation, drift detection, condition visibility, and bounded convergence without turning the repository into orchestration theater.
+
+## Architectural Framing
+
+| Converging Concern | Direction |
+|---|---|
+| authoritative intent | governance + replay + explicit transactions |
+| operational state | deterministic runtime status |
+| reconciliation | bounded operational correction |
+| visualization | derived topology projections |
+| transport | normalized envelopes |
+| telemetry | backend-agnostic synthesis |
+| workspaces | operational namespaces |
+| replay | forensic operational evidence |
+
 ## Doctrine Summary
 
 | Principle | Adopt? | Reason |
@@ -120,7 +135,35 @@ flowchart LR
 | Telemetry inconsistency | Synthesis differs from source metrics | Recompute from canonical samples |
 | Saturation drift | Queue / memory / cadence unhealthy | Apply bounded throttling and cooling |
 
+### Failure Domains
+
+| Failure Domain | Isolation Quality | Notes |
+|---|---|---|
+| replay reconstruction | strong | replay behaves as a forensic boundary |
+| governance workflows | strong | explicit transactional semantics preserved |
+| topology visualization | medium | still partially dependent on local UI assumptions |
+| telemetry aggregation | medium | backend normalization incomplete |
+| transport normalization | medium | mixed envelope semantics remain |
+| workspaces | medium | namespace operationalization incomplete |
+| runtime supervision | medium-strong | bounded controller direction emerging |
+| frontend instrumentation | medium | projection logic compensates for substrate drift |
+
+### Blast Radius Risks
+
+| Risk | Blast Radius | Severity |
+|---|---|---|
+| replay mutation | entire forensic substrate | critical |
+| transport authority leakage | runtime-wide semantic corruption | critical |
+| cross-workspace reconciliation | namespace contamination | critical |
+| omniscient controllers | governance ambiguity | critical |
+| mixed transport envelopes | topology + telemetry fragmentation | high |
+| frontend-local normalization | visualization divergence | high |
+| uncontrolled loops | operational instability | high |
+| event storms | saturation collapse | high |
+
 ## Condition-Based Operational State
+
+Rig should increasingly treat conditions as canonical operational truth. Events remain operational hints; conditions become the visible, bounded summary of health and drift.
 
 | Surface | Conditions Useful? | Why | Risk |
 |---|---|---|---|
@@ -146,6 +189,64 @@ flowchart LR
 | GovernanceBlocked | Yes | Human boundary is not available or not approved |
 | Cooling | Yes | Throttle / backoff state |
 | Recovering | Yes | Return to stable after bounded correction |
+
+### Implicit Conditions Already Present
+
+| Implicit Condition | Current Surface |
+|---|---|
+| runtime saturation | runtime instrumentation |
+| topology overload | density collapse systems |
+| replay integrity | replay bridge |
+| projection divergence | topology refresh |
+| workspace degradation | isolation semantics |
+| transport inconsistency | mixed websocket envelopes |
+| reconciliation activity | runtime supervision |
+
+### Canonical Conditions to Formalize
+
+| Condition | Meaning | Priority |
+|---|---|---|
+| Stable | healthy operational convergence | P0 |
+| Reconciling | bounded reconciliation in progress | P0 |
+| DriftDetected | observed state diverges from canonical substrate | P0 |
+| Saturated | runtime pressure exceeds healthy thresholds | P0 |
+| Cooling | damping/backoff active | P0 |
+| ReplayUnsafe | forensic reconstruction compromised | P0 |
+| IsolationDegraded | namespace contamination risk | P0 |
+| GovernanceBlocked | explicit approval missing | P0 |
+| Recovering | returning from degraded state | P1 |
+| TopologyCollapsed | density abstraction activated | P1 |
+
+### Phase 1 Focus
+
+Phase 1 starts with canonical condition and health-state modeling because it is the lowest-risk, highest-leverage control-plane adoption. It makes drift, saturation, replay risk, and workspace degradation visible without inventing new authority.
+
+### Backpressure & Saturation Controls
+
+| Control | Recommendation |
+|---|---|
+| retry ceilings | mandatory |
+| bounded cadences | mandatory |
+| damping factors | mandatory |
+| queue pressure conditions | recommended |
+| saturation visibility | mandatory |
+| topology cooling | recommended |
+| replay pacing | mandatory |
+| projection debounce | mandatory |
+| transport backoff | mandatory |
+
+### Identity & Namespace Integrity
+
+| Identity Concern | Recommendation |
+|---|---|
+| workspace IDs | canonical + deterministic |
+| replay lineage | immutable |
+| topology ownership | projection-only |
+| transport identity | envelope-derived |
+| artifact lineage | replay-linked |
+| controller identity | isolated responsibility |
+| runtime ownership | namespace-scoped |
+| telemetry ownership | backend-normalized |
 
 ## Idempotent Reconciliation
 
@@ -236,6 +337,74 @@ flowchart LR
 | No infinite loops | Preserves operational calmness |
 | No transport authority | Preserves replay and governance semantics |
 
+## Resource Lifecycle & Boundedness
+
+| Resource Type | Growth Risk |
+|---|---|
+| replay artifacts | high |
+| telemetry history | high |
+| topology projections | medium |
+| runtime temp-state | medium |
+| workspace artifacts | medium |
+| visualization caches | medium |
+| event buffers | medium-high |
+
+| Concern | Recommendation |
+|---|---|
+| replay retention | bounded + explicit |
+| temp-state cleanup | reconciliation candidate |
+| topology cache cleanup | bounded |
+| event buffers | hard ceilings |
+| telemetry windows | rolling aggregation |
+| artifact expiration | namespace-scoped |
+| workspace cleanup | deterministic |
+
+## Saturation & Control-Loop Stability
+
+| Stability Primitive | Status |
+|---|---|
+| damping doctrine | present |
+| replay pacing | present |
+| density collapse | present |
+| bounded convergence doctrine | present |
+| calm dashboard governance | present |
+| reduced-motion logic | present |
+
+| Future Instability Risk | Severity |
+|---|---|
+| oscillation | high |
+| synchronization storms | high |
+| retry amplification | high |
+| projection thrashing | medium-high |
+| telemetry feedback loops | medium-high |
+| topology refresh storms | medium |
+| cadence coupling | medium |
+
+| Control | Required? |
+|---|---|
+| damping | mandatory |
+| retry ceilings | mandatory |
+| cooldown windows | mandatory |
+| bounded cadences | mandatory |
+| queue pressure visibility | recommended |
+| reconciliation abort semantics | mandatory |
+| loop health visibility | mandatory |
+
+## Phase 1 Workstream
+
+| Phase 1 Task | Outcome |
+|---|---|
+| canonical condition/state modeling | visible health and drift state |
+| runtime supervision alignment | bounded supervision state |
+| telemetry saturation modeling | clear pressure and cooling semantics |
+| workspace isolation signals | namespace degradation visibility |
+| replay safety markers | explicit forensic boundaries |
+| topology collapse conditions | controlled density abstraction |
+
+| Strategic Observation | Meaning |
+|---|---|
+| Rig should think in operational lineage rather than transient runtime references | better replay longevity and causality |
+
 ## Authority Boundary Preservation
 
 | Boundary | Keep Explicit? | Why |
@@ -247,6 +416,19 @@ flowchart LR
 | Governance escalation | Yes | Cannot be absorbed into controllers |
 | Schema migration | Yes | Controlled boundary with replay implications |
 
+### Capability & Permission Boundaries
+
+| Capability | Allowed Surface |
+|---|---|
+| emit events | operational runtime |
+| reconcile projections | controllers only |
+| mutate governance | humans only |
+| publish artifacts | transactional boundaries only |
+| mutate replay | forbidden |
+| normalize transport | transport controllers |
+| supervise topology | topology controllers |
+| cross namespaces | explicitly forbidden |
+
 ## Replay-Safe Controller Semantics
 
 | Semantics | Required? | Why |
@@ -257,6 +439,41 @@ flowchart LR
 | Idempotent apply | Yes | Safe retries and restarts |
 | No hidden authority mutation | Yes | Preserves governance integrity |
 | Replay-aware operation | Yes | Reconstruction must remain valid |
+
+## Operational Identity & Temporal Semantics
+
+### Event Lineage Direction
+
+| Concern | Direction |
+|---|---|
+| workspace IDs | canonical + deterministic |
+| replay lineage | immutable |
+| topology ownership | projection-only |
+| transport identity | envelope-derived |
+| artifact lineage | replay-linked |
+| controller identity | isolated responsibility |
+| runtime ownership | namespace-scoped |
+| telemetry ownership | backend-normalized |
+
+### Temporal Classes
+
+| Temporal Class | Meaning |
+|---|---|
+| authoritative ordering | replay + canonical events |
+| advisory timing | UI refresh + telemetry |
+| bounded cadence | reconciliation loops |
+| non-authoritative timing | websocket delivery |
+
+### Operational Causality
+
+| Capability | Why |
+|---|---|
+| explainable reconciliation | operational debugging |
+| event lineage | replay integrity |
+| projection provenance | topology correctness |
+| condition transition lineage | operational introspection |
+| telemetry provenance | backend normalization |
+| artifact causality | governance traceability |
 
 ## Control-Plane Convergence Assessment
 
@@ -299,4 +516,3 @@ flowchart LR
 
 - `python3.14 -m compileall -q src tests`
 - `bash scripts/check.sh --fast`
-

@@ -38,6 +38,10 @@ import {
   SvgIntegrityMarker,
   SvgInstrumentationLayer,
   ProjectionGeometryMapper,
+  SvgReconciliationLoopIndicator,
+  SvgReconciliationCadenceIndicator,
+  SvgDampingIndicator,
+  SvgConvergenceIndicator,
   rect,
   point
 } from '../svg-runtime-instrumentation.js';
@@ -372,15 +376,26 @@ export function renderRuntimeStatusCard(id, data, context) {
     _renderSvgStatusVisualization(newData, instrumentationLayer, svgBounds);
     
     if (newData.tokens && tokenLayer) {
+// SVG Status Visualization Rendering
+// =============================================================================
+=======
       tokenLayer.clear();
       _renderTokenBars(newData.tokens, tokenLayer, tokenBounds);
     }
   };
 
+  // Reconciliation visibility (PHASE 8)
+  // Add reconciliation summary if data available
+  if (data.reconciliation && data.reconciliation.loops) {
+    renderReconciliationSummary(data, el);
+  }
+
   return el;
 }
 
 // =============================================================================
+// SVG Status Visualization Rendering
+// ==========================================================================================================================================================
 // SVG Status Visualization Rendering
 // =============================================================================
 
@@ -560,6 +575,92 @@ function formatDiagnosticValue(value) {
     return JSON.stringify(value).substring(0, 30);
   }
   return String(value).substring(0, 30);
+}
+
+// =============================================================================
+// Reconciliation Visibility for Status Card (PHASE 8)
+// =============================================================================
+
+/** Render reconciliation summary in status card
+ * Shows aggregated reconciliation state across all loops
+ */
+function renderReconciliationSummary(data, el) {
+  const reconciliation = data.reconciliation;
+  
+  if (!reconciliation || !reconciliation.loops || reconciliation.loops.length === 0) {
+    return;
+  }
+
+  // Create reconciliation summary section
+  const reconcileSection = document.createElement('div');
+  reconcileSection.className = 'status-reconciliation-section';
+  reconcileSection.style.marginTop = '12px';
+  reconcileSection.style.paddingTop = '8px';
+  reconcileSection.style.borderTop = '1px solid var(--border-color, #333)';
+
+  const reconcileTitle = document.createElement('h3');
+  reconcileTitle.className = 'reconciliation-title';
+  reconcileTitle.style.marginBottom = '6px';
+  reconcileTitle.style.fontSize = '11px';
+  reconcileTitle.textContent = 'Reconciliation Loops';
+  reconcileSection.appendChild(reconcileTitle);
+
+  // Summary info
+  const summaryInfo = document.createElement('div');
+  summaryInfo.className = 'reconciliation-summary';
+  summaryInfo.style.fontSize = '10px';
+  summaryInfo.style.color = 'var(--text-muted, #888)';
+  summaryInfo.style.marginBottom = '6px';
+  
+  const totalLoops = reconciliation.loops.length;
+  const runningCount = reconciliation.loops.filter(l => l.status === 'running').length;
+  const convergedCount = reconciliation.loops.filter(l => l.status === 'converged').length;
+  const errorCount = reconciliation.loops.filter(l => l.status === 'error').length;
+  const stoppedCount = reconciliation.loops.filter(l => l.status === 'stopped' || l.status === 'pending').length;
+  
+  summaryInfo.textContent = `Loops: ${totalLoops} | Running: ${runningCount} | Converged: ${convergedCount} | Errors: ${errorCount}`;
+  reconcileSection.appendChild(summaryInfo);
+
+  // Create SVG container for loop indicators
+  const svgContainer = document.createElement('div');
+  svgContainer.className = 'reconciliation-loops-svg';
+  svgContainer.style.width = '100%';
+  svgContainer.style.height = '32px';
+  svgContainer.style.display = 'flex';
+  svgContainer.style.gap = '4px';
+  svgContainer.style.alignItems = 'center';
+  svgContainer.style.flexWrap = 'wrap';
+
+  // Render compact loop indicators
+  const indicatorSize = 24;
+  const indicatorBounds = rect(0, 0, indicatorSize, indicatorSize);
+
+  for (const loop of reconciliation.loops) {
+    const indEl = document.createElement('div');
+    indEl.className = 'status-loop-indicator';
+    indEl.title = `${loop.loopId} (${loop.controllerType}): ${loop.status}`;
+    indEl.style.width = indicatorSize + 'px';
+    indEl.style.height = indicatorSize + 'px';
+
+    const indicator = new SvgReconciliationLoopIndicator(
+      `status-${loop.loopId}`,
+      indicatorBounds,
+      {
+        loopId: loop.loopId,
+        controllerType: loop.controllerType,
+        status: loop.status,
+        iterations: loop.iterations || 0,
+        convergence: loop.convergence || 0,
+        dampingActive: loop.dampingActive || false,
+        oscillationDetected: loop.oscillationDetected || false
+      }
+    );
+    indicator.render(indEl);
+    svgContainer.appendChild(indEl);
+  }
+
+  reconcileSection.appendChild(svgContainer);
+  el.appendChild(reconcileSection);
 }
 
 // Register widget

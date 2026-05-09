@@ -47,6 +47,10 @@ import {
   SvgIntegrityMarker,
   SvgInstrumentationLayer,
   ProjectionGeometryMapper,
+  SvgReconciliationLoopIndicator,
+  SvgReconciliationCadenceIndicator,
+  SvgDampingIndicator,
+  SvgConvergenceIndicator,
   point,
   rect,
   clamp,
@@ -334,6 +338,12 @@ export function renderRuntimeStreamCard(id, data, context) {
     el.appendChild(replayEl);
   }
 
+  // Reconciliation visibility (PHASE 8)
+  // Add reconciliation state display if data available
+  if (data.reconciliation) {
+    renderReconciliationState(data, el);
+  }
+
   // Expose update method for dynamic updates
   el.update = (newData) => {
     // Update SVG visualization
@@ -555,10 +565,136 @@ function renderIntegrityFlags(flags) {
     container.appendChild(flagEl);
   }
   
+// Widget Registration
+// =============================================================================
+=======
   return container;
 }
 
 // =============================================================================
+// Reconciliation Visibility Section (PHASE 8)
+// =============================================================================
+
+/** Render reconciliation loop state for runtime stream
+ * Shows loop health, cadence, damping, and convergence state
+ */
+function renderReconciliationState(data, el) {
+  // Create reconciliation info section
+  const reconcileSection = document.createElement('div');
+  reconcileSection.className = 'stream-reconciliation-section';
+  reconcileSection.style.marginTop = '8px';
+  reconcileSection.style.paddingTop = '8px';
+  reconcileSection.style.borderTop = '1px solid var(--border-color, #333)';
+
+  const reconcileTitle = document.createElement('h3');
+  reconcileTitle.className = 'reconciliation-title';
+  reconcileTitle.style.marginBottom = '4px';
+  reconcileTitle.style.fontSize = '11px';
+  reconcileTitle.textContent = 'Reconciliation';
+  reconcileSection.appendChild(reconcileTitle);
+
+  // Get reconciliation data from projection or defaults
+  const reconciliation = data.reconciliation || {};
+  const loopState = reconciliation.loop || {};
+  const cadmiumData = reconciliation.cadence || {};
+  const dampingData = reconciliation.damping || {};
+  const convergenceData = reconciliation.convergence || {};
+
+  // Create SVG container for reconciliation indicators
+  const svgHeight = 40;
+  const svgContainer = document.createElement('div');
+  svgContainer.className = 'reconciliation-svg';
+  svgContainer.style.width = '100%';
+  svgContainer.style.height = svgHeight + 'px';
+  svgContainer.style.display = 'flex';
+  svgContainer.style.gap = '8px';
+  svgContainer.style.alignItems = 'center';
+
+  // Loop indicator
+  if (loopState.status) {
+    const loopBounds = rect(0, 0, 40, svgHeight);
+    const loopIndicator = new SvgReconciliationLoopIndicator(
+      'stream-loop',
+      loopBounds,
+      {
+        loopId: loopState.loopId || 'stream-loop',
+        controllerType: loopState.controllerType || 'runtime_supervision',
+        status: loopState.status || 'running',
+        iterations: loopState.iterations || 0,
+        convergence: loopState.convergence || 0,
+        dampingActive: dampingData.currentFactor < 1.0 || false,
+        oscillationDetected: dampingData.oscillationDetected || false
+      }
+    );
+    loopIndicator.render(svgContainer);
+  }
+
+  // Cadence indicator
+  if (cadmiumData.minInterval) {
+    const cadenceBounds = rect(0, 0, 80, svgHeight);
+    const cadenceIndicator = new SvgReconciliationCadenceIndicator(
+      'stream-cadence',
+      cadenceBounds,
+      {
+        loopId: loopState.loopId || 'stream-loop',
+        minInterval: cadmiumData.minInterval || 0.1,
+        maxInterval: cadmiumData.maxInterval || 10.0,
+        currentInterval: cadmiumData.currentInterval || 1.0,
+        jitterFactor: cadmiumData.jitterFactor || 0.1,
+        nextTickIn: cadmiumData.nextTickIn || 0
+      }
+    );
+    cadenceIndicator.render(svgContainer);
+  }
+
+  // Convergence indicator
+  if (convergenceData.converged !== undefined) {
+    const convBounds = rect(0, 0, 60, svgHeight);
+    const convIndicator = new SvgConvergenceIndicator(
+      'stream-convergence',
+      convBounds,
+      {
+        loopId: loopState.loopId || 'stream-loop',
+        currentIteration: convergenceData.currentIteration || 0,
+        totalIterations: convergenceData.totalIterations || 100,
+        currentDuration: convergenceData.currentDuration || 0,
+        maxDuration: convergenceData.maxDuration || 60,
+        converged: convergenceData.converged || false,
+        stabilisationThreshold: convergenceData.stabilisationThreshold || 0.001
+      }
+    );
+    convIndicator.render(svgContainer);
+  }
+
+  reconcileSection.appendChild(svgContainer);
+
+  // Text info
+  const reconciliationInfo = document.createElement('div');
+  reconciliationInfo.className = 'reconciliation-info';
+  reconciliationInfo.style.marginTop = '4px';
+  reconciliationInfo.style.fontSize = '10px';
+  reconciliationInfo.style.color = 'var(--text-muted, #888)';
+
+  const infoParts = [];
+  if (loopState.status) {
+    infoParts.push(`Loop: ${loopState.status}`);
+  }
+  if (loopState.iterations !== undefined) {
+    infoParts.push(`Iterations: ${loopState.iterations}`);
+  }
+  if (convergenceData.converged !== undefined) {
+    infoParts.push(`Converged: ${convergenceData.converged ? 'Yes' : 'No'}`);
+  }
+
+  reconciliationInfo.textContent = infoParts.join(' | ');
+  reconcileSection.appendChild(reconciliationInfo);
+
+  el.appendChild(reconcileSection);
+}
+
+// =============================================================================
+// Widget Registration
+// ==========================================================================================================================================================
 // Widget Registration
 // =============================================================================
 

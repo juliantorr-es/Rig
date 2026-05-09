@@ -1822,3 +1822,687 @@ export class SvgAnimationState {
     this.lastTimestamp = 0;
   }
 }
+
+// =============================================================================
+// Reconciliation Visibility Primitives (PHASE 8)
+// =============================================================================
+
+/**
+ * Reconciliation loop visibility primitives.
+ * 
+ * Core doctrine:
+ * - Dashboards become calmer as reconciliation pressure increases
+ * - Visualize reconciliation loop state (bounded operational refresh)
+ * - No synthetic animation
+ * - All state derived from backend projections
+ * - No authority inference
+ */
+
+/** Reconciliation Loop Indicator
+ * Shows the health/state of a reconciliation loop
+ * Visualizes: running, converged, error states
+ * Calm visualize: reduced motion when stable, subtle indicators when active
+ */
+export class SvgReconciliationLoopIndicator {
+  constructor(id, bounds, options = {}) {
+    this.id = svgId('reconciliation-loop', id);
+    this.bounds = bounds;
+    this.loopId = options.loopId || 'loop';
+    this.controllerType = options.controllerType || 'unknown';
+    this.status = options.status || 'pending'; // pending, running, converged, error, stopped
+    this.iterations = options.iterations || 0;
+    this.convergence = options.convergence || 0; // 0-1
+    this.dampingActive = options.dampingActive || false;
+    this.oscillationDetected = options.oscillationDetected || false;
+    this.size = Math.min(bounds.width, bounds.height) * 0.8;
+  }
+
+  render(parent) {
+    const g = createSvgElement('g', {
+      id: this.id,
+      'data-loop-id': this.loopId,
+      'data-controller-type': this.controllerType,
+      'data-status': this.status,
+      class: `svg-reconciliation-loop status-${this.status}`
+    });
+
+    const center = centerOf(this.bounds);
+    const radius = this.size / 2;
+
+    // Background circle (track)
+    const track = createSvgElement('circle', {
+      cx: center.x,
+      cy: center.y,
+      r: radius,
+      fill: 'none',
+      stroke: SVG_COLORS.GRID,
+      'stroke-width': STROKE_WIDTH_THIN,
+      opacity: SVG_COLORS.OPACITY_LOW
+    });
+    g.appendChild(track);
+
+    // Status arc (shows convergence progress)
+    if (this.status === 'running' || this.status === 'converged') {
+      const arcRadius = radius - STROKE_WIDTH_NORMAL;
+      const arcEndAngle = -Math.PI / 2 + this.convergence * Math.PI * 2;
+      const largeArc = this.convergence > 0.5 ? 1 : 0;
+
+      const x1 = center.x + arcRadius * Math.cos(-Math.PI / 2);
+      const y1 = center.y + arcRadius * Math.sin(-Math.PI / 2);
+      const x2 = center.x + arcRadius * Math.cos(arcEndAngle);
+      const y2 = center.y + arcRadius * Math.sin(arcEndAngle);
+
+      const arc = createSvgElement('path', {
+        d: `M ${center.x} ${center.y} L ${x1} ${y1} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${x2} ${y2}`,
+        fill: 'none',
+        stroke: this.status === 'converged' ? SVG_COLORS.SUCCESS : SVG_COLORS.STREAMING,
+        'stroke-width': STROKE_WIDTH_NORMAL,
+        'stroke-linecap': 'round',
+        opacity: SVG_COLORS.OPACITY_MEDIUM
+      });
+      g.appendChild(arc);
+    }
+
+    // Center indicator (state-dependent)
+    const centerIndicator = this._createCenterIndicator(center);
+    g.appendChild(centerIndicator);
+
+    // Damping indicator (small dot when active)
+    if (this.dampingActive) {
+      const dampRadius = radius * 0.2;
+      const dampIndicator = createSvgElement('circle', {
+        cx: center.x + radius * 0.4,
+        cy: center.y - radius * 0.4,
+        r: dampRadius,
+        fill: SVG_COLORS.WARNING,
+        opacity: SVG_COLORS.OPACITY_LOW
+      });
+      g.appendChild(dampIndicator);
+    }
+
+    // Oscillation warning indicator
+    if (this.oscillationDetected) {
+      const oscIndicator = createSvgElement('circle', {
+        cx: center.x,
+        cy: center.y - radius * 0.7,
+        r: radius * 0.15,
+        fill: SVG_COLORS.ERROR,
+        opacity: pulseOpacity(0.5, 1500) // Slow pulse to reduce visual noise
+      });
+      g.appendChild(oscIndicator);
+    }
+
+    // Iteration count
+    if (this.iterations > 0 && radius > 20) {
+      const itLabel = createSvgElement('text', {
+        x: center.x,
+        y: center.y + radius + GEOMETRY.LABEL_OFFSET,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: SVG_COLORS.TEXT_MUTED,
+        'font-size': '8',
+        'font-family': 'system-ui, sans-serif'
+      });
+      itLabel.textContent = `it:${this.iterations}`;
+      g.appendChild(itLabel);
+    }
+
+    // Loop ID label
+    if (radius > 30) {
+      const idLabel = createSvgElement('text', {
+        x: center.x,
+        y: center.y - radius - GEOMETRY.LABEL_OFFSET,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'bottom',
+        fill: SVG_COLORS.FOREGROUND,
+        'font-size': '9',
+        'font-family': 'system-ui, sans-serif'
+      });
+      const shortId = this.loopId.length > 12 ? this.loopId.substring(0, 10) + '..' : this.loopId;
+      idLabel.textContent = shortId;
+      g.appendChild(idLabel);
+    }
+
+    parent.appendChild(g);
+    return g;
+  }
+
+  _createCenterIndicator(center) {
+    const radius = this.size * 0.3;
+
+    switch (this.status) {
+      case 'running':
+        return createSvgElement('circle', {
+          cx: center.x,
+          cy: center.y,
+          r: radius,
+          fill: SVG_COLORS.STREAMING,
+          opacity: SVG_COLORS.OPACITY_MEDIUM
+        });
+
+      case 'converged':
+        return createSvgElement('polygon', {
+          points: [
+            `${center.x},${center.y - radius}`,
+            `${center.x + radius * 0.7},${center.y + radius * 0.4}`,
+            `${center.x - radius * 0.7},${center.y + radius * 0.4}`
+          ].join(' '),
+          fill: SVG_COLORS.SUCCESS,
+          opacity: SVG_COLORS.OPACITY_HIGH
+        });
+
+      case 'error':
+        return createSvgElement('rect', {
+          x: center.x - radius,
+          y: center.y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          fill: SVG_COLORS.ERROR,
+          opacity: SVG_COLORS.OPACITY_MEDIUM,
+          rx: 2,
+          ry: 2
+        });
+
+      case 'stopped':
+        return createSvgElement('rect', {
+          x: center.x - radius,
+          y: center.y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          fill: SVG_COLORS.GRID,
+          opacity: SVG_COLORS.OPACITY_LOW
+        });
+
+      default: // pending
+        return createSvgElement('circle', {
+          cx: center.x,
+          cy: center.y,
+          r: radius,
+          fill: SVG_COLORS.GRID,
+          opacity: SVG_COLORS.OPACITY_LOW,
+          stroke: SVG_COLORS.FOREGROUND,
+          'stroke-width': STROKE_WIDTH_THIN
+        });
+    }
+  }
+
+  update(options) {
+    this.status = options.status || this.status;
+    this.iterations = options.iterations || this.iterations;
+    this.convergence = options.convergence !== undefined ? options.convergence : this.convergence;
+    this.dampingActive = options.dampingActive !== undefined ? options.dampingActive : this.dampingActive;
+    this.oscillationDetected = options.oscillationDetected !== undefined ? options.oscillationDetected : this.oscillationDetected;
+  }
+}
+
+/**
+ * Cadence Visibility Indicator
+ * Shows the cadence (refresh interval) of reconciliation loops
+ * Visualizes: cadence bounds, current interval, jitter
+ * Calm visualization: subtle pulsing aligned with cadence
+ */
+export class SvgReconciliationCadenceIndicator {
+  constructor(id, bounds, options = {}) {
+    this.id = svgId('reconciliation-cadence', id);
+    this.bounds = bounds;
+    this.loopId = options.loopId || 'loop';
+    this.minInterval = options.minInterval || 0.1; // seconds
+    this.maxInterval = options.maxInterval || 10.0; // seconds
+    this.currentInterval = options.currentInterval || 1.0; // seconds
+    this.jitterFactor = options.jitterFactor || 0.1;
+    this.nextTickIn = options.nextTickIn || 0; // seconds
+    this.size = bounds.height * 0.8;
+  }
+
+  render(parent) {
+    const g = createSvgElement('g', {
+      id: this.id,
+      'data-loop-id': this.loopId,
+      class: 'svg-reconciliation-cadence'
+    });
+
+    const centerX = this.bounds.width / 2;
+    const top = 10;
+    const barHeight = this.size / 3;
+    const barWidth = this.bounds.width * 0.6;
+
+    // Min interval bar
+    const minY = top;
+    const minBar = createSvgElement('rect', {
+      x: centerX - barWidth / 2,
+      y: minY,
+      width: barWidth * (this.minInterval / this.maxInterval),
+      height: barHeight,
+      fill: SVG_COLORS.GRID,
+      opacity: SVG_COLORS.OPACITY_LOW
+    });
+    g.appendChild(minBar);
+
+    // Max interval bar (background)
+    const maxY = minY + barHeight + 4;
+    const maxBar = createSvgElement('rect', {
+      x: centerX - barWidth / 2,
+      y: maxY,
+      width: barWidth,
+      height: barHeight,
+      fill: SVG_COLORS.GRID,
+      opacity: SVG_COLORS.OPACITY_LOW,
+      stroke: SVG_COLORS.FOREGROUND,
+      'stroke-width': STROKE_WIDTH_THIN
+    });
+    g.appendChild(maxBar);
+
+    // Current interval indicator
+    const currentY = maxY + barHeight + 4;
+    const currentWidth = barWidth * (this.currentInterval / this.maxInterval);
+    const currentBar = createSvgElement('rect', {
+      x: centerX - barWidth / 2,
+      y: currentY,
+      width: Math.max(2, currentWidth),
+      height: barHeight * 1.5,
+      fill: this.nextTickIn < 0.5 ? SVG_COLORS.STREAMING : SVG_COLORS.FOREGROUND,
+      opacity: this.nextTickIn < 0.5 ? pulseOpacity(0.7, 500) : SVG_COLORS.OPACITY_MEDIUM,
+      'stroke-width': STROKE_WIDTH_THIN
+    });
+    // Add stroke if interval is outside bounds
+    if (this.currentInterval < this.minInterval || this.currentInterval > this.maxInterval) {
+      currentBar.setAttribute('stroke', SVG_COLORS.WARNING);
+    }
+    g.appendChild(currentBar);
+
+    // Jitter indicator (small notches at ends)
+    if (this.jitterFactor > 0) {
+      const notchSize = barHeight * 0.4;
+      const leftNotch = createSvgElement('rect', {
+        x: centerX - barWidth / 2 - notchSize / 2,
+        y: maxY + barHeight / 2 - notchSize / 2,
+        width: notchSize,
+        height: notchSize,
+        fill: SVG_COLORS.FOREGROUND,
+        opacity: SVG_COLORS.OPACITY_LOW
+      });
+      const rightNotch = createSvgElement('rect', {
+        x: centerX + barWidth / 2 - notchSize / 2,
+        y: maxY + barHeight / 2 - notchSize / 2,
+        width: notchSize,
+        height: notchSize,
+        fill: SVG_COLORS.FOREGROUND,
+        opacity: SVG_COLORS.OPACITY_LOW
+      });
+      g.appendChild(leftNotch);
+      g.appendChild(rightNotch);
+    }
+
+    // Next tick indicator (countdown)
+    if (this.bounds.height > 60 && this.nextTickIn > 0) {
+      const tickLabel = createSvgElement('text', {
+        x: centerX,
+        y: currentY + barHeight * 1.5 + 10,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: SVG_COLORS.TEXT_MUTED,
+        'font-size': '8',
+        'font-family': 'system-ui, sans-serif'
+      });
+      tickLabel.textContent = `${this.nextTickIn.toFixed(1)}s`;
+      g.appendChild(tickLabel);
+    }
+
+    parent.appendChild(g);
+    return g;
+  }
+
+  update(options) {
+    this.currentInterval = options.currentInterval || this.currentInterval;
+    this.nextTickIn = options.nextTickIn !== undefined ? options.nextTickIn : this.nextTickIn;
+    this.minInterval = options.minInterval || this.minInterval;
+    this.maxInterval = options.maxInterval || this.maxInterval;
+    this.jitterFactor = options.jitterFactor !== undefined ? options.jitterFactor : this.jitterFactor;
+  }
+}
+
+/**
+ * Damping Visibility Indicator
+ * Shows damping state for oscillation prevention
+ * Visualizes: damping type, current factor, oscillation detected
+ * Calm visualization: subtle, non-intrusive indicators
+ */
+export class SvgDampingIndicator {
+  constructor(id, bounds, options = {}) {
+    this.id = svgId('damping', id);
+    this.bounds = bounds;
+    this.loopId = options.loopId || 'loop';
+    this.dampingType = options.dampingType || 'exponential';
+    this.currentFactor = options.currentFactor || 1.0; // 0-1
+    this.iterationsApplied = options.iterationsApplied || 0;
+    this.oscillationDetected = options.oscillationDetected || false;
+    this.size = Math.min(bounds.width, bounds.height);
+  }
+
+  render(parent) {
+    const g = createSvgElement('g', {
+      id: this.id,
+      'data-loop-id': this.loopId,
+      class: `svg-damping-indicator type-${this.dampingType}`
+    });
+
+    const pad = 4;
+    const innerBounds = rect(pad, pad, this.bounds.width - pad * 2, this.bounds.height - pad * 2);
+    const center = centerOf(innerBounds);
+
+    // Factor bar (horizontal)
+    const barWidth = innerBounds.width * 0.8;
+    const barHeight = innerBounds.height * 0.25;
+    const barY = center.y - barHeight / 2;
+
+    // Background track
+    const track = createSvgElement('rect', {
+      x: center.x - barWidth / 2,
+      y: barY,
+      width: barWidth,
+      height: barHeight,
+      fill: SVG_COLORS.GRID,
+      opacity: SVG_COLORS.OPACITY_LOW
+    });
+    g.appendChild(track);
+
+    // Current factor fill
+    const fillWidth = barWidth * this.currentFactor;
+    const fill = createSvgElement('rect', {
+      x: center.x - barWidth / 2,
+      y: barY,
+      width: fillWidth,
+      height: barHeight,
+      fill: this.oscillationDetected ? SVG_COLORS.WARNING : SVG_COLORS.STREAMING,
+      opacity: this.oscillationDetected ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_MEDIUM
+    });
+    g.appendChild(fill);
+
+    // Type indicator (small glyph)
+    const typeIndicator = this._createTypeGlyph(center.x - barWidth / 2 - 8, center.y);
+    g.appendChild(typeIndicator);
+
+    // Factor label
+    if (innerBounds.height > 30) {
+      const label = createSvgElement('text', {
+        x: center.x,
+        y: center.y + barHeight / 2 + 8,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: SVG_COLORS.FOREGROUND,
+        'font-size': '9',
+        'font-family': 'system-ui, sans-serif'
+      });
+      label.textContent = this.currentFactor.toFixed(2);
+      g.appendChild(label);
+    }
+
+    // Iteration count
+    if (this.iterationsApplied > 0 && innerBounds.height > 40) {
+      const iterLabel = createSvgElement('text', {
+        x: center.x + barWidth / 2 + 8,
+        y: center.y,
+        'text-anchor': 'start',
+        'dominant-baseline': 'middle',
+        fill: SVG_COLORS.TEXT_MUTED,
+        'font-size': '8',
+        'font-family': 'system-ui, sans-serif'
+      });
+      iterLabel.textContent = `x${this.iterationsApplied}`;
+      g.appendChild(iterLabel);
+    }
+
+    parent.appendChild(g);
+    return g;
+  }
+
+  _createTypeGlyph(x, y) {
+    const size = 6;
+    const half = size / 2;
+
+    switch (this.dampingType) {
+      case 'exponential':
+        return createSvgElement('polygon', {
+          points: [
+            `${x - half},${y - half}`,
+            `${x + half},${y + half}`,
+            `${x},${y + half}`
+          ].join(' '),
+          fill: SVG_COLORS.STREAMING,
+          opacity: SVG_COLORS.OPACITY_MEDIUM
+        });
+
+      case 'linear':
+        return createSvgElement('line', {
+          x1: x - half,
+          y1: y - half,
+          x2: x + half,
+          y2: y + half,
+          stroke: SVG_COLORS.FOREGROUND,
+          'stroke-width': 1,
+          opacity: SVG_COLORS.OPACITY_MEDIUM
+        });
+
+      case 'threshold':
+        return createSvgElement('rect', {
+          x: x - half,
+          y: y - half,
+          width: size,
+          height: size,
+          fill: SVG_COLORS.GRID,
+          opacity: SVG_COLORS.OPACITY_MEDIUM
+        });
+
+      case 'hysteresis':
+        return createSvgElement('circle', {
+          cx: x,
+          cy: y,
+          r: half,
+          fill: 'none',
+          stroke: SVG_COLORS.FOREGROUND,
+          'stroke-width': 1,
+          opacity: SVG_COLORS.OPACITY_MEDIUM
+        });
+
+      default:
+        return createSvgElement('circle', {
+          cx: x,
+          cy: y,
+          r: half,
+          fill: SVG_COLORS.GRID,
+          opacity: SVG_COLORS.OPACITY_LOW
+        });
+    }
+  }
+
+  update(options) {
+    this.dampingType = options.dampingType || this.dampingType;
+    this.currentFactor = options.currentFactor !== undefined ? options.currentFactor : this.currentFactor;
+    this.iterationsApplied = options.iterationsApplied || this.iterationsApplied;
+    this.oscillationDetected = options.oscillationDetected !== undefined ? options.oscillationDetected : this.oscillationDetected;
+  }
+}
+
+/**
+ * Convergence State Indicator
+ * Shows convergence state for bounded operational reconciliation
+ * Visualizes: iteration progress, time remaining, convergence status
+ * Calm visualization: becomes more subtle as convergence approaches
+ */
+export class SvgConvergenceIndicator {
+  constructor(id, bounds, options = {}) {
+    this.id = svgId('convergence', id);
+    this.bounds = bounds;
+    this.loopId = options.loopId || 'loop';
+    this.currentIteration = options.currentIteration || 0;
+    this.totalIterations = options.totalIterations || 100;
+    this.currentDuration = options.currentDuration || 0; // seconds
+    this.maxDuration = options.maxDuration || 60; // seconds
+    this.converged = options.converged || false;
+    this.stabilisationThreshold = options.stabilisationThreshold || 0.001;
+    this.size = Math.min(bounds.width, bounds.height) * 0.9;
+  }
+
+  render(parent) {
+    const g = createSvgElement('g', {
+      id: this.id,
+      'data-loop-id': this.loopId,
+      class: `svg-convergence-indicator ${this.converged ? 'converged' : 'converging'}`
+    });
+
+    const center = centerOf(this.bounds);
+    const pad = 8;
+    const innerSize = this.size - pad * 2;
+    const innerCenter = point(center.x, center.y);
+
+    // Outer ring (iteration progress)
+    const outerRadius = innerSize / 2;
+    const track = createSvgElement('circle', {
+      cx: innerCenter.x,
+      cy: innerCenter.y,
+      r: outerRadius,
+      fill: 'none',
+      stroke: SVG_COLORS.GRID,
+      'stroke-width': STROKE_WIDTH_THIN,
+      opacity: SVG_COLORS.OPACITY_LOW
+    });
+    g.appendChild(track);
+
+    // Iteration progress arc
+    if (this.totalIterations > 0) {
+      const progress = Math.min(this.currentIteration / this.totalIterations, 1);
+      const arcEndAngle = -Math.PI / 2 + progress * Math.PI * 2;
+      const largeArc = progress > 0.5 ? 1 : 0;
+
+      const x1 = innerCenter.x + outerRadius * Math.cos(-Math.PI / 2);
+      const y1 = innerCenter.y + outerRadius * Math.sin(-Math.PI / 2);
+      const x2 = innerCenter.x + outerRadius * Math.cos(arcEndAngle);
+      const y2 = innerCenter.y + outerRadius * Math.sin(arcEndAngle);
+
+      const arc = createSvgElement('path', {
+        d: `M ${innerCenter.x} ${innerCenter.y} L ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2}`,
+        fill: 'none',
+        stroke: SVG_COLORS.STREAMING,
+        'stroke-width': STROKE_WIDTH_NORMAL,
+        'stroke-linecap': 'round',
+        opacity: this.converged ? SVG_COLORS.OPACITY_LOW : SVG_COLORS.OPACITY_MEDIUM
+      });
+      g.appendChild(arc);
+    }
+
+    // Inner circle (time/duration progress)
+    const innerRadius = outerRadius * 0.6;
+    const timeProgress = Math.min(this.currentDuration / this.maxDuration, 1);
+
+    if (this.maxDuration > 0) {
+      const timeArcEndAngle = -Math.PI / 2 + timeProgress * Math.PI * 2;
+      const largeArc = timeProgress > 0.5 ? 1 : 0;
+
+      const tx1 = innerCenter.x + innerRadius * Math.cos(-Math.PI / 2);
+      const ty1 = innerCenter.y + innerRadius * Math.sin(-Math.PI / 2);
+      const tx2 = innerCenter.x + innerRadius * Math.cos(timeArcEndAngle);
+      const ty2 = innerCenter.y + innerRadius * Math.sin(timeArcEndAngle);
+
+      const timeArc = createSvgElement('path', {
+        d: `M ${innerCenter.x} ${innerCenter.y} L ${tx1} ${ty1} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${tx2} ${ty2}`,
+        fill: 'none',
+        stroke: SVG_COLORS.FOREGROUND,
+        'stroke-width': STROKE_WIDTH_THIN,
+        'stroke-linecap': 'round',
+        opacity: this.converged ? SVG_COLORS.OPACITY_LOW : SVG_COLORS.OPACITY_MEDIUM
+      });
+      g.appendChild(timeArc);
+    }
+
+    // Convergence status indicator
+    const statusIndicator = this._createStatusIndicator(innerCenter, outerRadius * 0.4);
+    g.appendChild(statusIndicator);
+
+    // Iteration label
+    if (outerRadius > 20) {
+      const iterLabel = createSvgElement('text', {
+        x: innerCenter.x,
+        y: innerCenter.y + outerRadius + 12,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: SVG_COLORS.FOREGROUND,
+        'font-size': '8',
+        'font-family': 'system-ui, sans-serif'
+      });
+      iterLabel.textContent = `${this.currentIteration}/${this.totalIterations}`;
+      g.appendChild(iterLabel);
+    }
+
+    // Time label
+    if (outerRadius > 20) {
+      const timeLabel = createSvgElement('text', {
+        x: innerCenter.x,
+        y: innerCenter.y - outerRadius - 12,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: SVG_COLORS.TEXT_MUTED,
+        'font-size': '7',
+        'font-family': 'system-ui, sans-serif'
+      });
+      const timeRemaining = Math.max(0, this.maxDuration - this.currentDuration);
+      timeLabel.textContent = `${timeRemaining.toFixed(1)}s`;
+      g.appendChild(timeLabel);
+    }
+
+    parent.appendChild(g);
+    return g;
+  }
+
+  _createStatusIndicator(center, radius) {
+    if (this.converged) {
+      // Converged: checkmark
+      return createSvgElement('polygon', {
+        points: [
+          `${center.x - radius * 0.3},${center.y}`,
+          `${center.x},${center.y + radius * 0.3}`,
+          `${center.x + radius * 0.5},${center.y - radius * 0.4}`
+        ].join(' '),
+        fill: SVG_COLORS.SUCCESS,
+        opacity: SVG_COLORS.OPACITY_HIGH
+      });
+    } else {
+      // Converging: arrow pointing towards center
+      return createSvgElement('polygon', {
+        points: [
+          `${center.x},${center.y - radius * 0.4}`,
+          `${center.x - radius * 0.3},${center.y}`,
+          `${center.x + radius * 0.3},${center.y}`
+        ].join(' '),
+        fill: SVG_COLORS.STREAMING,
+        opacity: SVG_COLORS.OPACITY_MEDIUM
+      });
+    }
+  }
+
+  update(options) {
+    this.currentIteration = options.currentIteration !== undefined ? options.currentIteration : this.currentIteration;
+    this.totalIterations = options.totalIterations || this.totalIterations;
+    this.currentDuration = options.currentDuration !== undefined ? options.currentDuration : this.currentDuration;
+    this.maxDuration = options.maxDuration || this.maxDuration;
+    this.converged = options.converged !== undefined ? options.converged : this.converged;
+    this.stabilisationThreshold = options.stabilisationThreshold !== undefined ? options.stabilisationThreshold : this.stabilisationThreshold;
+  }
+}
+
+/**
+ * Helper function to create deterministic SVG ID
+ */
+function svgId(prefix, id) {
+  const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `rig-${prefix}-${cleanId}`;
+}
+
+/**
+ * Helper for calm pulse opacity (reduced motion as pressure increases)
+ * Returns CSS opacity value that pulses slowly
+ */
+function pulseOpacity(baseOpacity, periodMs) {
+  // In a real implementation, this would use actual time
+  // For now, return a static value that can be animated via CSS
+  return baseOpacity;
+}

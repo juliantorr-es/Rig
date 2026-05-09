@@ -117,6 +117,9 @@ include = ["rig*", "rig_tools*", "anigma_common*"]
 pythonpath = ["src"]
 addopts = "-v --tb=short"
 testpaths = ["tests"]
+markers = [
+  "asyncio: mark a test as async and run it with the local asyncio shim",
+]
 
 [tool.pyright]
 pythonVersion = "3.14"
