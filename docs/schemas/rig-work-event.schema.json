@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig-work-event.schema.json",
+  "title": "Rig Work Event",
+  "description": "Append-only event record for ADR-local progress ledgers (progress.jsonl).\n\nNote: docs/schemas/work-stream-event.schema.json covers worktree lifecycle events\n(worktree_moved, worktree_move_blocked). This schema covers ADR implementation\nprogress events. The two schemas are intentionally separate: worktree events are\ninfrastructure; work progress events are coordination state.",
+  "type": "object",
+  "required": ["event_id", "ts", "worker", "type", "task_id"],
+  "properties": {
+    "event_id":   { "type": "string", "description": "UUID or deterministic slug uniquely identifying this event." },
+    "ts":         { "type": "string", "format": "date-time", "description": "ISO 8601 UTC timestamp." },
+    "worker":     { "type": "string", "description": "Agent or user name/slug that appended this event." },
+    "type":       {
+      "type": "string",
+      "enum": [
+        "claim_started", "claim_released", "heartbeat", "note", "blocked",
+        "handoff", "doctor_run", "commit_prepared", "commit_created",
+        "out_of_scope_finding", "projection_generated"
+      ]
+    },
+    "task_id":    { "type": "string" },
+    "mission_id": { "type": "string" },
+    "note":       { "type": "string" },
+    "paths":      { "type": "array", "items": { "type": "string" } },
+    "checks":     { "type": "array", "items": { "type": "string" } },
+    "tests":      { "type": "string", "description": "Test result summary or 'not run: <reason>'." },
+    "dirty_files_after": { "type": "array", "items": { "type": "string" } },
+    "completion_summary": { "type": "string" },
+    "out_of_scope_findings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Observations outside current mission scope. Must not expand scope or authorize edits outside allowed_paths."
+    },
+    "git_branch": { "type": "string" },
+    "git_head":   { "type": "string" },
+    "status":     { "type": "string", "description": "Handoff or doctor status." }
+  },
+  "additionalProperties": true
+}

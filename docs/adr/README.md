@@ -25,6 +25,11 @@ These ADRs propose **deepening opportunities** — refactors to turn shallow mod
 | [0006](0006-ingress-interpretation.md) | proposed | Ingress Interpretation | Ingress | 54 |
 | [0007](0007-workspace-domain-authority.md) | proposed | Workspace Domain | Worktree | 82 |
 | [0008](0008-receipt-evidence-unification.md) | proposed | Evidence Domain | Receipt | 101 |
+| [0009](0009-agentic-workflow-refinement.md) | proposed | Agentic Workflow | Orchestration | ~280 |
+
+## Workflow Authority
+
+**ADR 0009 (Agentic Workflow Refinement)** is the umbrella ADR for agent workflow refinement and serves as the canonical reference for the **ADR → Sprint → Mission → Evidence → Review/Promotion** narrative. See also the operational workflow reference at `docs/workflow/adr-sprint-mission-evidence.md`.
 
 Each candidate follows the **improve-codebase-architecture** skill methodology:
 - Applies the **deletion test** to identify shallow modules

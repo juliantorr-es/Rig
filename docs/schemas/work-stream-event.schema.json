@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rig.anigma.internal/schemas/work-stream-event.schema.json",
   "title": "Rig Work-Stream Event",
-  "description": "Append-only work-stream event record. Each line in a work-stream JSONL log must validate against one of the defined event types.",
+  "description": "Append-only work-stream event record. Each line in a work-stream JSONL log must validate against one of the defined event types. NOTE: 'work-stream' is a legacy term for worktree normalization events; this schema remains for backward compatibility.",
   "oneOf": [
     { "$ref": "#/$defs/worktree_moved" },
     { "$ref": "#/$defs/worktree_move_blocked" }

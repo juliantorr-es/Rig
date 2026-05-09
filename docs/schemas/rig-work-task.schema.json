@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig-work-task.schema.json",
+  "title": "Rig Work Task",
+  "description": "ADR implementation task file. Contains one task with optional flat missions. No recursive subtasks. See docs/workflow/adr-sprint-mission-evidence.md for the canonical workflow narrative.",
+  "type": "object",
+  "required": ["id", "kind", "adr", "status", "priority", "allowed_paths", "protected_paths",
+               "completion_criteria", "required_checks", "required_evidence", "missions",
+               "created_at", "updated_at"],
+  "additionalProperties": false,
+  "properties": {
+    "id":                  { "type": "string", "description": "Stable slug matching the ADR workspace directory name." },
+    "kind":                { "type": "string", "const": "adr_implementation" },
+    "adr":                 { "type": "string", "description": "Repo-relative path to the ADR markdown file." },
+    "status":              { "type": "string", "enum": ["open", "in_progress", "blocked", "ready_for_review", "closed"] },
+    "priority":            { "type": "string", "enum": ["critical", "high", "normal", "low"] },
+    "allowed_paths":       { "type": "array",  "items": { "type": "string" }, "description": "Glob patterns bounding all mission authority. Missions may only narrow this set." },
+    "protected_paths":     { "type": "array",  "items": { "type": "string" }, "description": "Paths agents must never modify or claim." },
+    "completion_criteria": { "type": "array",  "items": { "type": "string" } },
+    "required_checks":     { "type": "array",  "items": { "type": "string" }, "description": "CLI commands that must pass before promoting." },
+    "required_evidence":   { "type": "array",  "items": { "type": "string" }, "description": "Evidence artifacts required before closing." },
+    "missions": {
+      "type": "array",
+      "description": "Flat list of agent-sized work packets. No nesting. Maximum 12.",
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/mission" }
+    },
+    "created_at":  { "type": "string", "format": "date-time" },
+    "updated_at":  { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "agent_discretion": {
+      "type": "object",
+      "required": ["may_create_files", "may_refactor_within_allowed_paths", "may_add_tests",
+                   "may_commit_when_doctor_passes", "must_stop_if"],
+      "additionalProperties": false,
+      "properties": {
+        "may_create_files":                   { "type": "boolean" },
+        "may_refactor_within_allowed_paths":  { "type": "boolean" },
+        "may_add_tests":                      { "type": "boolean" },
+        "may_commit_when_doctor_passes":      { "type": "boolean" },
+        "must_stop_if":                       { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "mission": {
+      "type": "object",
+      "required": ["id", "title", "status", "intent", "allowed_paths", "non_goals",
+                   "completion_criteria", "agent_discretion"],
+      "additionalProperties": false,
+      "properties": {
+        "id":                  { "type": "string" },
+        "title":               { "type": "string" },
+        "status":              { "type": "string", "enum": ["open", "claimed", "in_progress", "blocked", "ready_for_review", "closed"] },
+        "intent":              { "type": "string" },
+        "allowed_paths":       { "type": "array", "items": { "type": "string" }, "description": "Must be a subset of parent task allowed_paths." },
+        "non_goals":           { "type": "array", "items": { "type": "string" } },
+        "completion_criteria": { "type": "array", "items": { "type": "string" } },
+        "agent_discretion":    { "$ref": "#/$defs/agent_discretion" }
+      }
+    }
+  }
+}

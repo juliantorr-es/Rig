@@ -90,7 +90,7 @@ Core doctrine:
 
 ### Promotion lifecycle
 
-- `preproduction` is the only branch allowed to converge multiple concurrent workstreams
+- `preproduction` is the only branch allowed to converge multiple concurrent sprints/ADRs
 - Promotion to `main` is a deliberate human action
 - Promotion requires the branch to remain stable under replay, projection, and frontend contract checks
 

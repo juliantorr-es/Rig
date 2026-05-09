@@ -285,6 +285,7 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 - **Proof/receipt records evidence**; it does not define current work.
 - Active tasks need: goal, non-goals, scope, acceptance, validation, and evidence.
 - **Park shiny ideas as follow-ups**; do not opportunistically implement them.
+- **Canonical workflow**: Agents follow ADR → Sprint → Mission → Evidence → Review/Promotion. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative workflow narrative.
 
 ---
 
@@ -337,6 +338,36 @@ Run these to verify the script is functional before using `--apply`:
 python scripts/worktree_normalize.py --dry-run --worker smoke
 git worktree list --porcelain
 ```
+
+### ADR work state
+
+- ADR work state lives under `.rig/work/adr/<adr-id>/`.
+- Each ADR has `task.json`, `progress.jsonl`, `projection.json`, and `notes/out-of-scope-findings.md`.
+- `progress.jsonl` is **append-only**. Never delete or edit existing lines.
+- `projection.json` and `notes/out-of-scope-findings.md` are **generated**. Do not hand-edit them.
+- Agents should **claim missions**, not tiny slices or subtasks.
+- Agents should **derive their own internal checklist** from mission `intent` and `completion_criteria`.
+- Agents should **heartbeat** during long work (`scripts/work_heartbeat.py`).
+- Agents must **record useful out-of-current-scope findings** instead of ignoring them (`scripts/work_note.py --out-of-scope`).
+- Out-of-scope findings **do not expand the current mission**. They are observations only.
+- Agents must include **out-of-scope findings at the end of handoff/final reports**, even if the list is empty.
+- Do **not** create nested subtasks, recursive missions, workstreams, or slices. Missions are flat.
+- Slices are **implementation phases only** (see ADR 0009), not workflow hierarchy.
+- Use `scripts/work_doctor.py` before any commit.
+
+#### ADR work scripts (all tracked under `scripts/`)
+
+| Script | Purpose |
+|---|---|
+| `work_status.py <task_id>` | Regenerate projection + print status summary |
+| `work_claim.py <task_id> --mission <id> --worker <name> --paths <glob>` | Claim a mission |
+| `work_heartbeat.py <task_id> --mission <id> --worker <name>` | Record heartbeat |
+| `work_note.py <task_id> --worker <name> --note "text"` | Append a note |
+| `work_note.py <task_id> --worker <name> --out-of-scope --note "text"` | Record out-of-scope finding |
+| `work_blocked.py <task_id> --worker <name> --note "reason"` | Record blocked event |
+| `work_handoff.py <task_id> --worker <name> --status ready_for_review ...` | Record handoff |
+| `work_doctor.py <task_id>` | Validate task + ledger; required before committing |
+| `work_commit.py <task_id> --worker <name> --message "..."` | Governed commit plan |
 
 ---
 

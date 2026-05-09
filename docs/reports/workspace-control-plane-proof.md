@@ -28,4 +28,4 @@ This change adds the workspace control-plane documentation layer and read-only p
 
 ## Runtime Impact
 
-No runtime behavior is claimed beyond the explicit placeholder entrypoints and backend-authored widgets added in this slice.
+No runtime behavior is claimed beyond the explicit placeholder entrypoints and backend-authored widgets added in this implementation phase.
