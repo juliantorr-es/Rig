@@ -426,7 +426,9 @@ git worktree list --porcelain
 
 ### Evidence Rules
 
-- Out-of-scope findings **do not expand** the current mission or sprint. They are observations only.
+- **Out-of-Scope Findings Ledger**: Out-of-scope findings **do not expand** the current mission or sprint. They are observations only.
+- **Global Machine-Readable Tracker**: In addition to recording findings in the ADR-local ledger, agents MUST append all out-of-scope findings to the global machine-readable tracker at `.rig/work/out-of-scope-findings.jsonl`.
+- **JSONL Schema**: `{"ts": "ISO-8601", "task_id": "id", "finding": "title", "category": "cat", "value": "CRITICAL|HIGH|MEDIUM|LOW", "description": "text", "status": "observed"}`.
 - Agents must include **out-of-scope findings at the end of handoff/final reports**, even if the list is empty.
 - Do **not** create nested subtasks, recursive missions, workstreams, or slices. Missions are flat.
 - Slices are **implementation phases only** (see ADR 0009), not workflow hierarchy.
