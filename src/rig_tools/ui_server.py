@@ -530,6 +530,30 @@ class UIServer:
         else:
             asyncio.create_task(_do_send())
 
+    async def _run_validators_task(self, workspace_id: str) -> Dict[str, Any]:
+        """Compatibility task wrapper for validator execution from async tests and callers."""
+        from rig.domain.workspace import WorkspaceDomain
+
+        domain = WorkspaceDomain(self.repo_root)
+
+        def progress_callback(payload: Dict[str, Any]) -> None:
+            if isinstance(payload, dict):
+                self._schedule_send(payload)
+
+        try:
+            result = domain.generate_validation_result(workspace_id, progress_callback=progress_callback)  # type: ignore[arg-type]
+        except TypeError:
+            result = domain.generate_validation_result(workspace_id)
+        if result:
+            self._schedule_send({
+                "kind": "event",
+                "data": {
+                    "type": "validator_run_complete",
+                    "workspace_id": workspace_id,
+                },
+            })
+        return {"accepted": True}
+
     def handle_chat_submit(self, intent: Intent) -> Dict[str, Any]:
         from rig.domain.projection_builder import build_projection
         

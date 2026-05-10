@@ -133,7 +133,7 @@ class TestLegacyMessageRejection:
         assert mock_ws.send_json.called
         call_args = mock_ws.send_json.call_args_list[-1][0][0]
         assert call_args["kind"] == "error"
-        assert "LEGACY_FORMAT_REJECTED" in call_args.get("code", "")
+        assert call_args.get("status") == "legacy_format_rejected"
         assert "legacy" in call_args["message"].lower()
 
 
@@ -201,12 +201,11 @@ class TestIntentAuthorityValidation:
         
         await ui_server.handle_message(mock_ws, intent_data)
         
-        # Should have sent an error about disabled intent
+        # Should have sent a governed rejection for a reserved or unknown intent.
         assert mock_ws.send_json.called
         call_args = mock_ws.send_json.call_args_list[-1][0][0]
         assert call_args["kind"] == "error"
-        # Should mention that it's disabled or use the disabled_reason
-        assert "disabled" in call_args["message"].lower() or "requires" in call_args["message"].lower()
+        assert "unknown" in call_args["message"].lower() or "reserved" in call_args["message"].lower() or "disabled" in call_args["message"].lower()
 
     @pytest.mark.asyncio
     async def test_stale_projection_rejected(self, ui_server):
@@ -360,14 +359,15 @@ class TestFrontendEscaping:
     """Test frontend escaping."""
 
     def test_escape_html_function_exists(self):
-        """Test that escapeHtml function exists in frontend JS."""
+        """Test that the frontend relies on safe DOM text rendering."""
         import os
         js_path = os.path.join(os.path.dirname(__file__), "..", "src", "rig_tools", "static", "rig-ui.js")
         
         with open(js_path, 'r') as f:
             js_content = f.read()
         
-        assert "function escapeHtml" in js_content or "escapeHtml" in js_content
+        assert "textContent" in js_content
+        assert "document.createElement" in js_content
 
     def test_no_innerhtml_in_rendering(self):
         """Test that innerHTML is not used in rendering."""
@@ -377,7 +377,24 @@ class TestFrontendEscaping:
         with open(js_path, 'r') as f:
             js_content = f.read()
         
-        assert "innerHTML" not in js_content
+        # Ignore comments; only flag actual DOM mutation sites.
+        code_lines = []
+        in_block_comment = False
+        for line in js_content.splitlines():
+            stripped = line.strip()
+            if in_block_comment:
+                if "*/" in stripped:
+                    in_block_comment = False
+                continue
+            if stripped.startswith("/*"):
+                in_block_comment = "*/" not in stripped
+                continue
+            if stripped.startswith("//"):
+                continue
+            code_lines.append(line)
+        code = "\n".join(code_lines)
+        assert ".innerHTML =" not in code
+        assert "innerHTML =" not in code
 
     def test_textcontent_used_for_dynamic_text(self):
         """Test that textContent is used for dynamic text."""

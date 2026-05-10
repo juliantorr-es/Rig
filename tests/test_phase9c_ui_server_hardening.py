@@ -427,19 +427,15 @@ class TestFrontendEscaping:
     """Test that frontend properly escapes dynamic text."""
 
     def test_escape_html_function(self):
-        """Test that escapeHtml function works correctly."""
-        # This is tested by reading the static JS file
+        """Test that safe DOM rendering relies on textContent and element creation."""
         import os
         js_path = os.path.join(os.path.dirname(__file__), "..", "src", "rig_tools", "static", "rig-ui.js")
         
         with open(js_path, 'r') as f:
             js_content = f.read()
         
-        # Check that escapeHtml function exists
-        assert "function escapeHtml" in js_content or "escapeHtml" in js_content
-        
-        # Check that textContent is used for dynamic text
         assert "textContent" in js_content
+        assert "document.createElement" in js_content
 
     def test_widget_renderers_use_textcontent(self):
         """Test that widget renderers use DOM textContent instead of innerHTML."""

@@ -1654,7 +1654,9 @@ export class SvgInstrumentationLayer {
       height: this.bounds.height,
       viewBox: `0 0 ${this.bounds.width} ${this.bounds.height}`,
       xmlns: SVG_NS,
-      'xmlns:xlink': 'http://www.w3.org/1999/xlink'
+      'xmlns:xlink': 'http://www.w3.org/1999/xlink',
+      'aria-hidden': 'true',
+      'focusable': 'false'
     });
     this.svg.style.display = 'block';
     this.svg.style.backgroundColor = 'transparent';

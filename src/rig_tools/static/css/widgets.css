@@ -31,7 +31,7 @@
 pre.validator-detail {
   font-family: monospace;
   font-size: 0.75rem;
-  background: #f0f0f0;
+  background: var(--surface-subtle);
   padding: 4px;
   white-space: pre-wrap;
   max-height: 100px;
@@ -45,7 +45,7 @@ pre.validator-detail {
   margin-bottom: 8px;
   background: var(--surface);
 }
-.message { margin-bottom: 8px; padding: 4px; border-bottom: 1px solid #eee; }
+.message { margin-bottom: 8px; padding: 4px; border-bottom: 1px solid var(--border-subtle); }
 .chat-composer { display: flex; gap: 4px; }
 .chat-composer input { flex: 1; padding: 4px; border: 1px solid var(--border); }
 .empty-state-reasons {

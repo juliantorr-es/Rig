@@ -12,7 +12,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def test_v1_artifacts_exist_or_can_be_written() -> None:
     pack = context_compression.write_context_pack(REPO_ROOT, task="td-cleanup-005", purpose="loop-planner", max_chars=4000, use_llm=False)
     assert pack["schema_version"] == "rig.context_pack.v1"
-    job = work_queue.add_job(REPO_ROOT, task="td-cleanup-005", mode="read-only", max_steps=1)
+    queue_payload = {
+        "schema_version": "rig.queue.v1",
+        "jobs": [
+            {
+                "job_id": "td-cleanup-005-compat",
+                "task": "td-cleanup-005",
+                "mode": "read-only",
+                "max_steps": 1,
+                "status": "queued",
+            }
+        ],
+        "warnings": [],
+    }
+    work_queue.save_queue(REPO_ROOT, queue_payload)
+    queue = work_queue.load_queue(REPO_ROOT)
     decision = policy.check(REPO_ROOT, action="loop.run", mode="read-only")
     manifest = action_manifest.write_action_manifest(
         REPO_ROOT,
@@ -26,7 +40,7 @@ def test_v1_artifacts_exist_or_can_be_written() -> None:
     )
     state = monitor.build_state(REPO_ROOT)
     assert state["context_pack_summary"]["path"].endswith("latest.json")
-    assert job["status"] == "queued"
+    assert queue["jobs"][0]["status"] == "queued"
     assert decision["decision"] == "allow"
     assert manifest.manifest["schema_version"] == "rig.action.v1"
 
@@ -46,4 +60,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

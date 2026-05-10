@@ -11,6 +11,35 @@
   --danger: #d93025;
   --info: #1a73e8;
   --idle: #9aa0a6;
+  --border-subtle: #eeeeee;
+  --surface-subtle: #f0f0f0;
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* SVG & Status Colors */
+  --color-executing: #4CAF50;
+  --color-streaming: #2196F3;
+  --color-proposing: #FF9800;
+  --color-validating: #9C27B0;
+  --color-replaying: #00BCD4;
+  --color-stalled: #795548;
+  --color-complete: #8BC34A;
+  --color-failure: #F44336;
+  --color-idle: #9E9E9E;
+
+  --color-integrity-ok: #4CAF50;
+  --color-integrity-warning: #FFC107;
+  --color-integrity-error: #F44336;
+
+  --color-capability-default: #607D8B;
+  --color-capability-elevated: #FF5722;
+  --color-capability-restricted: #E91E63;
+
+  --color-background: #1E1E1E;
+  --color-foreground: #E0E0E0;
+  --color-grid: #424242;
+  --color-text: #CCCCCC;
+  --color-text-muted: #757575;
+  --color-stroke: #616161;
+  --color-fill-subtle: #333333;
 }
 }
