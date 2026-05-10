@@ -2,7 +2,7 @@
 
 **ADR 0009**
 
-Rig's agentic workflow infrastructure — the governed pipeline from intent to proposal to evidence — is architecturally sound but operationally shallow in several areas exposed by studying production multi-agent systems at scale. This ADR proposes targeted refinements to deepen Rig's agent orchestration, context retrieval, isolation, and telemetry capabilities **within the established governance narrative**: models propose, Rig disposes.
+Rig's agentic workflow infrastructure — the governed pipeline from intent to proposal to evidence — is architecturally sound but operationally shallow in several areas exposed by studying production multi-agent systems at scale. This ADR proposes targeted refinements to deepen Rig's agent orchestration, context retrieval, isolation, telemetry, and computable reasoning capabilities **within the established governance narrative**: models propose, Rig disposes.
 
 **Status**: proposed / concept accepted pending ADR index reconciliation; implementation limited to declared slices
 
@@ -22,6 +22,7 @@ Rig's agentic workflow infrastructure — the governed pipeline from intent to p
 1. **Rig does not become an autonomous coding IDE.** Rig governs external agent loops. The orchestrator provides governance infrastructure for agent workflows that originate in external tools (Gemini, Cursor, Claude Code, etc.). It does not autonomously plan, reason, or execute.
 2. **No recursive subtasks.** Rig's agent workflow uses bounded missions and append-only progress evidence. We explicitly reject GitHub-style recursive issue trees and nested missions.
 3. **Rig does not use optimized/encoded context as governance authority.** Governance decisions always use canonical paths, native actions, policies, and evidence.
+4. **Rig does not embed opaque hidden memory.** Facts in this ADR are durable, typed, and reconstructable from observable sources. They are not chatbot context caches or private embedding stores.
 
 ---
 
@@ -39,6 +40,77 @@ Before `AgentOrchestrator` owns executable trajectories, ADR implementation work
 - **Merge-Friendliness** = Preflight check that a patch batch is safe to apply relative to active worktrees.
 
 Sprint Research defines the scope; missions provide execution contracts; merge-friendliness checks prevent conflicts with active worktrees; patch batches group reliable changes; trajectory events record what happened; receipts provide durable evidence. Do not collapse these concepts.
+
+## Computable Substrate: Local Reasoning Without Authority Drift
+
+Rig is moving toward a local computable knowledge substrate for governed software work. This substrate is not "memory" and not a chatbot context cache. It is a portable, model-agnostic layer that turns operational reality into typed facts that Rig can validate, compute over, constrain, and record before authority is granted to execute or promote.
+
+The key architectural claim is simple:
+
+**LLM layer proposes and explores. Computable substrate validates and normalizes. Rig authority decides and gates.**
+
+### Layer Split
+
+- **LLM layer**
+  - proposes
+  - summarizes
+  - translates
+  - prioritizes
+  - explores
+
+- **Computable substrate**
+  - validates
+  - computes
+  - proves
+  - constrains
+  - classifies
+  - normalizes
+
+- **Rig authority layer**
+  - decides
+  - gates
+  - records
+  - promotes
+  - rejects
+
+### Typed Facts
+
+The substrate is composed of typed facts derived from observable sources:
+
+- repository state
+- worktree state
+- validator outputs
+- proposal traces
+- tool executions
+- receipts
+- governance events
+
+Facts are normalized into deterministic graph, rule, and constraint representations before promotion or execution authority is granted.
+
+### Examples of Computable Work
+
+The substrate should make these classes of reasoning first-class:
+
+- dependency graph cycle analysis
+- validator authority classification
+- worktree safety reasoning
+- proposal admissibility checks
+- statistical benchmark interpretation
+- deterministic repair suggestions
+- graph and topology projections
+
+### Candidate Backends
+
+The substrate is backend-agnostic. Potential implementations may include:
+
+- graph engines
+- symbolic math systems
+- constraint solvers
+- deterministic rule engines
+- repository topology analyzers
+- structured evidence stores
+
+These backends are implementation options, not authority sources. Authority remains inside Rig governance.
 
 **Merge-Friendliness Rules**:
 - Patch batches require merge-friendliness preflight before apply.
@@ -173,6 +245,31 @@ Sandbox execution is consumed by the substrate but implemented later under the W
 **Routing Rule**:
 If routing is ambiguous, Rig must not let the agent improvise. It must return a structured block explaining the ambiguity. The safe default is: *if ambiguous, choose read-only orientation when possible. Never choose mutation by inference.*
 
+### Decision 2.5: Computable Reasoning Substrate
+
+**Problem**: Agent proposals, validator output, worktree topology, and receipt evidence already contain enough structure to support deterministic reasoning. Today that structure is scattered across logs and ad hoc interpretation. Rig needs a governed substrate that can normalize these observations into computable forms before execution or promotion authority is granted.
+
+**Decision**: Introduce a computable reasoning substrate that sits below orchestration and above authority. It receives typed operational facts, normalizes them into deterministic representations, and produces evidence-backed projections that Rig can use for gating, remediation, and review.
+
+This substrate is explicitly:
+
+1. **Portable** — no single backend is mandatory.
+2. **Model-agnostic** — orchestration models are replaceable.
+3. **Deterministic-first** — prefer computation, rules, and constraints over probabilistic inference whenever feasible.
+4. **Governed** — Rig remains the authority for all decisions that change state or grant execution rights.
+
+**Examples**:
+- Build a dependency graph from repository metadata and reject promotions that introduce cycles.
+- Classify validator output into admissible, advisory, blocked, or requires-human-review states.
+- Reason about worktree safety from branch, HEAD, dirty-state, and allowed-path facts.
+- Check proposal admissibility against mission scope, gate policy, and evidence lineage.
+- Interpret benchmark results deterministically before any model summary is accepted.
+- Generate repair suggestions from constraints and topology instead of from free-form agent guesswork.
+- Project graph/topology facts into reviewable evidence snapshots.
+
+**Remediation rule**:
+When the substrate can derive a safe deterministic repair, Rig may surface it as a constrained suggestion. The suggestion is still advisory until Rig authority accepts it.
+
 ### Decision 3: Context Retrieval and Context Engineering
 
 **Problem**: Long-running agent workflows need stable, reusable, bounded, and reconstructable context. If every step rebuilds context differently, Rig loses cache locality, auditability, and deterministic replay.
@@ -243,15 +340,48 @@ class ContextAssemblyPolicy:
 - **Agent execution**: Moves from single-shot `WorktreeExecutor` to iterative `AgentOrchestrator.step()` atop a deterministic agent substrate.
 - **Context provision**: External tool's responsibility → Deterministic context engineering with stable aliases, strict cache ordering, and structural compaction.
 - **Context retrieval**: Rig provides a governed scope seam via local CLI tools.
+- **Reasoning substrate**: Typed facts, deterministic projections, and constrained remediation become first-class governance inputs.
 
 ### What Does NOT Change
 - **Governance narrative**: Models propose, Rig disposes. Unchanged.
 - **Evidence lineage**: All execution produces receipts. Unchanged.
 - **Git Guard**: Destructive operations blocked at shell level. Unchanged.
 - **External model selection**: Rig does not route between models. Unchanged.
+- **Authority location**: Deterministic computation informs Rig, but never replaces Rig's authority layer. Unchanged.
 
 ### Leverage
-One orchestrator and substrate replaces ad-hoc agent execution patterns. Governance, evidence, context optimization, and telemetry happen automatically inside the loop.
+One orchestrator and substrate replaces ad-hoc agent execution patterns. Governance, evidence, context optimization, telemetry, and computable reasoning happen automatically inside the loop without elevating the model to authority.
+
+---
+
+## Machine-Readable Contract
+
+**This ADR has a machine-readable JSON companion at `docs/adr/0009-agentic-workflow-refinement.json`.**
+
+| Aspect | Human-Readable (Markdown) | Machine-Readable (JSON) |
+|--------|-------------------------|-------------------------|
+| **Purpose** | Explains the WHY: rationale, context, architectural decisions | Tells Rig WHAT to do: contracts, workflows, constraints |
+| **Authority** | Rationale authority — the source of truth for understanding | Contract authority — the source of truth for automation |
+| **Format** | Free-form Markdown prose | Structured JSON validated against `docs/schemas/rig-adr.schema.json` |
+
+**Key Principle**: The Markdown explains the architectural rationale and must remain human-readable. The JSON contract enables Rig and external tools to parse, validate, and execute against this ADR programmatically. The JSON must conform to the schema; the Markdown must explain the thinking.
+
+**Contract Fields:**
+- `adr_id`: `adr0009` — canonical identifier
+- `slug`: `agentic-workflow-refinement` — derived from title
+- `workflow.worktree_name`: `adr0009-agentic-workflow-refinement` — canonical worktree directory
+- `workflow.ledger_path`: `.rig/work/adr/adr0009-agentic-workflow-refinement` — ADR-local ledger
+- `workflow.sprint_branch`: `sprint/adr0009-agentic-workflow-refinement` — default sprint branch
+- `workflow.promotion_branch`: `promotion/adr0009-agentic-workflow-refinement` — promotion target
+- `workflow.mission_branch_prefix`: `agent/adr0009-` — prefix for mission branches
+- `authority_boundaries` — constraints agents must not cross
+- `sprints` — implementation sprints with missions
+- `validation_gates` — the 13 gates of the Rite of Deterministic Passage
+- `related_adrs` — dependencies and relationships
+
+**Validation**: Run `python3 -m jsonschema -i docs/adr/0009-agentic-workflow-refinement.json docs/schemas/rig-adr.schema.json` (requires jsonschema CLI) or use the test suite in `tests/test_rig_adr_contracts.py`.
+
+**For new ADRs**: Create both `.md` and `.json` companions. The Markdown is for humans; the JSON is for machines. Do not delete the Markdown. Do not make tests depend on Markdown prose (except for existence checks).
 
 ---
 
@@ -283,6 +413,90 @@ One orchestrator and substrate replaces ad-hoc agent execution patterns. Governa
 
 **Slice 6 files:**
 - `src/rig/domain/execution/orchestrator.py`
+
+---
+
+## Workflow Command Chains
+
+Agents run **workflow contexts** instead of manual command checklists. This section defines the workflow command chain system implemented in Sprint Workflow Command Chains.
+
+### Domain Types
+
+| Type | Purpose | Fields |
+|------|---------|--------|
+| `WorkflowCommand` | Single command in a workflow chain | `id`, `command` (tuple), `required`, `mutates_state`, `agent_allowed`, `description` |
+| `WorkflowContext` | Named validation workflow | `id`, `description`, `commands` (tuple of WorkflowCommand), `agent_allowed`, `mutates_state` |
+| `WorkflowCommandResult` | Result of executing a command | `id`, `command`, `returncode`, `stdout`, `stderr`, `passed`, `required` |
+| `WorkflowRunResult` | Result of running a complete context | `context_id`, `passed`, `results` (tuple of WorkflowCommandResult), `blockers` (tuple of str), `evidence_path` |
+
+All types are frozen dataclasses with slots for immutability and memory efficiency.
+
+### Built-in Contexts
+
+| Context ID | Description | Commands | Agent Allowed | Mutates State |
+|------------|-------------|----------|---------------|---------------|
+| `mission_handoff` | Mission handoff validation chain — pre-check before ready_for_review | 5: compileall, pytest_collect, check_fast, forge_doctor, forge_promote_dry_run | Yes | No |
+| `promotion_dry_run` | Promotion dry-run validation chain — pre-check before promotion | 2: forge_doctor, forge_promote_dry_run | Yes | No |
+
+### Command Chain Execution Rules
+
+1. **Explicit argument arrays**: All commands use `subprocess.run` with explicit tuple arguments. NEVER use `shell=True`.
+2. **Output capture**: stdout and stderr are captured as text.
+3. **Truncation**: Output is truncated to `MAX_OUTPUT_CHARS` (10,000) with `...` suffix.
+4. **Required vs Optional**: Required commands block on failure; optional commands fail but continue.
+5. **Early termination**: The chain stops at the first required command failure.
+6. **Evidence writing**: Results are written to `.rig/work/validation/<context_id>-<timestamp>.json`.
+7. **Safety**: No tokens/secrets in evidence. No personal names in generated evidence.
+
+### CLI Interface
+
+```bash
+# List all workflow contexts
+rig workflow list
+rig workflow list --json
+
+# Run a workflow context
+rig workflow run mission_handoff
+rig workflow run promotion_dry_run
+
+# Options
+--json          Output JSON instead of human-readable text
+--no-evidence   Don't write evidence file
+--agent         Enforce agent_allowed check (default: enforce)
+--allow-mutating Allow running mutating contexts (default: false, user must consent)
+```
+
+### Python API
+
+```python
+from rig.domain.workflow_chains import (
+    list_builtin_workflow_contexts,
+    get_builtin_workflow_context,
+    run_workflow_context,
+    MISSION_HANDOFF_CONTEXT,
+    PROMOTION_DRY_RUN_CONTEXT,
+)
+
+# List all contexts
+contexts = list_builtin_workflow_contexts()
+
+# Get a specific context
+ctx = get_builtin_workflow_context("mission_handoff")
+
+# Run a context
+result = run_workflow_context("mission_handoff", repo_path=".", write_evidence=True)
+```
+
+### Integration Points
+
+- `scripts/_work_lib.py` provides `check_mission_handoff_readiness()` and `run_workflow_context_chain()` for integration with existing scripts
+- These functions use `rig workflow run` CLI internally
+- Compatible with existing `check_forge_readiness()` in `work_handoff.py`
+- Future work: Update `work_handoff.py` to use `check_mission_handoff_readiness()` directly
+
+### Schema Validation
+
+See `docs/schemas/rig-workflow-chain.schema.json` for JSON Schema definitions of all workflow chain types.
 
 ---
 

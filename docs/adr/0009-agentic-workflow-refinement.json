@@ -1,0 +1,168 @@
+{
+  "schema_version": "rig.adr.v1",
+  "adr_id": "adr0009",
+  "number": "0009",
+  "title": "Agentic Workflow Refinement",
+  "slug": "agentic-workflow-refinement",
+  "status": "proposed",
+  "markdown_path": "docs/adr/0009-agentic-workflow-refinement.md",
+  "workflow": {
+    "worktree_name": "adr0009-agentic-workflow-refinement",
+    "ledger_path": ".rig/work/adr/adr0009-agentic-workflow-refinement",
+    "sprint_branch": "sprint/adr0009-agentic-workflow-refinement",
+    "promotion_branch": "promotion/adr0009-agentic-workflow-refinement",
+    "mission_branch_prefix": "agent/adr0009-"
+  },
+  "authority_boundaries": [
+    {
+      "id": "no-autonomous-ide",
+      "description": "Rig governs external agent loops. It does not autonomously plan, reason, or execute.",
+      "must_not": [
+        "autonomously plan work",
+        "autonomously reason",
+        "autonomously execute"
+      ]
+    },
+    {
+      "id": "no-recursive-subtasks",
+      "description": "Rig uses bounded missions and append-only progress evidence. No nested hierarchy.",
+      "must_not": [
+        "create nested missions",
+        "create subtasks",
+        "create recursive workflow hierarchy"
+      ]
+    },
+    {
+      "id": "no-optimized-authority",
+      "description": "Governance decisions always use canonical paths, native actions, policies, and evidence.",
+      "must_not": [
+        "use optimized/encoded context as governance authority",
+        "use lossy encodings for governance decisions"
+      ]
+    },
+    {
+      "id": "no-hidden-memory",
+      "description": "Facts in this ADR are durable, typed, and reconstructable from observable sources.",
+      "must_not": [
+        "embed opaque hidden memory",
+        "use chatbot context caches as authority",
+        "use private embedding stores as authority"
+      ]
+    },
+    {
+      "id": "no-git-merge",
+      "description": "Direct git merge is forbidden under all circumstances.",
+      "must_not": [
+        "run git merge directly",
+        "bypass work_promote.py"
+      ]
+    },
+    {
+      "id": "preproduction-only",
+      "description": "Agents may only promote to preproduction. Main and production remain human-governed.",
+      "must_not": [
+        "promote to main",
+        "promote to production"
+      ]
+    }
+  ],
+  "sprints": [
+    {
+      "id": "slice-0-pure-types",
+      "title": "Pure Types",
+      "research_required": true,
+      "missions": []
+    },
+    {
+      "id": "slice-0.5-context-engineering",
+      "title": "Deterministic Context Engineering Types",
+      "research_required": true,
+      "missions": []
+    },
+    {
+      "id": "slice-0.8-dogfood-bridge",
+      "title": "Dogfood Bridge",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "sprint-worktree-naming-001",
+          "title": "Refine Rig worktree naming around ADR implementation titles",
+          "intent": "Define and enforce canonical worktree naming policy based on ADR titles",
+          "branch_name": "agent/adr0009-sprint-worktree-naming-001"
+        },
+        {
+          "id": "sprint-machine-readable-adr-001",
+          "title": "Introduce machine-readable Rig ADR contracts",
+          "intent": "Create JSON schema and companion for ADR 0009 to enable machine parsing",
+          "branch_name": "agent/adr0009-sprint-machine-readable-adr-001"
+        }
+      ]
+    },
+    {
+      "id": "slice-1-substrate",
+      "title": "Deterministic Agent Substrate",
+      "research_required": true,
+      "missions": []
+    },
+    {
+      "id": "slice-6-orchestrator",
+      "title": "Governed Agent Orchestrator",
+      "research_required": true,
+      "missions": []
+    }
+  ],
+  "validation_gates": [
+    {"id": "gate-1", "description": "Sprint research completed", "blocking": true},
+    {"id": "gate-2", "description": "Mission handoff completed", "blocking": true},
+    {"id": "gate-3", "description": "Patch batches prechecked", "blocking": true},
+    {"id": "gate-4", "description": "Patch batches applied and validated", "blocking": false},
+    {"id": "gate-5", "description": "Merge-friendliness pass completed", "blocking": true},
+    {"id": "gate-6", "description": "work_doctor.py passed", "blocking": true},
+    {"id": "gate-7", "description": "Required tests passed", "blocking": true},
+    {"id": "gate-8", "description": "Out-of-current-scope findings recorded", "blocking": true},
+    {"id": "gate-9", "description": "Candidate source branch is clean", "blocking": true},
+    {"id": "gate-10", "description": "Candidate source branch HEAD is recorded", "blocking": true},
+    {"id": "gate-11", "description": "Preproduction branch exists locally", "blocking": true},
+    {"id": "gate-12", "description": "Merge simulation against preproduction passes", "blocking": true},
+    {"id": "gate-13", "description": "Preproduction working tree is clean before merge", "blocking": true}
+  ],
+  "non_goals": [
+    "Rig does not become an autonomous coding IDE",
+    "No recursive subtasks",
+    "Rig does not use optimized/encoded context as governance authority",
+    "Rig does not embed opaque hidden memory"
+  ],
+  "files_involved": {
+    "slice_0": [
+      "src/rig/domain/execution/trajectory.py",
+      "src/rig/domain/execution/budget.py",
+      "src/rig/domain/execution/context_retrieval.py",
+      "src/rig/domain/execution/compaction.py"
+    ],
+    "slice_0.5": [
+      "src/rig/domain/execution/context_engineering.py"
+    ],
+    "slice_0.8": [
+      "scripts/work_status.py",
+      "scripts/work_claim.py",
+      "scripts/work_heartbeat.py",
+      "scripts/work_note.py",
+      "scripts/work_handoff.py",
+      "scripts/work_doctor.py"
+    ],
+    "slice_1": [
+      "src/rig/domain/execution/substrate.py"
+    ],
+    "slice_6": [
+      "src/rig/domain/execution/orchestrator.py"
+    ]
+  },
+  "related_adrs": [
+    {"id": "adr0003", "path": "docs/adr/0003-governance-engine-deepening.md", "relationship": "depends_on"},
+    {"id": "adr0004", "path": "docs/adr/0004-runtime-streaming-consolidation.md", "relationship": "related"},
+    {"id": "adr0007", "path": "docs/adr/0007-workspace-domain-authority.md", "relationship": "depends_on"},
+    {"id": "adr0008", "path": "docs/adr/0008-receipt-evidence-unification.md", "relationship": "depends_on"}
+  ],
+  "created_at": "2025-05-09T00:00:00Z",
+  "updated_at": "2025-05-09T00:00:00Z"
+}

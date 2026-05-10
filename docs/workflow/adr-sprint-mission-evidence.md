@@ -343,6 +343,45 @@ The `rig forge` command provides forge-neutral readiness validation:
 - `forge_evidence` — Full evidence dict with: doctor status, promotion ready, blockers, reviewability info
 - `forge_gate_skip_explicit` — Whether `--skip-forge-gates` was used (NOT RECOMMENDED)
 
+**Workflow Command Chains (ADR 0009 / ADR 0010):**
+
+Agents run **workflow contexts** instead of manual command checklists. Workflow command chains provide deterministic validation sequences that replace ad-hoc validation command enumeration.
+
+- **Core principle**: Agents run workflow contexts (e.g., `mission_handoff`, `promotion_dry_run`), not manual command checklists
+- **CLI**: `rig workflow run <context_id>` executes the canonical validation chain
+- **Built-in contexts**:
+  - `mission_handoff` — Pre-check before `ready_for_review`: compileall, pytest_collect, check_fast, forge_doctor, forge_promote_dry_run
+  - `promotion_dry_run` — Pre-check before promotion: forge_doctor, forge_promote_dry_run
+- **Safety**: All commands use `subprocess.run` with explicit argument arrays, NEVER `shell=True`
+- **Evidence**: Written to `.rig/work/validation/<context_id>-<timestamp>.json` with truncation at 10,000 characters
+- **No secrets**: No tokens/credentials in evidence; no personal names in generated evidence
+- **Agent enforcement**: All initial contexts are non-mutating and agent-allowed; `--allow-mutating` flag required for mutating contexts (not implemented in Phase 1)
+- **Execution behavior**: Stop early on first required command failure; continue on optional command failure
+
+**CLI Usage:**
+```bash
+# List available workflow contexts
+python -m rig workflow list
+python -m rig workflow list --json
+
+# Run mission_handoff workflow
+python -m rig workflow run mission_handoff
+python -m rig workflow run mission_handoff --json
+python -m rig workflow run mission_handoff --no-evidence
+
+# Run promotion_dry_run workflow  
+python -m rig workflow run promotion_dry_run
+
+# Agent mode (enforces agent_allowed check)
+python -m rig workflow run mission_handoff --agent
+```
+
+**Integration with work_handoff.py:**
+- `scripts/_work_lib.py` provides `check_mission_handoff_readiness()` and `run_workflow_context_chain()` functions
+- These functions use the `rig workflow run` CLI internally
+- Compatible with existing `check_forge_readiness()` for backward compatibility
+- Future: `work_handoff.py` can use `check_mission_handoff_readiness()` directly
+
 **Bypass Policy:**
 - Use `--skip-forge-gates` **only for testing** — explicit bypass is recorded and reported
 - `work_doctor.py` flags bypassed handoffs as warnings
