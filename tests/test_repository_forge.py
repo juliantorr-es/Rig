@@ -83,6 +83,10 @@ from rig.domain.forge import (
     GitHubApplySafetyReport,
     build_github_apply_safety_report,
     FORBIDDEN_COMMAND_PATTERNS,
+    # Mission 9: Backend abstraction
+    GitHubBackendMode,
+    GitHubBackendPlan,
+    build_github_backend_plan,
 )
 
 
@@ -3904,7 +3908,7 @@ class TestApplyGitHubDraftPrPromotion:
         return artifact
 
     @patch("rig.domain.forge._check_gh_cli_available")
-    @patch("rig.domain.forge._check_existing_pr")
+    @patch("rig.domain.forge._github_cli_check_existing_pr")
     def test_dry_run_returns_planned_commands(self, mock_check_pr, mock_check_gh, mock_repo_root, mock_github_plan, mock_artifact):
         """apply_github_draft_pr_promotion dry run must return planned commands only."""
         # Mock gh CLI available
@@ -4637,12 +4641,18 @@ class TestBuildGithubApplySafetyReport:
     ) -> None:
         """build_github_apply_safety_report ready must be True only when all checks pass."""
         # Mock all checks to pass
-        from rig.domain.forge import _check_gh_cli_available, _check_existing_pr
+        from rig.domain.forge import _check_gh_cli_available, _github_cli_check_existing_pr
         
         # Mock gh CLI available and authenticated
         monkeypatch.setattr(
             "rig.domain.forge._check_gh_cli_available",
             lambda: (True, "2.0.0", ())
+        )
+        
+        # Mock existing PR check
+        monkeypatch.setattr(
+            "rig.domain.forge._github_cli_check_existing_pr",
+            lambda *args, **kwargs: (False, None, ())
         )
         
         # Mock gh auth status to return authenticated
@@ -4862,6 +4872,416 @@ def _create_minimal_github_plan_and_artifact(tmp_path: Path) -> tuple[PromotionP
     artifact = build_promotion_artifact(tmp_path, plan, write=True)
     
     return plan, artifact
+
+
+# ============================================================================
+# Mission 9: GitHub Adapter Backend Boundary Tests
+# ============================================================================
+
+
+class TestGitHubBackendMode:
+    """Tests for GitHubBackendMode enum."""
+
+    def test_enum_values(self) -> None:
+        """GitHubBackendMode must have AUTO, CLI, API values."""
+        assert GitHubBackendMode.AUTO.value == "auto"
+        assert GitHubBackendMode.CLI.value == "cli"
+        assert GitHubBackendMode.API.value == "api"
+
+    def test_enum_members(self) -> None:
+        """GitHubBackendMode must have all required members."""
+        assert hasattr(GitHubBackendMode, "AUTO")
+        assert hasattr(GitHubBackendMode, "CLI")
+        assert hasattr(GitHubBackendMode, "API")
+
+    def test_enum_from_string(self) -> None:
+        """GitHubBackendMode must be creatable from string values."""
+        assert GitHubBackendMode("auto") == GitHubBackendMode.AUTO
+        assert GitHubBackendMode("cli") == GitHubBackendMode.CLI
+        assert GitHubBackendMode("api") == GitHubBackendMode.API
+
+    def test_enum_invalid_value(self) -> None:
+        """GitHubBackendMode must raise ValueError for invalid values."""
+        with pytest.raises(ValueError):
+            GitHubBackendMode("invalid")
+
+
+class TestGitHubBackendPlan:
+    """Tests for GitHubBackendPlan dataclass."""
+
+    def test_dataclass_fields(self) -> None:
+        """GitHubBackendPlan must have all required fields."""
+        plan = GitHubBackendPlan(
+            requested_mode=GitHubBackendMode.AUTO,
+            selected_mode=None,
+            backend_available=False,
+            requires_gh=False,
+            requires_token=False,
+            token_source=None,
+            reason="test",
+            findings=(),
+        )
+        assert plan.requested_mode == GitHubBackendMode.AUTO
+        assert plan.selected_mode is None
+        assert plan.backend_available is False
+        assert plan.requires_gh is False
+        assert plan.requires_token is False
+        assert plan.token_source is None
+        assert plan.reason == "test"
+        assert plan.findings == ()
+
+    def test_frozen_immutable(self) -> None:
+        """GitHubBackendPlan must be immutable (frozen)."""
+        plan = GitHubBackendPlan(
+            requested_mode=GitHubBackendMode.AUTO,
+            selected_mode=None,
+            backend_available=False,
+            requires_gh=False,
+            requires_token=False,
+            token_source=None,
+            reason="test",
+            findings=(),
+        )
+        with pytest.raises(AttributeError):
+            plan.requested_mode = GitHubBackendMode.CLI  # type: ignore[misc]
+
+    def test_slots_optimized(self) -> None:
+        """GitHubBackendPlan must use slots for memory efficiency."""
+        plan = GitHubBackendPlan(
+            requested_mode=GitHubBackendMode.AUTO,
+            selected_mode=None,
+            backend_available=False,
+            requires_gh=False,
+            requires_token=False,
+            token_source=None,
+            reason="test",
+            findings=(),
+        )
+        assert hasattr(plan, "__slots__")
+
+
+class TestBuildGitHubBackendPlan:
+    """Tests for build_github_backend_plan function."""
+
+    def test_auto_selects_cli_when_gh_available_authenticated(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_backend_plan auto must select CLI when gh available and authenticated."""
+        # Mock gh CLI available and authenticated
+        monkeypatch.setattr(
+            "rig.domain.forge._check_gh_cli_available",
+            lambda: (True, "2.0.0", ())
+        )
+        
+        # Mock subprocess for auth check
+        def mock_subprocess_run(cmd, **kwargs):
+            from subprocess import CompletedProcess
+            if "gh" in cmd and "auth" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=0,
+                    stdout="Logged in to github.com",
+                    stderr="",
+                )
+            return CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+        
+        monkeypatch.setattr(
+            "rig.domain.forge.subprocess.run",
+            mock_subprocess_run,
+        )
+        
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.AUTO,
+        )
+        assert plan.selected_mode == GitHubBackendMode.CLI
+        assert plan.backend_available is True
+        assert plan.requires_gh is True
+        assert plan.requires_token is False
+
+    def test_auto_fails_when_gh_unavailable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_backend_plan auto must fail when gh unavailable."""
+        # Mock gh CLI not available
+        monkeypatch.setattr(
+            "rig.domain.forge._check_gh_cli_available",
+            lambda: (False, None, ())
+        )
+        
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.AUTO,
+        )
+        assert plan.selected_mode is None
+        assert plan.backend_available is False
+        assert any(f.code == "github_backend_auto_unavailable" for f in plan.findings)
+
+    def test_cli_succeeds_when_gh_available_authenticated(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_backend_plan CLI must succeed when gh available and authenticated."""
+        # Mock gh CLI available and authenticated
+        monkeypatch.setattr(
+            "rig.domain.forge._check_gh_cli_available",
+            lambda: (True, "2.0.0", ())
+        )
+        
+        # Mock subprocess for auth check
+        def mock_subprocess_run(cmd, **kwargs):
+            from subprocess import CompletedProcess
+            if "gh" in cmd and "auth" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=0,
+                    stdout="Logged in to github.com",
+                    stderr="",
+                )
+            return CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+        
+        monkeypatch.setattr(
+            "rig.domain.forge.subprocess.run",
+            mock_subprocess_run,
+        )
+        
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.CLI,
+        )
+        assert plan.selected_mode == GitHubBackendMode.CLI
+        assert plan.backend_available is True
+
+    def test_cli_fails_when_gh_unavailable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_backend_plan CLI must fail when gh unavailable."""
+        # Mock gh CLI not available
+        monkeypatch.setattr(
+            "rig.domain.forge._check_gh_cli_available",
+            lambda: (False, None, ())
+        )
+        
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.CLI,
+        )
+        assert plan.selected_mode is None
+        assert plan.backend_available is False
+        assert any(f.code == "github_cli_backend_not_available" for f in plan.findings)
+
+    def test_cli_fails_when_gh_unauthenticated(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_backend_plan CLI must fail when gh unauthenticated."""
+        # Mock gh CLI available but not authenticated
+        monkeypatch.setattr(
+            "rig.domain.forge._check_gh_cli_available",
+            lambda: (True, "2.0.0", ())
+        )
+        
+        # Mock subprocess for auth check - not authenticated
+        def mock_subprocess_run(cmd, **kwargs):
+            from subprocess import CompletedProcess
+            if "gh" in cmd and "auth" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=1,
+                    stdout="",
+                    stderr="Authentication failed",
+                )
+            return CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+        
+        monkeypatch.setattr(
+            "rig.domain.forge.subprocess.run",
+            mock_subprocess_run,
+        )
+        
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.CLI,
+        )
+        assert plan.selected_mode is None
+        assert plan.backend_available is False
+        assert any(f.code == "github_cli_backend_not_authenticated" for f in plan.findings)
+
+    def test_api_fails_closed_not_implemented(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_backend_plan API must fail closed with not implemented finding."""
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.API,
+        )
+        assert plan.selected_mode is None
+        assert plan.backend_available is False
+        assert plan.requires_gh is False
+        assert plan.requires_token is True
+        assert plan.token_source == "environment or config"
+        assert any(f.code == "github_api_backend_not_implemented" for f in plan.findings)
+
+    def test_api_does_not_require_gh(self) -> None:
+        """build_github_backend_plan API must not require gh CLI."""
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.API,
+        )
+        assert plan.requires_gh is False
+
+    def test_no_token_values_serialized(self) -> None:
+        """build_github_backend_plan must not include token values."""
+        plan = build_github_backend_plan(
+            requested_mode=GitHubBackendMode.API,
+            token_source="environment",
+        )
+        assert plan.token_source == "environment"
+        # Token source is just a description, not the actual token
+        assert "GITHUB_TOKEN" not in str(plan)
+
+
+class TestBackendIntegration:
+    """Integration tests for backend plan with safety report and apply."""
+
+    def test_safety_report_includes_backend_plan(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """build_github_apply_safety_report must include backend_plan."""
+        # Mock git remote URL
+        def mock_subprocess_run(cmd, **kwargs):
+            from subprocess import CompletedProcess
+            if "git" in cmd and "remote" in cmd and "get-url" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=0,
+                    stdout="https://github.com/test-owner/test-repo.git\n",
+                    stderr="",
+                )
+            elif "gh" in cmd and "auth" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=0,
+                    stdout="Logged in to github.com",
+                    stderr="",
+                )
+            elif "gh" in cmd and "pr" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=1,
+                    stdout="",
+                    stderr="no pull requests matched",
+                )
+            return CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+        
+        monkeypatch.setattr(
+            "rig.domain.forge.subprocess.run",
+            mock_subprocess_run,
+        )
+        
+        plan, artifact = _create_minimal_github_plan_and_artifact(tmp_path)
+        
+        if plan.draft is not None:
+            report = build_github_apply_safety_report(
+                tmp_path,
+                plan,
+                artifact,
+                requested_backend_mode=GitHubBackendMode.CLI,
+            )
+            assert report.backend_plan is not None
+            assert report.backend_plan.requested_mode == GitHubBackendMode.CLI
+
+    def test_apply_refuses_when_backend_unavailable(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """apply_github_draft_pr_promotion must refuse when backend unavailable."""
+        # Mock gh CLI not available
+        monkeypatch.setattr(
+            "rig.domain.forge._check_gh_cli_available",
+            lambda: (False, None, ())
+        )
+        
+        plan, artifact = _create_minimal_github_plan_and_artifact(tmp_path)
+        
+        result = apply_github_draft_pr_promotion(
+            repo_path=tmp_path,
+            plan=plan,
+            artifact=artifact,
+            remote="origin",
+            dry_run=True,
+        )
+        
+        assert result.applied is False
+        # Should have findings about CLI not being available
+        assert any(
+            f.code in ("github_cli_backend_not_available", "github_backend_auto_unavailable")
+            for f in result.findings
+        )
+
+    def test_cli_parser_accepts_github_backend(
+        self,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """CLI parser must accept --github-backend with valid choices."""
+        import sys
+        sys.argv = ["rig", "forge", "promote", "--help"]
+        try:
+            from rig.cli.main import main
+            main()
+        except SystemExit:
+            pass
+        captured = capsys.readouterr()
+        assert "--github-backend" in captured.out
+        assert "{auto,cli,api}" in captured.out
+
+
+class TestRenamedHelperFunction:
+    """Tests for renamed _github_cli_check_existing_pr function."""
+
+    def test_function_exists(self) -> None:
+        """_github_cli_check_existing_pr must exist."""
+        from rig.domain.forge import _github_cli_check_existing_pr
+        assert callable(_github_cli_check_existing_pr)
+
+    def test_returns_tuple_of_three(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_github_cli_check_existing_pr must return (bool, str|None, tuple[ForgeDoctorFinding, ...])."""
+        from rig.domain.forge import _github_cli_check_existing_pr
+        
+        # Mock subprocess to return no existing PR
+        def mock_subprocess_run(cmd, **kwargs):
+            from subprocess import CompletedProcess
+            if "gh" in cmd and "auth" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=0,
+                    stdout="Logged in to github.com",
+                    stderr="",
+                )
+            elif "gh" in cmd and "pr" in cmd:
+                return CompletedProcess(
+                    cmd,
+                    returncode=1,
+                    stdout="",
+                    stderr="no pull requests matched",
+                )
+            return CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+        
+        monkeypatch.setattr(
+            "rig.domain.forge.subprocess.run",
+            mock_subprocess_run,
+        )
+        
+        result = _github_cli_check_existing_pr(
+            target_ref="preproduction",
+            promotion_branch="promotion/test",
+            remote="origin",
+        )
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        pr_exists, pr_url, findings = result
+        assert isinstance(pr_exists, bool)
+        assert pr_url is None or isinstance(pr_url, str)
+        assert isinstance(findings, tuple)
 
 
 def main() -> int:

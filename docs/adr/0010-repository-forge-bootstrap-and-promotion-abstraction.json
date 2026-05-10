@@ -54,6 +54,25 @@
       "docs/adr/README.md",
       ".gitignore"
     ],
+    "mission_7": [
+      "src/rig/domain/forge.py",
+      "src/rig/commands_forge.py",
+      "tests/test_repository_forge.py"
+    ],
+    "mission_8": [
+      "src/rig/domain/forge.py",
+      "src/rig/commands_forge.py",
+      "tests/test_repository_forge.py",
+      "docs/adr/0010-repository-forge-bootstrap-and-promotion-abstraction.md",
+      "docs/adr/0010-repository-forge-bootstrap-and-promotion-abstraction.json"
+    ],
+    "mission_9": [
+      "src/rig/domain/forge.py",
+      "src/rig/commands_forge.py",
+      "tests/test_repository_forge.py",
+      "docs/adr/0010-repository-forge-bootstrap-and-promotion-abstraction.md",
+      "docs/adr/0010-repository-forge-bootstrap-and-promotion-abstraction.json"
+    ],
     "sprint_1": [
       "src/rig/domain/forge/__init__.py",
       "src/rig/domain/forge/local_adapter.py",
@@ -157,6 +176,11 @@
       "id": "mission-8",
       "research_required": false,
       "title": "GitHub Apply Safety Doctor"
+    },
+    {
+      "id": "mission-9",
+      "research_required": false,
+      "title": "GitHub Adapter Backend Boundary"
     }
   ],
   "status": "proposed",

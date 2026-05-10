@@ -1287,3 +1287,177 @@ All tests use mocked subprocess — no real GitHub API calls, no real look at th
 ✅ Fast validation passes (`scripts/check.sh --fast`)
 
 ---
+
+## Mission 9: GitHub Adapter Backend Boundary
+
+**Mission 9 refactors the GitHub apply code behind an explicit backend boundary, enabling future PyGithub/REST API support while preserving the working `gh` CLI backend.**
+
+### Overview
+
+Mission 9 introduces a backend abstraction for GitHub operations that separates the backend selection logic from the promotion flow. This allows:
+
+- **Multiple backends**: CLI (using `gh` command), API (using PyGithub/REST), AUTO (selects best available)
+- **Fail-closed behavior**: API backend is stubbed and fails closed until implemented
+- **No token storage**: The abstraction is designed but no tokens are stored
+- **Preserve working backend**: The existing `gh` CLI backend continues to work unchanged
+
+### Backend Modes
+
+**New enum:** `GitHubBackendMode` with three modes:
+
+| Mode | Description | Requires gh CLI | Requires Token | Status |
+|---|---|---|---|---|
+| `AUTO` | Automatically select best available backend | If available | No | Implemented |
+| `CLI` | Use GitHub CLI (`gh` command) | Yes | No | Implemented, working |
+| `API` | Use GitHub API (PyGithub/REST) | No | Yes | Stubbed, fails closed |
+
+### Backend Plan
+
+**New frozen dataclass:** `GitHubBackendPlan`
+
+Fields:
+- `requested_mode: GitHubBackendMode` — The user-requested backend mode
+- `selected_mode: GitHubBackendMode | None` — The actually selected mode (None if unavailable/unready)
+- `backend_available: bool` — Whether the selected backend is available
+- `requires_gh: bool` — Whether this backend requires `gh` CLI
+- `requires_token: bool` — Whether this backend requires an API token
+- `token_source: str | None` — Description of token source (NOT the token itself)
+- `reason: str` — Human-readable reason for selection/non-selection
+- `findings: tuple[ForgeDoctorFinding, ...]` — All findings from backend selection checks
+
+### Backend Selection Logic
+
+**New function:** `build_github_backend_plan(requested_mode, gh_available, gh_authenticated, api_token_available, token_source) -> GitHubBackendPlan`
+
+Selection behavior:
+
+**AUTO mode:**
+1. If API token available → select API (future-proof, but API not yet implemented)
+2. Else if gh available and authenticated → select CLI
+3. Else if gh available but not authenticated → CLI available but add finding
+4. Else → backend not available, add findings for missing requirements
+
+**CLI mode:**
+1. If gh available and authenticated → select CLI, backend available
+2. If gh available but not authenticated → CLI available but not ready, add finding
+3. If gh not available → backend not available, add finding
+
+**API mode:**
+1. Always add finding: `github_api_backend_not_implemented`
+2. `selected_mode` is always `None`
+3. `backend_available` is always `False`
+
+### Renamed Functions
+
+For clarity and backend separation, the following functions were renamed with `github_cli_` prefix:
+
+| Old Name | New Name | Reason |
+|---|---|---|
+| `_check_existing_pr()` | `_github_cli_check_existing_pr()` | Explicitly marks as CLI-only |
+
+**No functional changes** — These are simple renames to make the backend ownership explicit.
+
+### Safety Report Integration
+
+The `GitHubApplySafetyReport` now includes the backend plan:
+
+**New field:** `backend_plan: GitHubBackendPlan`
+
+**Updated function:** `build_github_apply_safety_report()` now accepts `requested_backend_mode` parameter and includes the backend plan in the report.
+
+The safety report now verifies:
+- Backend selection succeeded
+- Backend is available if required
+- All backend-specific findings are captured
+
+If the backend plan has `backend_available=False` or `selected_mode=None`, the safety report marks itself as not ready, causing the apply path to fail closed.
+
+### CLI Integration
+
+**New flag:** `--github-backend {auto,cli,api}`
+
+```bash
+# Auto-select backend (default)
+rig forge promote --apply --provider github --github-backend auto
+
+# Use CLI backend explicitly
+rig forge promote --apply --provider github --github-backend cli
+
+# Use API backend (fails closed until implemented)
+rig forge promote --apply --provider github --github-backend api
+```
+
+The flag:
+- Defaults to `auto`
+- Validates choices: `auto`, `cli`, `api`
+- Passes requested mode to the backend plan builder
+- Integrated into both `--safety-report` and `--apply` paths
+
+### Human Output
+
+The human-readable safety report now includes a backend info section:
+
+```
++ Backend Plan
+  Requested mode:  cli
+  Selected mode:   cli
+  Backend ready:   Yes
+  Reason:          CLI backend available and authenticated
+```
+
+### JSON Output
+
+The JSON safety report includes the full `backend_plan` object:
+
+```json
+{
+  "safety_report": {
+    "backend_plan": {
+      "requested_mode": "cli",
+      "selected_mode": "cli",
+      "backend_available": true,
+      "requires_gh": true,
+      "requires_token": false,
+      "token_source": null,
+      "reason": "CLI backend available and authenticated",
+      "findings": []
+    },
+    ...
+  }
+}
+```
+
+### Non-Goals
+
+Mission 9 explicitly does NOT:
+
+- Implement PyGithub/REST API calls — API backend is stubbed, fails closed
+- Store API tokens — The `token_source` describes where a token would come from, but no token value is stored
+- Remove the working `gh` CLI backend — CLI backend remains fully functional
+- Add new runtime dependencies — No PyGithub or requests library added
+- Change existing behavior — When using `--github-backend cli` or default, behavior is identical to pre-Mission 9
+- Configure branch protection — Explicitly out of scope
+- Merge PRs — Explicitly forbidden
+- Mutate preproduction directly — Explicitly forbidden
+
+### Completion Criteria Met
+
+✅ `GitHubBackendMode` enum exists with AUTO, CLI, API values
+✅ `GitHubBackendPlan` frozen dataclass with all 8 fields
+✅ `build_github_backend_plan()` implements selection logic for all modes
+✅ CLI backend preserves existing `gh` behavior
+✅ API backend fails closed with `github_api_backend_not_implemented` finding
+✅ `--github-backend {auto,cli,api}` CLI flag works with choices validation
+✅ Safety report includes backend_plan field
+✅ Backend plan integrated into apply path with fail-closed behavior
+✅ `_check_existing_pr()` renamed to `_github_cli_check_existing_pr()` for clarity
+✅ Human and JSON output includes backend info
+✅ All new tests pass (21 tests added)
+✅ All existing tests pass (237 + 21 = 258 total in test_repository_forge.py)
+✅ Full collection succeeds
+✅ Fast validation passes (`scripts/check.sh --fast`)
+✅ CLI flag recognized in `--help`
+✅ `--github-backend cli` produces valid safety report
+✅ `--github-backend api` fails closed with correct error finding
+
+---

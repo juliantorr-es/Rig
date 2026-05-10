@@ -49,6 +49,10 @@ from rig.domain.forge import (
     build_github_apply_safety_report,
     apply_github_draft_pr_promotion,
     verify_promotion_artifact,
+    # Mission 9: Backend abstraction
+    GitHubBackendMode,
+    GitHubBackendPlan,
+    build_github_backend_plan,
 )
 
 
@@ -387,6 +391,7 @@ def _promote_handler(
     provider: str | None = None,
     remote: str = "origin",
     safety_report: bool = False,
+    github_backend: str = "auto",
 ) -> int:
     """Handler for `rig forge promote` command.
     
@@ -397,6 +402,7 @@ def _promote_handler(
     body file artifact generation.
     Mission 7: Added --apply and --provider support for GitHub draft PR apply.
     Mission 8: Added --safety-report for read-only safety verification.
+    Mission 9: Added --github-backend for backend selection.
     
     Args:
         repo_root: Path to the git repository
@@ -412,6 +418,7 @@ def _promote_handler(
         provider: Provider for apply (e.g., "github") (default: None)
         remote: Git remote name for apply (default: "origin")
         safety_report: If True, emit safety report and exit without mutation (default: False)
+        github_backend: GitHub backend mode: "auto", "cli", or "api" (default: "auto")
         
     Returns:
         Exit code (0 for success/ready, 1 for errors/not ready)
@@ -475,12 +482,23 @@ def _promote_handler(
                     artifact_dir=artifact_dir,
                 )
                 
-                # Build safety report
+                # Parse github_backend parameter
+                try:
+                    backend_mode = GitHubBackendMode(github_backend)
+                except ValueError:
+                    if json_output:
+                        _emit({"status": "error", "error": f"Invalid --github-backend value: {github_backend}. Must be 'auto', 'cli', or 'api'"})
+                    else:
+                        print(f"Error: Invalid --github-backend value: {github_backend}. Must be 'auto', 'cli', or 'api'", file=sys.stderr)
+                    return 1
+
+                # Build safety report with backend plan
                 safety_report_obj = build_github_apply_safety_report(
                     repo_path=repo_root,
                     plan=plan,
                     artifact=artifact,
                     remote=remote,
+                    requested_backend_mode=backend_mode,
                 )
                 
                 if json_output:
@@ -726,7 +744,25 @@ def _serialize_safety_report(safety_report: GitHubApplySafetyReport) -> dict[str
     """Serialize GitHubApplySafetyReport to JSON-compatible dict.
 
     Mission 8: GitHub Apply Safety Doctor
+    Mission 9: Updated with backend_plan
     """
+    # Serialize backend_plan separately
+    backend_plan_data = None
+    if safety_report.backend_plan is not None:
+        backend_plan_data = {
+            "requested_mode": safety_report.backend_plan.requested_mode.value,
+            "selected_mode": safety_report.backend_plan.selected_mode.value if safety_report.backend_plan.selected_mode else None,
+            "backend_available": safety_report.backend_plan.backend_available,
+            "requires_gh": safety_report.backend_plan.requires_gh,
+            "requires_token": safety_report.backend_plan.requires_token,
+            "token_source": safety_report.backend_plan.token_source,
+            "reason": safety_report.backend_plan.reason,
+            "findings": [dataclasses.asdict(f) for f in safety_report.backend_plan.findings],
+        }
+        # Convert backend_plan findings severity enums
+        for finding in backend_plan_data["findings"]:
+            finding["severity"] = finding["severity"].value  # type: ignore[typeddict-unknown-key]
+
     result: dict[str, Any] = {
         "provider": safety_report.provider,
         "owner": safety_report.owner,
@@ -741,6 +777,7 @@ def _serialize_safety_report(safety_report: GitHubApplySafetyReport) -> dict[str
         "forbidden_commands_detected": list(safety_report.forbidden_commands_detected),
         "ready": safety_report.ready,
         "findings": [dataclasses.asdict(f) for f in safety_report.findings],
+        "backend_plan": backend_plan_data,
     }
     # Convert findings severity enums
     for finding in result["findings"]:
@@ -774,7 +811,18 @@ def _emit_human_safety_report(
     print(f"    Available: {'Yes' if safety_report.gh_available else 'No'}")
     print(f"    Authenticated: {'Yes' if safety_report.gh_authenticated else 'No'}")
     print()
-    
+
+    # Backend plan (Mission 9)
+    if safety_report.backend_plan is not None:
+        print(f"  Backend Plan:")
+        print(f"    Requested Mode: {safety_report.backend_plan.requested_mode.value}")
+        print(f"    Selected Mode: {safety_report.backend_plan.selected_mode.value if safety_report.backend_plan.selected_mode else 'None'}")
+        print(f"    Backend Available: {'Yes' if safety_report.backend_plan.backend_available else 'No'}")
+        print(f"    Requires gh: {'Yes' if safety_report.backend_plan.requires_gh else 'No'}")
+        print(f"    Requires Token: {'Yes' if safety_report.backend_plan.requires_token else 'No'}")
+        print(f"    Reason: {safety_report.backend_plan.reason}")
+        print()
+
     # Artifact status
     print(f"  Artifact Valid: {'Yes' if safety_report.artifact_valid else 'No'}")
     print()
@@ -1000,6 +1048,13 @@ def register(subparsers, helpers):
         default=False,
         help="Emit GitHub apply safety report and exit without mutation. Requires --provider github. Read-only verification of preconditions.",
     )
+    # Mission 9: GitHub backend selection
+    promote_parser.add_argument(
+        "--github-backend",
+        default="auto",
+        choices=["auto", "cli", "api"],
+        help="GitHub backend mode: 'auto' (default, tries CLI first), 'cli' (use GitHub CLI), 'api' (use GitHub API - not yet implemented)",
+    )
     promote_parser.set_defaults(
         handler=lambda args: _promote_handler(
             helpers.repo_root,
@@ -1014,6 +1069,7 @@ def register(subparsers, helpers):
             provider=args.provider,
             remote=args.remote,
             safety_report=args.safety_report,
+            github_backend=args.github_backend,
         )
     )
     

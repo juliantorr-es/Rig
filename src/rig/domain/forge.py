@@ -61,6 +61,21 @@ class ForgeDoctorSeverity(Enum):
     CRITICAL = "critical"
 
 
+class GitHubBackendMode(Enum):
+    """GitHub adapter backend modes.
+
+    Mission 9: GitHub Adapter Backend Boundary
+
+    Defines the backend mode for GitHub adapter operations.
+    - AUTO: Automatically select the best available backend
+    - CLI: Use GitHub CLI (gh) backend
+    - API: Use GitHub REST API/PyGithub backend (not yet implemented)
+    """
+    AUTO = "auto"
+    CLI = "cli"
+    API = "api"
+
+
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
@@ -108,6 +123,26 @@ class ForgeDoctorFinding:
     severity: ForgeDoctorSeverity
     message: str
     remediation: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubBackendPlan:
+    """Backend plan for GitHub adapter operations.
+
+    Mission 9: GitHub Adapter Backend Boundary
+
+    Represents the backend selection and availability for GitHub operations.
+    This plan is used to determine which backend (CLI or API) will be used
+    for GitHub-specific operations, and whether it's available.
+    """
+    requested_mode: GitHubBackendMode
+    selected_mode: GitHubBackendMode | None
+    backend_available: bool
+    requires_gh: bool
+    requires_token: bool
+    token_source: str | None
+    reason: str
+    findings: tuple[ForgeDoctorFinding, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -492,6 +527,7 @@ class GitHubApplySafetyReport:
     """Safety report for GitHub apply operations.
 
     Mission 8: GitHub Apply Safety Doctor
+    Mission 9: Updated with backend_plan field
 
     Read-only safety verification for GitHub promotion apply path.
     This report must pass before any mutation is allowed.
@@ -509,6 +545,186 @@ class GitHubApplySafetyReport:
     forbidden_commands_detected: tuple[str, ...]
     ready: bool
     findings: tuple[ForgeDoctorFinding, ...]
+    backend_plan: "GitHubBackendPlan | None" = None
+
+
+# ---------------------------------------------------------------------------
+# GitHub Backend Boundary (Mission 9)
+# ---------------------------------------------------------------------------
+
+def build_github_backend_plan(
+    requested_mode: GitHubBackendMode = GitHubBackendMode.AUTO,
+    gh_available: bool | None = None,
+    gh_authenticated: bool | None = None,
+    api_token_available: bool = False,
+    token_source: str | None = None,
+) -> GitHubBackendPlan:
+    """Build a GitHub backend plan based on requested mode and availability.
+
+    Mission 9: GitHub Adapter Backend Boundary
+
+    Determines which backend (CLI or API) should be used for GitHub operations,
+    and whether it's available. The API backend is not yet implemented and
+    will always fail closed.
+
+    Args:
+        requested_mode: The backend mode requested by the user (default: AUTO)
+        gh_available: Whether GitHub CLI (gh) is available (None = check)
+        gh_authenticated: Whether GitHub CLI is authenticated (None = check)
+        api_token_available: Whether API token is available (default: False)
+        token_source: Description of token source (NOT the token value)
+
+    Returns:
+        GitHubBackendPlan with backend selection and availability info
+    """
+    findings: list[ForgeDoctorFinding] = []
+
+    # Default selections
+    selected_mode: GitHubBackendMode | None = None
+    backend_available = False
+    requires_gh = False
+    requires_token = False
+    reason = ""
+
+    # Handle CLI mode
+    if requested_mode == GitHubBackendMode.CLI:
+        requires_gh = True
+        requires_token = False
+
+        # Check gh availability
+        if gh_available is None:
+            # Need to check
+            gh_available, _, gh_findings = _check_gh_cli_available()
+            findings.extend(gh_findings)
+
+        if gh_available:
+            # Check authentication
+            if gh_authenticated is None:
+                gh_authenticated = False
+                # Try to check auth
+                try:
+                    proc = subprocess.run(
+                        ["/usr/bin/env", "gh", "auth", "status", "--hostname", "github.com"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    auth_output = proc.stdout + proc.stderr
+                    if proc.returncode == 0:
+                        if ("logged in" in auth_output.lower() or
+                            "logged into" in auth_output.lower() or
+                            "active" in auth_output.lower()):
+                            gh_authenticated = True
+                except Exception:
+                    gh_authenticated = False
+
+            if gh_authenticated:
+                backend_available = True
+                selected_mode = GitHubBackendMode.CLI
+                reason = "CLI backend available and authenticated"
+            else:
+                findings.append(ForgeDoctorFinding(
+                    code="github_cli_backend_not_authenticated",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message="GitHub CLI is not authenticated for github.com",
+                    remediation="Run 'gh auth login' to authenticate",
+                ))
+                reason = "CLI backend requires GitHub CLI authentication"
+        else:
+            findings.append(ForgeDoctorFinding(
+                code="github_cli_backend_not_available",
+                severity=ForgeDoctorSeverity.ERROR,
+                message="GitHub CLI (gh) is not available",
+                remediation="Install GitHub CLI from https://cli.github.com",
+            ))
+            reason = "CLI backend requires GitHub CLI (gh)"
+
+    # Handle API mode
+    elif requested_mode == GitHubBackendMode.API:
+        requires_gh = False
+        requires_token = True
+        token_source = token_source or "environment or config"
+
+        # API backend is not yet implemented
+        findings.append(ForgeDoctorFinding(
+            code="github_api_backend_not_implemented",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub API backend is not yet implemented",
+            remediation="Use --github-backend cli or auto, or wait for API backend implementation",
+        ))
+        backend_available = False
+        selected_mode = None
+        reason = "API backend is not yet implemented"
+
+    # Handle AUTO mode
+    elif requested_mode == GitHubBackendMode.AUTO:
+        # Try CLI first if available and authenticated
+        if gh_available is None:
+            gh_available, _, gh_findings = _check_gh_cli_available()
+            findings.extend(gh_findings)
+
+        if gh_available:
+            if gh_authenticated is None:
+                gh_authenticated = False
+                try:
+                    proc = subprocess.run(
+                        ["/usr/bin/env", "gh", "auth", "status", "--hostname", "github.com"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    auth_output = proc.stdout + proc.stderr
+                    if proc.returncode == 0:
+                        if ("logged in" in auth_output.lower() or
+                            "logged into" in auth_output.lower() or
+                            "active" in auth_output.lower()):
+                            gh_authenticated = True
+                except Exception:
+                    gh_authenticated = False
+
+            if gh_authenticated:
+                selected_mode = GitHubBackendMode.CLI
+                backend_available = True
+                requires_gh = True
+                requires_token = False
+                reason = "Auto-selected CLI backend (gh available and authenticated)"
+            else:
+                # CLI available but not authenticated
+                selected_mode = None
+                backend_available = False
+                requires_gh = True
+                requires_token = False
+                reason = "No available GitHub backend (CLI available but not authenticated)"
+                findings.append(ForgeDoctorFinding(
+                    code="github_backend_auto_no_auth",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message="GitHub CLI is available but not authenticated",
+                    remediation="Authenticate with 'gh auth login' or use a different backend",
+                ))
+        else:
+            # CLI not available, API not implemented
+            selected_mode = None
+            backend_available = False
+            requires_gh = False
+            requires_token = False
+            reason = "No available GitHub backend (CLI not available, API not implemented)"
+            findings.append(ForgeDoctorFinding(
+                code="github_backend_auto_unavailable",
+                severity=ForgeDoctorSeverity.ERROR,
+                message="No available GitHub backend",
+                remediation="Install GitHub CLI (gh) and authenticate, or wait for API backend implementation",
+            ))
+
+    return GitHubBackendPlan(
+        requested_mode=requested_mode,
+        selected_mode=selected_mode,
+        backend_available=backend_available,
+        requires_gh=requires_gh,
+        requires_token=requires_token,
+        token_source=token_source,
+        reason=reason,
+        findings=tuple(findings),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -621,10 +837,12 @@ def build_github_apply_safety_report(
     plan: PromotionPlan,
     artifact: PromotionArtifact,
     remote: str = "origin",
+    requested_backend_mode: GitHubBackendMode = GitHubBackendMode.AUTO,
 ) -> GitHubApplySafetyReport:
     """Build a read-only safety report for GitHub apply operations.
 
     Mission 8: GitHub Apply Safety Doctor
+    Mission 9: Updated with backend_plan parameter
 
     This function is READ-ONLY and performs no mutations.
     It may run:
@@ -638,6 +856,7 @@ def build_github_apply_safety_report(
         plan: The promotion plan
         artifact: The promotion artifact
         remote: The Git remote name (default: "origin")
+        requested_backend_mode: The backend mode to use (default: AUTO)
 
     Returns:
         GitHubApplySafetyReport with safety verification results
@@ -654,6 +873,16 @@ def build_github_apply_safety_report(
     # Check gh CLI availability
     gh_available, gh_version, gh_check_findings = _check_gh_cli_available()
     findings.extend(gh_check_findings)
+
+    # Build backend plan (Mission 9)
+    backend_plan = build_github_backend_plan(
+        requested_mode=requested_backend_mode,
+        gh_available=gh_available,
+        gh_authenticated=None,  # Will be checked inside build_github_backend_plan
+        api_token_available=False,
+        token_source=None,
+    )
+    findings.extend(backend_plan.findings)
 
     # Check gh authentication
     gh_authenticated = False
@@ -709,7 +938,7 @@ def build_github_apply_safety_report(
     # Check for existing PR
     existing_pr_url: str | None = None
     if plan.draft is not None and gh_available:
-        pr_exists, pr_url, pr_findings = _check_existing_pr(
+        pr_exists, pr_url, pr_findings = _github_cli_check_existing_pr(
             target_ref=plan.target_ref,
             promotion_branch=plan.draft.promotion_branch,
             remote=remote,
@@ -832,6 +1061,27 @@ def build_github_apply_safety_report(
             remediation="Regenerate artifact with --write-artifact",
         ))
 
+    # Update ready status to also require backend availability
+    ready = (
+        ready and
+        backend_plan.backend_available
+    )
+
+    # If backend not available but wasn't already caught by other checks
+    if not backend_plan.backend_available and not any(
+        f.code in ("github_cli_backend_not_available", "github_cli_backend_not_authenticated", 
+                   "github_api_backend_not_implemented", "github_backend_auto_no_auth", 
+                   "github_backend_auto_unavailable")
+        for f in findings
+    ):
+        # This shouldn't happen if backend_plan.findings were added, but just in case
+        findings.append(ForgeDoctorFinding(
+            code="github_backend_unavailable",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="No available GitHub backend",
+            remediation="Ensure GitHub CLI is installed and authenticated, or use a different backend",
+        ))
+
     return GitHubApplySafetyReport(
         provider="github",
         owner=owner,
@@ -846,6 +1096,7 @@ def build_github_apply_safety_report(
         forbidden_commands_detected=tuple(forbidden_commands_detected),
         ready=ready,
         findings=tuple(findings),
+        backend_plan=backend_plan,
     )
 
 
@@ -2244,16 +2495,17 @@ def _check_gh_cli_available() -> tuple[bool, str | None, tuple[ForgeDoctorFindin
     return True, gh_version, tuple(findings)
 
 
-def _check_existing_pr(
+def _github_cli_check_existing_pr(
     target_ref: str,
     promotion_branch: str,
     remote: str = "origin",
 ) -> tuple[bool, str | None, tuple[ForgeDoctorFinding, ...]]:
-    """Check if a PR already exists for the promotion branch.
+    """Check if a PR already exists for the promotion branch (GitHub CLI backend).
 
     Mission 7: GitHub Draft PR Apply
+    Mission 9: Renamed to reflect GitHub CLI backend specificity
 
-    Uses `gh pr list` to check for existing PRs.
+    Uses `gh pr list` to check for existing PRs via GitHub CLI.
 
     Args:
         target_ref: The target branch (base ref)
@@ -2613,7 +2865,7 @@ def apply_github_draft_pr_promotion(
         )
 
     # Check for existing PR
-    pr_exists, existing_pr_url, pr_findings = _check_existing_pr(
+    pr_exists, existing_pr_url, pr_findings = _github_cli_check_existing_pr(
         target_ref=plan.target_ref,
         promotion_branch=promotion_branch,
         remote=remote,
