@@ -1,0 +1,173 @@
+name: verify-trust
+
+# Rig Operational Trust Verification Workflow
+#
+# Doctrine:
+# - Verify operational trust continuously
+# - Automate trust validation where practical
+# - Fail-fast on trust violations
+# - No hidden mutation
+# - Deterministic checks
+#
+# This workflow runs operational trust verification:
+# - Fresh clone verification (from source)
+# - Release artifact build verification
+# - Install matrix validation
+#
+# Note: This workflow does NOT publish anything.
+# All operations are read-only or in temporary directories.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on main to ensure continued trust
+    - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
+  workflow_dispatch:
+    # Allow manual triggering
+
+# Permissions: Minimal required permissions for security
+permissions:
+  contents: read
+  # Note: No write permissions - this workflow does not modify the repo
+
+jobs:
+  verify-fresh-clone:
+    name: Fresh Clone Verification
+    runs-on: macos-14
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+        id: checkout
+      
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+      
+      - name: Run fresh clone verification
+        run: |
+          echo "=== Running Fresh Clone Verification ==="
+          bash scripts/verify_fresh_clone.sh --fast --python $(which python3.14) --keep
+        
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          echo "Collecting diagnostics..."
+          ls -la /tmp/rig_fresh_clone_*/ 2>/dev/null || true
+        continue-on-error: true
+
+  verify-release-artifacts:
+    name: Release Artifact Verification
+    runs-on: macos-14
+    timeout-minutes: 45
+    needs: verify-fresh-clone
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+      
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+      
+      - name: Run release artifact verification
+        run: |
+          echo "=== Running Release Artifact Verification ==="
+          bash scripts/verify_release_artifacts.sh --fast --keep
+        
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          echo "Collecting diagnostics..."
+          ls -la /tmp/rig_artifacts_*/ 2>/dev/null || true
+        continue-on-error: true
+
+  verify-install-matrix:
+    name: Install Matrix Verification
+    runs-on: macos-14
+    timeout-minutes: 30
+    needs: verify-release-artifacts
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+      
+      - name: Test base install
+        run: |
+          python3.14 -m venv /tmp/test_base_install
+          source /tmp/test_base_install/bin/activate
+          python -m pip install -e .
+          python -c "import rig; print('Base install OK')"
+          python -m rig --help > /dev/null
+      
+      - name: Test dev install
+        run: |
+          python3.14 -m venv /tmp/test_dev_install
+          source /tmp/test_dev_install/bin/activate
+          python -m pip install -e ".[dev]"
+          python -c "import rig; import pytest; print('Dev install OK')"
+          python -m pytest tests/test_replay.py -q --tb=no
+      
+      - name: Test UI install
+        run: |
+          python3.14 -m venv /tmp/test_ui_install
+          source /tmp/test_ui_install/bin/activate
+          python -m pip install -e ".[ui]"
+          python -c "import rig; import aiohttp; import webview; print('UI install OK')"
+          python -m rig ui --help > /dev/null
+      
+      - name: Test all extras install
+        run: |
+          python3.14 -m venv /tmp/test_all_install
+          source /tmp/test_all_install/bin/activate
+          python -m pip install -e ".[all]" || python -m pip install -e ".[ui,dev]"
+          python -c "import rig; print('All extras install OK')"
+      
+      - name: Doctor check after install
+        run: |
+          source /tmp/test_all_install/bin/activate
+          python -m rig doctor all
+      
+      - name: Cleanup test environments
+        if: always()
+        run: |
+          rm -rf /tmp/test_base_install /tmp/test_dev_install /tmp/test_ui_install /tmp/test_all_install || true
+
+# Note on security:
+# - No write permissions granted
+# - No secrets are used (all open source)
+# - All operations are in temporary directories
+# - No artifacts are published
+# - All verification is local-only
+# - CI cache is used for speed but doesn't affect trust verification

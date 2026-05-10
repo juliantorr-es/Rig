@@ -91,7 +91,10 @@ def test_validator_failure_blocks_apply(tmp_path: Path) -> None:
     )
     mgr, ws = make_workspace(repo)
     mgr.generate_validation_result(ws)
-    assert mgr.load_workspace(ws).payload["status"] == "blocked"
+    loaded = mgr.load_workspace(ws)
+    if loaded is None:
+        raise AssertionError("expected workspace record")
+    assert loaded.payload["status"] == "blocked"
 
 
 def test_status_transition_rejects_skips(tmp_path: Path) -> None:
@@ -103,3 +106,23 @@ def test_status_transition_rejects_skips(tmp_path: Path) -> None:
         assert False, "expected failure"
     except ValueError:
         pass
+
+
+def test_workspace_bootstrap_creates_governed_rig_layout(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    mgr = WorkspaceDomain(repo)
+    for rel in [
+        ".rig",
+        ".rig/worktrees",
+        ".rig/artifacts",
+        ".rig/replay",
+        ".rig/topology",
+        ".rig/receipts",
+        ".rig/runtime",
+        ".rig/cache",
+    ]:
+        assert (repo / rel).exists(), rel
+    record = mgr.create_workspace("task")
+    if record is None:
+        raise AssertionError("expected workspace record")
+    assert Path(record.payload["worktree_path"]).exists()

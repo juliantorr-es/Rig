@@ -46,8 +46,37 @@ def test_init_yes_adds_gitignore_and_promptless_success(tmp_path: Path) -> None:
         return
     assert proc.returncode == 0, proc.stderr
     assert (repo / ".gitignore").exists()
-    assert ".build/rig/" in (repo / ".gitignore").read_text(encoding="utf-8")
+    gitignore = (repo / ".gitignore").read_text(encoding="utf-8")
+    assert ".build/rig/" in gitignore
+    assert ".rig/worktrees/" in gitignore
+    assert ".rig/artifacts/" in gitignore
+    assert ".rig/replay/" in gitignore
+    assert ".rig/topology/" in gitignore
+    assert ".rig/receipts/" in gitignore
+    assert ".rig/runtime/" in gitignore
+    assert ".rig/cache/" in gitignore
     assert "Next:" in proc.stdout
+
+
+def test_init_yes_creates_governed_rig_layout(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    proc = subprocess.run([sys.executable, "-m", "rig", "init", "--yes"], cwd=repo, text=True, capture_output=True, check=False)
+    if not PYTHON_GE_314:
+        assert proc.returncode == 1
+        return
+    assert proc.returncode == 0, proc.stderr
+    for rel in [
+        ".rig",
+        ".rig/worktrees",
+        ".rig/artifacts",
+        ".rig/replay",
+        ".rig/topology",
+        ".rig/receipts",
+        ".rig/runtime",
+        ".rig/cache",
+    ]:
+        assert (repo / rel).exists(), rel
 
 
 def test_scripts_directory_contains_only_wrappers_or_utilities() -> None:

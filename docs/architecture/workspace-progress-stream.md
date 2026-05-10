@@ -4,7 +4,7 @@
 
 Rig uses live progress telemetry for workspace and lane operations. Streams are telemetry, not authority. The backend may refresh projections and emit receipts when an operation completes.
 
-The first implemented slice uses the existing WebSocket path and emits `progress_event` messages for read-only refresh operations.
+The first implementation phase uses the existing WebSocket path and emits `progress_event` messages for read-only refresh operations.
 
 ## Event Model
 
@@ -107,7 +107,7 @@ Prefer the existing WebSocket transport for browser-to-backend intentions and ba
 
 Future `ProgressReceipt` support is intentionally separated into a deterministic advisory planner. The planner can look at a bounded, ordered sequence of `ProgressEvent` records and decide whether that sequence could later be promoted into a receipt-backed artifact.
 
-This slice does not implement durable progress receipts.
+This implementation phase does not implement durable progress receipts.
 
 Rules:
 
@@ -124,7 +124,7 @@ Eligible future receipt kinds:
 - `workspace_scan_summary`
 - `reserved_future`
 
-In this slice, only read-only operational transcripts may be eligible for future derivation planning. Mutating command progress remains transient unless a separate receipt authority already exists.
+In this implementation phase, only read-only operational transcripts may be eligible for future derivation planning. Mutating command progress remains transient unless a separate receipt authority already exists.
 
 Future `ProgressReceipt` planning would minimally carry:
 

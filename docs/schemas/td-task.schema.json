@@ -30,8 +30,8 @@
     },
     "type": {
       "type": "string",
-      "enum": ["task", "subtask", "research", "verification", "publication", "maintenance"],
-      "description": "Type of task.",
+      "enum": ["task", "research", "verification", "publication", "maintenance"],
+      "description": "Type of task. Note: 'subtask' is forbidden in Rig workflow - use tasks or missions instead.",
       "default": "task"
     },
     "status": {

@@ -198,7 +198,7 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 | `git stash` | ✓ | **NEVER** |
 | `git stash pop` | ✓ | **NEVER** |
 | `git rebase` | ✓ | **NEVER** |
-| `git merge` | ✓ | **NEVER** |
+| `git merge` | ✓ | **NEVER** — agents must use `scripts/work_promote.py` for preproduction promotion |
 | `git branch -D` | ✓ | **NEVER** |
 | `rm -rf` | ✓ | **NEVER** |
 
@@ -285,10 +285,152 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 - **Proof/receipt records evidence**; it does not define current work.
 - Active tasks need: goal, non-goals, scope, acceptance, validation, and evidence.
 - **Park shiny ideas as follow-ups**; do not opportunistically implement them.
+- **Canonical workflow**: Agents follow ADR → Sprint → **Sprint Research** → Mission → **Patch Batch** → Evidence → Review/Promotion. See `docs/workflow/adr-sprint-mission-evidence.md` for the authoritative workflow narrative.
+- **Sprint Research is mandatory** before any implementation. Research is read-only and must produce research artifacts.
+- **Patch batches are preferred** over repeated fine-grained edits. Always precheck patches with `git apply --check`.
 
 ---
 
-## 10. Final Report Format
+## 10. Work Status Tracking
+
+### Worktree placement
+
+- Rig-owned linked worktrees must live under `.rig/worktrees/`.
+- Do **not** create new sibling worktrees next to the main repo.
+- Use `git worktree add .rig/worktrees/<name> <branch>` for new tracked work.
+- If sibling worktrees already exist, normalize them with:
+  ```bash
+  python scripts/worktree_normalize.py --dry-run --worker <name>
+  python scripts/worktree_normalize.py --apply --worker <name>
+  ```
+- **Never raw-move worktrees with `mv`.** Use `git worktree move` or the normalization script.
+- If a worktree was moved manually and Git metadata is broken, run `git worktree repair` from the main worktree and report it.
+
+### Worktree normalization script
+
+Canonical script: `scripts/worktree_normalize.py` (tracked)
+Local wrapper: `.rig/work/scripts/worktree_normalize.py` (gitignored, delegates to canonical)
+
+| Flag | Effect |
+|---|---|
+| `--dry-run` | **(default)** Show candidates; mutate nothing; append no events. |
+| `--apply` | Actually move eligible worktrees; append events. |
+| `--worker NAME` | Required. Name/slug of the calling agent. |
+| `--include-locked` | Include locked worktrees (default: blocked). |
+| `--allow-dirty` | Move worktrees with uncommitted changes (default: refused). |
+| `--allow-submodules` | Move worktrees containing submodules (default: refused). |
+| `--rename-conflicts` | Suffix basename with `-2`, `-3`, … on name collision. |
+
+Candidate set is determined **solely** by `git worktree list --porcelain`. The script never touches arbitrary sibling directories.
+
+### Work-stream events
+
+Events are appended to `.rig/work/events/worktree-normalize.jsonl` and validated against `docs/schemas/work-stream-event.schema.json`.
+
+| Event type | When emitted |
+|---|---|
+| `worktree_moved` | After a successful `git worktree move`. |
+| `worktree_move_blocked` | When a candidate is skipped or refused (apply mode only). |
+
+### Acceptance checks
+
+Run these to verify the script is functional before using `--apply`:
+
+```bash
+python scripts/worktree_normalize.py --dry-run --worker smoke
+git worktree list --porcelain
+```
+
+### ADR work state
+
+- ADR work state lives under `.rig/work/adr/<adr-id>/`.
+- Each ADR has `task.json`, `progress.jsonl`, `projection.json`, and `notes/out-of-scope-findings.md`.
+- Each sprint has `.rig/work/adr/<adr-id>/sprints/<sprint-id>/` with research artifacts and patch batches.
+- `progress.jsonl` is **append-only**. Never delete or edit existing lines.
+- `projection.json` and `notes/out-of-scope-findings.md` are **generated**. Do not hand-edit them.
+
+### Sprint Research (MANDATORY)
+
+- Sprint Research is **mandatory** before any implementation.
+- Research is **read-only** — no file edits except writing artifacts under `.rig/work/adr/<adr-id>/sprints/<sprint-id>/`.
+- Research must use installed Python tooling (pathlib, json, ast, difflib, subprocess, tokenize) and CLI tools (rg, fd, git diff, git status --porcelain=v1).
+- Research must produce: research_summary, repo_inventory, relevant_files, current_state, risk_notes, mission_plan, patch_batches, validation_plan, out_of_scope_findings.
+- Research must **identify expected files** before mutation begins.
+- Research must **define validation commands** before mutation begins.
+- Sprint Research must **record out-of-current-scope findings** instead of ignoring them.
+
+### Mission and Patch Batch Execution
+
+- Agents should **claim missions**, not tiny slices or subtasks.
+- Agents should **derive their own internal checklist** from mission `intent` and `completion_criteria`.
+- Agents should **execute missions using patch batches** where practical (`scripts/work_patch_batch.py`).
+- Agents should **heartbeat** during long work (`scripts/work_heartbeat.py`).
+- Agents must **precheck patches** with `git apply --check` before applying unified diffs.
+- **Patch batches require merge-friendliness preflight before apply** (`scripts/work_merge_friendly.py`).
+- **Agents must not apply patches blindly while other worktrees are active**.
+- Agents must **check merge-friendliness** before applying any patch batch.
+- Agents must **validate after each patch batch** is applied.
+- Agents must **stop** if actual changed files exceed planned files, protected paths are touched, or unexpected dirty files appear.
+- **Do not use** `git reset`/`restore`/`stash`/`checkout`/`clean` for rollback. Report and await direction.
+- **Merge-friendliness rules**: Dirty same-file overlap in another worktree blocks by default. Same-directory overlap warns. Merge simulation is advisory/preflight only and does not mutate worktrees.
+
+### Evidence Rules
+
+- Out-of-scope findings **do not expand** the current mission or sprint. They are observations only.
+- Agents must include **out-of-scope findings at the end of handoff/final reports**, even if the list is empty.
+- Do **not** create nested subtasks, recursive missions, workstreams, or slices. Missions are flat.
+- Slices are **implementation phases only** (see ADR 0009), not workflow hierarchy.
+- Use `scripts/work_doctor.py` before any commit. `work_doctor.py` will warn or fail if a sprint has missions but no completed research.
+
+#### ADR work scripts (all tracked under `scripts/`)
+
+| Script | Purpose |
+|---|---|
+| `work_research.py <task_id> --sprint <id> --worker <name> --action start\|complete` | Start/complete sprint research, write research artifacts |
+| `work_patch_batch.py <task_id> --action plan\|precheck\|merge-friendly\|apply\|validate --batch <id> ...` | Manage patch batch planning, precheck, merge-friendliness check, apply, validation |
+| `work_merge_friendly.py <task_id> --batch <id> --patch-file <path> [--mission <id>] [--sprint <id>]` | Check patch merge-friendliness against active worktrees. Run before apply. |
+| `work_export_dataset.py <task_id> [--output-dir <path>] [--force]` | Export ledger data as CSV/Parquet for analysis. Generates events.csv, missions.csv, patch_batches.csv, validations.csv, findings.csv, dataset_card.md, schema.json |
+| `work_status.py <task_id>` | Regenerate projection + print status summary (includes sprint research, patch batch, and merge-friendliness status) |
+| `work_claim.py <task_id> --mission <id> --worker <name> --paths <glob>` | Claim a mission |
+| `work_heartbeat.py <task_id> --mission <id> --worker <name>` | Record heartbeat |
+| `work_note.py <task_id> --worker <name> --note "text"` | Append a note |
+| `work_note.py <task_id> --worker <name> --out-of-scope --note "text"` | Record out-of-scope finding |
+| `work_blocked.py <task_id> --worker <name> --note "reason"` | Record blocked event |
+| `work_handoff.py <task_id> --worker <name> --status ready_for_review ...` | Record handoff (includes patch batches applied and out-of-scope findings) |
+| `work_doctor.py <task_id>` | Validate task + ledger; required before committing. **Warns/fails if sprint has missions but no completed research. Fails commit readiness if patch batch evidence or merge-friendliness check is missing.** |
+| `work_commit.py <task_id> --worker <name> --message "..."` | Governed commit plan |
+| `work_promote.py <task_id> --mission <id> --target preproduction --worker <name> [--sprint <id>] [--dry-run]` | Governed promotion to preproduction via Rite of Deterministic Passage. **Agents must NOT merge directly.** |
+
+---
+
+### Preproduction Promotion Rules (Rite of Deterministic Passage)
+
+- **Agents MUST NOT run `git merge` directly.** Direct git merge is forbidden under all circumstances.
+- **Agents MAY ONLY promote through `scripts/work_promote.py`** — this is the sole authorized path for preproduction promotion.
+- **Target is restricted to `preproduction` only** — main/production are human-governed and out of scope.
+- **All 13 deterministic gates must pass** before promotion executes:
+  1. Sprint research completed
+  2. Mission handoff completed
+  3. Patch batches prechecked
+  4. Patch batches applied and validated
+  5. Merge-friendliness pass completed
+  6. work_doctor.py passed
+  7. Required tests/checks passed or explicitly justified
+  8. Out-of-current-scope findings recorded (even if empty)
+  9. Candidate source branch is clean
+  10. Candidate source branch HEAD is recorded
+  11. Preproduction branch exists locally
+  12. Merge simulation against preproduction passes
+  13. Preproduction working tree is clean before merge
+- **Failed gates append `preproduction_promotion_blocked` event** to the ledger and **must not mutate branches**.
+- **Promotion is fully auditable** through ADR-local progress ledger events.
+- **Merge simulation uses `git merge-tree`** for non-mutating preflight check.
+- **`--dry-run` mode** shows gate results without executing promotion.
+- **Preproduction is integration/local only** — production/main remains human-governed and out of scope.
+
+---
+
+## 11. Final Report Format
 
 **Every coding task final report must include:**
 

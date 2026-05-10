@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/work-stream-event.schema.json",
+  "title": "Rig Work-Stream Event",
+  "description": "Append-only work-stream event record. Each line in a work-stream JSONL log must validate against one of the defined event types. NOTE: 'work-stream' is a legacy term for worktree normalization events; this schema remains for backward compatibility.",
+  "oneOf": [
+    { "$ref": "#/$defs/worktree_moved" },
+    { "$ref": "#/$defs/worktree_move_blocked" }
+  ],
+  "$defs": {
+    "base_fields": {
+      "type": "object",
+      "required": ["event_id", "ts", "worker"],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "description": "Unique identifier for this event (UUID or deterministic slug)."
+        },
+        "ts": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp of when the event was recorded."
+        },
+        "worker": {
+          "type": "string",
+          "description": "Name or slug of the agent or process that appended this event."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional human-readable annotation."
+        }
+      }
+    },
+    "worktree_moved": {
+      "allOf": [
+        { "$ref": "#/$defs/base_fields" },
+        {
+          "type": "object",
+          "required": ["event_id", "ts", "worker", "type", "old_path", "new_path", "branch", "head"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "worktree_moved"
+            },
+            "old_path": {
+              "type": "string",
+              "description": "Absolute path of the worktree before the move."
+            },
+            "new_path": {
+              "type": "string",
+              "description": "Absolute path of the worktree after the move."
+            },
+            "branch": {
+              "type": "string",
+              "description": "Branch checked out in this worktree at move time."
+            },
+            "head": {
+              "type": "string",
+              "description": "Short or full commit SHA of HEAD at move time."
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "worktree_move_blocked": {
+      "allOf": [
+        { "$ref": "#/$defs/base_fields" },
+        {
+          "type": "object",
+          "required": ["event_id", "ts", "worker", "type", "old_path", "reason", "branch", "head"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "worktree_move_blocked"
+            },
+            "old_path": {
+              "type": "string",
+              "description": "Absolute path of the worktree that was not moved."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Human-readable reason the move was skipped or refused."
+            },
+            "branch": {
+              "type": "string",
+              "description": "Branch checked out in this worktree."
+            },
+            "head": {
+              "type": "string",
+              "description": "Short or full commit SHA of HEAD at check time."
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

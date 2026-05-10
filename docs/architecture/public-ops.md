@@ -1,8 +1,7 @@
 # PublicOps Architecture
 
-Status: FUTURE
-
-`PublicOps` is Rig's future public-facing project operations layer. It exists to manage collaboration surfaces without surrendering canonical authority to GitHub, Google Forms, Google Sheets, or any other external SaaS.
+> **Status: FUTURE / DESIGN ONLY**
+> `PublicOps` is Rig's future public-facing project operations layer. This document defines the intended architecture and contracts; no live integration or implementation exists yet.
 
 ## Doctrine
 

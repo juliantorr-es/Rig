@@ -46,6 +46,8 @@ class ReceiptProjection:
     verified: bool
     summary: str
     raw_reference: Optional[str] = None
+    schema_version: str = "rig.ui.projection.v1"
+    projection_revision: Optional[int] = None
 
 @dataclass
 class ChatMessage:

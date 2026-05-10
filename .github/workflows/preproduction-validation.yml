@@ -1,0 +1,94 @@
+name: preproduction-validation
+
+# Governed integration validation for preproduction
+#
+# Doctrine:
+# - Deterministic validation ordering
+# - Minimal permissions
+# - No hidden mutation
+# - No credential persistence
+# - Artifacts for debugging and replay review
+
+on:
+  pull_request:
+    branches: [preproduction]
+  push:
+    branches: [preproduction]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Preproduction Validation
+    runs-on: macos-14
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - name: Install Rig with dev and UI dependencies
+        run: python -m pip install -e ".[ui,dev]"
+
+      - name: Syntax integrity
+        run: python3.14 -m compileall -q src tests
+
+      - name: Type integrity
+        run: python3.14 -m pyright --project pyrightconfig.json src/rig/domain/workspace.py tests/test_phase6a_public_hardening.py tests/test_workspace_governance.py
+
+      - name: Replay determinism
+        run: python -m pytest tests/test_replay.py -v --tb=short
+
+      - name: Projection contract integrity
+        run: python -m pytest tests/test_projection_contracts.py -v --tb=short
+
+      - name: Frontend governance
+        run: python -m pytest tests/test_frontend_contracts.py -v --tb=short
+
+      - name: SVG validation
+        run: python -m pytest tests/test_runtime_svg_instrumentation.py -v --tb=short
+
+      - name: Operational integrity
+        run: |
+          python -m rig doctor workspace --json --strict
+          python -m rig doctor projections --json --strict
+          python -m rig ui --help
+
+      - name: Browser boot smoke
+        run: python -m rig --debug ui --browser
+
+      - name: Emit validation summary
+        if: always()
+        run: |
+          mkdir -p validation-artifacts
+          cat > validation-artifacts/preproduction-summary.json <<'JSON'
+          {
+            "workflow": "preproduction-validation",
+            "branch": "${{ github.ref_name }}",
+            "event_name": "${{ github.event_name }}",
+            "status": "collected"
+          }
+          JSON
+
+      - name: Canonical validation fast path
+        run: bash scripts/check.sh --fast
+
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preproduction-validation-artifacts
+          path: |
+            validation-artifacts/
+          retention-days: 7

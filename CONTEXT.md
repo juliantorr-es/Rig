@@ -10,11 +10,25 @@
 - **Intent** — A requested action from the user or agent (e.g., "Apply Patch").
 - **Projection** — A derived view of the domain state optimized for UI consumption.
 
+## Authority and Ownership
+
+- **Authority** — The system or boundary with final decision-making power over operational state transitions. Rig is the authority; external systems are advisors only.
+- **Ownership** — The subsystem responsible for defining or maintaining a local semantic contract.
+
 ## Governance
 
 - **Governance Engine** — The central domain authority for evaluating action legality.
 - **GateDecision** — The result of a governance evaluation, determining if an intent is allowed or blocked.
 - **DecisionReason** — A structured explanation for a `GateDecision`.
+
+## Intake
+
+- **Public Intake Packet** — Ingress material from external sources, normalized to Rig's internal format. Advisory only. Represents "someone proposed something."
+- **Public Intake Connector** — A read-only adapter that produces Public Intake Packets from external systems. Never mutates authority state.
+
+## Funding
+
+- **Funding Pledge** — Financial intent from a sponsor, representing "someone committed resources." Separate lifecycle from intake packets.
 
 ## Lifecycle
 

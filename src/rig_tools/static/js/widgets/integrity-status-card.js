@@ -20,9 +20,11 @@
  * - stale_receipt_detected: boolean (optional)
  * - orphaned_receipt_detected: boolean (optional)
  * - orphaned_audit_detected: boolean (optional)
+ * - schema_version: string
+ * - source_schema_version: string
  */
 
-function renderIntegrityStatusCard(element, data) {
+export function renderIntegrityStatusCard(id, data, actions) {
   const container = document.createElement('div');
   container.className = 'rig-card integrity-status-card';
 
@@ -35,6 +37,20 @@ function renderIntegrityStatusCard(element, data) {
   // Main status section
   const statusSection = document.createElement('div');
   statusSection.className = 'integrity-main-status';
+
+  if (data && (data.schema_version || data.source_schema_version)) {
+    const lineage = document.createElement('div');
+    lineage.className = 'integrity-row';
+    const lineageLabel = document.createElement('span');
+    lineageLabel.className = 'integrity-row-label';
+    lineageLabel.textContent = 'Lineage:';
+    const lineageValue = document.createElement('span');
+    lineageValue.className = 'integrity-row-value';
+    lineageValue.textContent = `${data.schema_version || 'rig.integrity.v1'} / ${data.source_schema_version || 'unknown'}`;
+    lineage.appendChild(lineageLabel);
+    lineage.appendChild(lineageValue);
+    statusSection.appendChild(lineage);
+  }
 
   // Overall integrity status
   const integrityStatus = (data && data.integrity_status) || 'unknown';
@@ -198,11 +214,7 @@ function renderIntegrityStatusCard(element, data) {
   advisoryNote.textContent = 'Integrity validation is advisory. Rig remains the authority.';
   container.appendChild(advisoryNote);
 
-  // Clear existing content and append
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
-  }
-  element.appendChild(container);
+  return container;
 }
 
 // Register widget

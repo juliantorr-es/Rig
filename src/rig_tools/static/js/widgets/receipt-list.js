@@ -4,6 +4,16 @@ export function renderReceiptList(_id, data) {
   const h2 = document.createElement('h2');
   h2.textContent = data.title || 'Receipts';
   el.appendChild(h2);
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.style.fontSize = '0.75rem';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    el.appendChild(lineage);
+  }
   const listDiv = document.createElement('div');
   listDiv.className = 'receipt-list';
   listDiv.style.fontSize = '0.8rem';
@@ -34,6 +44,16 @@ export function renderReceiptList(_id, data) {
       headerDiv.appendChild(labelSpan);
       headerDiv.appendChild(kindSpan);
       itemDiv.appendChild(headerDiv);
+      if (receipt.schema_version || receipt.projection_revision !== undefined) {
+        const lineageDiv = document.createElement('div');
+        lineageDiv.className = 'muted';
+        lineageDiv.style.fontSize = '0.7rem';
+        lineageDiv.textContent = [
+          receipt.schema_version ? `schema: ${receipt.schema_version}` : null,
+          receipt.projection_revision !== undefined ? `revision: ${receipt.projection_revision}` : null,
+        ].filter(Boolean).join(' · ');
+        itemDiv.appendChild(lineageDiv);
+      }
       if (receipt.summary) {
         const summaryDiv = document.createElement('div');
         summaryDiv.style.fontSize = '0.75rem';

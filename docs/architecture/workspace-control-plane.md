@@ -1,5 +1,8 @@
 # Workspace Control Plane
 
+> **Status: FUTURE / PARTIAL**
+> This document describes the planned Workspace Control Plane. The current operational MVP is the `scripts/rig_agent_worktree.py` helper. Full workspace runtime integration is future work.
+
 ## Purpose
 
 Rig treats a **Workspace** as the project authority boundary. A workspace owns the repository root, workspace configuration, base-branch policy, receipts, projections, and future lane registry state. An **AgentLane** is a governed child of a workspace: one worktree path, one branch, one agent/task identity, and one explicit lane history.
@@ -114,3 +117,18 @@ Future workspace runtime work should continue to treat agent lanes as governed c
 - promote agent lane planning into workspace-aware commands
 - wire receipts to workspace and lane operations more explicitly
 - make workspace projection the primary authority surface for the UI
+
+---
+
+## Related Documents
+
+| Section | Link |
+|---------|------|
+| **Workspace Doctrine** | [workspace-control-plane.md](workspace-control-plane.md) |
+| **Governance Engine** | [governance-engine.md](governance-engine.md) |
+| **Integrity Rules** | [workspace-integrity-rules.md](workspace-integrity-rules.md) |
+| **Authority & Audit** | [workspace-authority-auditability.md](workspace-authority-auditability.md) |
+| **Receipt Formalization** | [receipt-formalization.md](receipt-formalization.md) |
+| **Replay & Audit** | [governance-replay.md](governance-replay.md) |
+| **Terminology** | [terminology.md](terminology.md) |
+| **Contributor Guide** | [contributor-orientation.md](contributor-orientation.md) |

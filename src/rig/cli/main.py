@@ -10,7 +10,7 @@ from pathlib import Path
 from rig.config.loader import merge_config
 from rig.config.paths import config_file, repo_state_root, cache_home, worktree_root
 from rig.logging.jsonl_logger import JsonlLogger
-from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run, commands_benchmark, commands_provider, commands_context, commands_debug, commands_release, commands_ui, commands_window, commands_public_intake
+from rig import commands_doctor, commands_execute, commands_tui, commands_validate, commands_workspace, commands_runtime, commands_model, commands_system, commands_agent_phase5, commands_job, commands_run, commands_benchmark, commands_provider, commands_context, commands_debug, commands_release, commands_ui, commands_window, commands_public_intake, commands_replay, commands_runtime_plane
 
 
 def _repo_root() -> Path:
@@ -19,6 +19,20 @@ def _repo_root() -> Path:
 
 def _legacy_queue_path(repo_root: Path) -> Path:
     return repo_root / ".build" / "rig" / "queue" / "queue.json"
+
+
+def _ensure_rig_workspace_layout(repo_root: Path) -> None:
+    for rel_path in [
+        ".rig",
+        ".rig/worktrees",
+        ".rig/artifacts",
+        ".rig/replay",
+        ".rig/topology",
+        ".rig/receipts",
+        ".rig/runtime",
+        ".rig/cache",
+    ]:
+        (repo_root / rel_path).mkdir(parents=True, exist_ok=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -62,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
     commands_debug.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_release.register(sub, type("H", (), {"repo_root": _repo_root()})())
     commands_public_intake.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_replay.register(sub, type("H", (), {"repo_root": _repo_root()})())
+    commands_runtime_plane.register(sub, type("H", (), {"repo_root": _repo_root()})())
     args = parser.parse_args(argv)
     repo = _repo_root()
     if args.debug:
@@ -124,10 +140,22 @@ def _init(repo_root: Path, *, dry_run: bool, yes: bool, config_target: str) -> i
             pyproject.write_text("[build-system]\nrequires = [\"setuptools>=69\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"rig\"\nversion = \"0.1.0\"\n", encoding="utf-8")
     gitignore = repo_root / ".gitignore"
     existing = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
-    for line in ["# Rig local state", ".build/rig/", ".rig/tmp/", ".rig/cache/"]:
+    for line in [
+        "# Rig local state",
+        ".build/rig/",
+        ".rig/worktrees/",
+        ".rig/artifacts/",
+        ".rig/replay/",
+        ".rig/topology/",
+        ".rig/receipts/",
+        ".rig/runtime/",
+        ".rig/cache/",
+        ".rig/tmp/",
+    ]:
         if line not in existing:
             existing += ("" if existing.endswith("\n") or not existing else "\n") + line + "\n"
     gitignore.write_text(existing, encoding="utf-8")
+    _ensure_rig_workspace_layout(repo_root)
     if _legacy_queue_path(repo_root).exists():
         print("Legacy queue state detected at .build/rig/queue/queue.json.\nRig now uses .build/rig/jobs/.\nRun:\n  rig doctor repair --migrate-legacy-queue")
     print("Rig initialized.\nNext:\n  rig ui\n  rig run --task <task-id> --provider custom-command")

@@ -15,6 +15,17 @@ export function renderFundingSummaryCard(_id, data) {
   const el = card(data.title || 'Funding Summary');
   el.className = 'widget funding-summary-card';
 
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.style.fontSize = '12px';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    el.appendChild(lineage);
+  }
+
   // Funding status badge
   const status = (data.funding_status || 'advisory_only').toString();
   const statusSeverity = status === 'funded' ? 'success' : (

@@ -2,7 +2,7 @@
 
 ## Sprint Status
 
-**COMPLETE**: Lifecycle enrichment slice implemented on top of `WorkspaceStatusSummary` substrate.
+**COMPLETE**: Lifecycle enrichment implemented on top of `WorkspaceStatusSummary` substrate.
 
 Workspace substrate layer: `WorkspaceStatusSummary` provides canonical read-only workspace identity/path/state.
 Lifecycle enrichment layer: `ProposalLifecycleProjection` with normalized `RecommendationSummary`, `ProposalSummary`, `ValidationSummary` models built from `WorkspaceStatusSummary`.
@@ -73,7 +73,7 @@ The sprint is done when:
 - GitHub/Google provider integrations
 - full workspace runtime implementation
 
-## Implementation Summary (Lifecycle Enrichment Slice)
+## Implementation Summary
 
 ### Backend/Domain (`src/rig/domain/proposal_lifecycle.py`)
 
@@ -137,12 +137,12 @@ The `_workspace_proposal_lifecycle_widget()` function already wires `workspace_s
 ## Task Sequencing
 
 1. **DONE** (baseline): Harden the canonical workspace substrate and status summary.
-2. **DONE** (this slice): Define and implement normalized lifecycle summary models.
-3. **DONE** (this slice): Wire `build_proposal_lifecycle_projection` to consume `WorkspaceStatusSummary`.
-4. **DONE** (this slice): Make stage and next_safe_action state-aware.
-5. **DONE** (this slice): Preserve auditability/progress boundaries.
+2. **DONE**: Define and implement normalized lifecycle summary models.
+3. **DONE**: Wire `build_proposal_lifecycle_projection` to consume `WorkspaceStatusSummary`.
+4. **DONE**: Make stage and next_safe_action state-aware.
+5. **DONE**: Preserve auditability/progress boundaries.
 6. **DONE** (baseline): Projection builder already emits the proposal lifecycle widget.
-7. **DONE** (this slice): Update ProposalLifecycleConsole widget for enriched rendering.
+7. **DONE**: Update ProposalLifecycleConsole widget for enriched rendering.
 8. **DONE**: Progress timeline remains transient.
 9. **DONE**: Frontend usability incorporated into widget.
 10. **DONE**: Docs updated.
@@ -193,9 +193,9 @@ The `_workspace_proposal_lifecycle_widget()` function already wires `workspace_s
 
 Harden the canonical workspace status summary and then wire `ProposalLifecycleProjection` to consume it before adding any richer recommendation or validation UX.
 
-## Notes for this Enrichment Slice
+## Notes
 
-This implementation is the **lifecycle enrichment slice** that was lost and is being re-implemented from scratch on top of the committed `WorkspaceStatusSummary` substrate (`23b81a0`) and Gate A enforcement (`17d7dbf`).
+This implementation was lost and is being re-implemented from scratch on top of the committed `WorkspaceStatusSummary` substrate (`23b81a0`) and Gate A enforcement (`17d7dbf`).
 
 Key design decisions:
 - All enrichment comes from `WorkspaceStatusSummary` canonical data

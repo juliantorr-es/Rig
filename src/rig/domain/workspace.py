@@ -103,6 +103,20 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def ensure_governed_rig_layout(repo_root: Path) -> None:
+    for rel_path in [
+        ".rig",
+        ".rig/worktrees",
+        ".rig/artifacts",
+        ".rig/replay",
+        ".rig/topology",
+        ".rig/receipts",
+        ".rig/runtime",
+        ".rig/cache",
+    ]:
+        ensure_dir(repo_root / rel_path)
+
+
 @dataclass
 class WorkspaceRecord:
     """Compatibility type for code migrating from WorkspaceGovernance."""
@@ -131,6 +145,7 @@ class WorkspaceDomain:
         self.validation_dir = self.build_root / "validation"
         self.worktree_root = self.build_root / "worktrees"
         self.audit_dir = self.build_root / "audit"
+        ensure_governed_rig_layout(repo_root)
         for path in (self.workspace_dir, self.review_dir, self.receipt_dir, self.validation_dir, self.worktree_root, self.audit_dir):
             ensure_dir(path)
     
@@ -190,6 +205,7 @@ class WorkspaceDomain:
         workspace_id = uuid.uuid4().hex[:8]
         branch = self._workspace_branch(workspace_id)
         worktree_path = self._workspace_worktree_dir(workspace_id)
+        ensure_governed_rig_layout(self.repo_root)
         parent_branch = git(self.repo_root, "branch", "--show-current").stdout.strip() or "HEAD"
         base_commit = git(self.repo_root, "rev-parse", "HEAD").stdout.strip()
         res = git(self.repo_root, "worktree", "add", "-b", branch, str(worktree_path), parent_branch)
