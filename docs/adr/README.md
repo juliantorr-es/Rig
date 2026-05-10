@@ -27,6 +27,7 @@ These ADRs propose **deepening opportunities** — refactors to turn shallow mod
 | [0008](0008-receipt-evidence-unification.md) | proposed | Evidence Domain | Receipt | 101 |
 | [0009](0009-agentic-workflow-refinement.md) | proposed | Agentic Workflow | Orchestration | ~280 |
 | [0010](0010-repository-forge-bootstrap-and-promotion-abstraction.md) | proposed | Forge Abstraction | Promotion | ~700 |
+| [0011](0011-runtime-visualization-substrate.md) | proposed | Visualization Substrate | Renderer | ~400 |
 
 ## ADR Format: Markdown + JSON Contracts
 

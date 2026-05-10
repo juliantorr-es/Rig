@@ -320,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
     for ev in events:
         if ev.get("type") == "handoff":
             key = f"{ev.get('worker')}:{ev.get('mission_id') or '_task_'}"
-            last_handooff[key] = ev
+            last_handoff[key] = ev
 
     for key, hv in last_handoff.items():
         for field in REQUIRED_HANDOFF_FIELDS:

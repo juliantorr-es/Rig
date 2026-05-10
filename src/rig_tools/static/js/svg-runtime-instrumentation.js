@@ -1681,6 +1681,248 @@ export class SvgTopologyConnector {
           targetPoint.y - arrowSize * Math.sin(angle) - arrowSize * 0.5 * Math.cos(angle)
         )
       ];
+      const arrow = createSvgElement('path', {
+        d: `M ${arrowPoints[0].x} ${arrowPoints[0].y} L ${arrowPoints[1].x} ${arrowPoints[1].y} L ${arrowPoints[2].x} ${arrowPoints[2].y} Z`,
+        fill: this._getStrokeColor(),
+        opacity: SVG_COLORS.OPACITY_HIGH
+      });
+      g.appendChild(arrow);
+    }
+
+    parent.appendChild(g);
+    return g;
+  }
+
+  _getStrokeColor() {
+    if (this.state === 'violation') return SVG_COLORS.INTEGRITY_ERROR;
+    if (this.state === 'warning') return SVG_COLORS.INTEGRITY_WARNING;
+    return SVG_COLORS.STROKE;
+  }
+
+  _getStateColor() {
+    switch (this.state) {
+      case 'active': return SVG_COLORS.EXECUTING;
+      case 'idle': return SVG_COLORS.IDLE;
+      case 'error': return SVG_COLORS.FAILURE;
+      default: return SVG_COLORS.STROKE;
+    }
+  }
+}
+
+// =============================================================================
+// SVG Primitive: Topology Node
+// =============================================================================
+
+/** Topology node visualization
+ * Retained-mode compatible node renderer
+ */
+export class SvgTopologyNode {
+  constructor(id, bounds, options = {}) {
+    this.id = svgId('node', id);
+    this.nodeId = id;
+    this.bounds = bounds;
+    this.kind = options.kind || 'runtime';
+    this.state = options.state || 'idle';
+    this.label = options.label || id;
+    this.selected = options.selected || false;
+    this.violationCount = options.violationCount || 0;
+    this.connected = options.connected || false;
+  }
+
+  /** Patch existing DOM element */
+  patch(g) {
+    setSvgAttr(g, 'data-state', this.state);
+    g.setAttribute('class', `topology-node kind-${this.kind} state-${this.state}`);
+
+    // Update selection ring
+    const selectionRing = g.querySelector('.selection-ring');
+    if (this.selected) {
+      if (!selectionRing) {
+        const ring = createSvgElement('rect', {
+          class: 'selection-ring',
+          x: this.bounds.x - 2,
+          y: this.bounds.y - 2,
+          width: this.bounds.width + 4,
+          height: this.bounds.height + 4,
+          rx: 6,
+          ry: 6,
+          fill: 'none',
+          stroke: 'var(--color-streaming, #2196F3)',
+          'stroke-width': 2
+        });
+        g.insertBefore(ring, g.firstChild);
+      } else {
+        setSvgAttr(selectionRing, 'x', this.bounds.x - 2);
+        setSvgAttr(selectionRing, 'y', this.bounds.y - 2);
+        setSvgAttr(selectionRing, 'width', this.bounds.width + 4);
+        setSvgAttr(selectionRing, 'height', this.bounds.height + 4);
+      }
+    } else if (selectionRing) {
+      g.removeChild(selectionRing);
+    }
+
+    // Update background
+    const bg = g.querySelector('.node-bg');
+    if (bg) {
+      setSvgAttr(bg, 'x', this.bounds.x);
+      setSvgAttr(bg, 'y', this.bounds.y);
+      setSvgAttr(bg, 'width', this.bounds.width);
+      setSvgAttr(bg, 'height', this.bounds.height);
+      setSvgAttr(bg, 'fill', this._getFillColor());
+      setSvgAttr(bg, 'stroke', this._getStrokeColor());
+    }
+
+    // Update label
+    const label = g.querySelector('.node-label');
+    if (label) {
+      setSvgAttr(label, 'x', this.bounds.x + this.bounds.width / 2);
+      setSvgAttr(label, 'y', this.bounds.y + this.bounds.height / 2 + 4);
+      if (label.textContent !== this.label) {
+        label.textContent = this.label;
+      }
+    }
+
+    // Update violation badge
+    const badge = g.querySelector('.violation-badge');
+    const badgeLabel = g.querySelector('.violation-label');
+    if (this.violationCount > 0) {
+      const cx = this.bounds.x + this.bounds.width + 6;
+      const cy = this.bounds.y + 6;
+      if (!badge) {
+        const b = createSvgElement('circle', {
+          class: 'violation-badge',
+          cx,
+          cy,
+          r: 8,
+          fill: 'var(--color-failure, #F44336)'
+        });
+        g.appendChild(b);
+        const bl = createSvgElement('text', {
+          class: 'violation-label',
+          x: cx,
+          y: cy + 2,
+          'text-anchor': 'middle',
+          'dominant-baseline': 'middle',
+          fill: '#fff',
+          'font-size': '9'
+        });
+        bl.textContent = String(this.violationCount);
+        g.appendChild(bl);
+      } else {
+        setSvgAttr(badge, 'cx', cx);
+        setSvgAttr(badge, 'cy', cy);
+        setSvgAttr(badgeLabel, 'x', cx);
+        setSvgAttr(badgeLabel, 'y', cy + 2);
+        badgeLabel.textContent = String(this.violationCount);
+      }
+    } else {
+      if (badge) g.removeChild(badge);
+      if (badgeLabel) g.removeChild(badgeLabel);
+    }
+  }
+
+  /** Render the node as SVG group */
+  render(parent) {
+    const g = createSvgElement('g', {
+      id: this.id,
+      'data-node-id': this.nodeId,
+      'data-kind': this.kind,
+      'data-state': this.state,
+      class: `topology-node kind-${this.kind} state-${this.state}`
+    });
+
+    if (this.selected) {
+      const ring = createSvgElement('rect', {
+        class: 'selection-ring',
+        x: this.bounds.x - 2,
+        y: this.bounds.y - 2,
+        width: this.bounds.width + 4,
+        height: this.bounds.height + 4,
+        rx: 6,
+        ry: 6,
+        fill: 'none',
+        stroke: 'var(--color-streaming, #2196F3)',
+        'stroke-width': 2
+      });
+      g.appendChild(ring);
+    }
+
+    const bg = createSvgElement('rect', {
+      class: 'node-bg',
+      x: this.bounds.x,
+      y: this.bounds.y,
+      width: this.bounds.width,
+      height: this.bounds.height,
+      rx: 4,
+      ry: 4,
+      fill: this._getFillColor(),
+      stroke: this._getStrokeColor(),
+      'stroke-width': 1
+    });
+    g.appendChild(bg);
+
+    const label = createSvgElement('text', {
+      class: 'node-label',
+      x: this.bounds.x + this.bounds.width / 2,
+      y: this.bounds.y + this.bounds.height / 2 + 4,
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle',
+      fill: '#fff',
+      'font-size': '11',
+      'font-family': 'system-ui, sans-serif'
+    });
+    label.textContent = this.label;
+    g.appendChild(label);
+
+    if (this.violationCount > 0) {
+      const cx = this.bounds.x + this.bounds.width + 6;
+      const cy = this.bounds.y + 6;
+      const badge = createSvgElement('circle', {
+        class: 'violation-badge',
+        cx,
+        cy,
+        r: 8,
+        fill: 'var(--color-failure, #F44336)'
+      });
+      g.appendChild(badge);
+
+      const badgeLabel = createSvgElement('text', {
+        class: 'violation-label',
+        x: cx,
+        y: cy + 2,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: '#fff',
+        'font-size': '9'
+      });
+      badgeLabel.textContent = String(this.violationCount);
+      g.appendChild(badgeLabel);
+    }
+
+    parent.appendChild(g);
+    return g;
+  }
+
+  _getFillColor() {
+    const colors = {
+      'runtime': 'var(--color-capability-default, #607D8B)',
+      'capability': 'var(--color-validating, #9C27B0)',
+      'sandbox': 'var(--color-stalled, #795548)',
+      'executor': 'var(--color-executing, #4CAF50)',
+      'validator': 'var(--color-proposing, #FF9800)',
+      'supervisor': 'var(--color-failure, #F44336)',
+      'registry': 'var(--color-replaying, #00BCD4)'
+    };
+    return colors[this.kind] || 'var(--color-capability-default, #607D8B)';
+  }
+
+  _getStrokeColor() {
+    if (this.selected) return 'var(--color-streaming, #2196F3)';
+    if (this.violationCount > 0) return 'var(--color-failure, #F44336)';
+    if (this.connected) return 'var(--color-executing, #4CAF50)';
+    return 'var(--color-stroke, #616161)';
+  }
+}
       const arrow = createSvgElement('polygon', {
         points: arrowPoints.map(p => `${p.x},${p.y}`).join(' '),
         fill: this._getLineColor(),

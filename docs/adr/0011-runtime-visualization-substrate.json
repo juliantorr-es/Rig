@@ -1,0 +1,36 @@
+{
+  "adr_id": "0011",
+  "title": "Runtime Visualization Substrate",
+  "status": "proposed",
+  "date": "2026-05-10",
+  "authors": ["antigravity"],
+  "context": "UI performance bottlenecks were identified as DOM lifecycle churn (teardown/rebuild) rather than SVG throughput. Exploratory sprint UI-R1 proved that a retained patching model eliminates this churn while preserving semantic identity.",
+  "decisions": [
+    "Transition from imperative redraw to retained render graph.",
+    "Formalize RenderNode (render/patch) interface.",
+    "Introduce SceneGraphManager for retention and garbage collection.",
+    "Preserve SVG as the primary substrate for accessibility and style integrity.",
+    "Bind visual element identity to authoritative Projection IDs."
+  ],
+  "consequences": {
+    "positive": [
+      "Significant reduction in DOM mutation and layout thrashing.",
+      "Persistence of visual state (selection, animation) across updates.",
+      "Stable accessibility tree for screen readers.",
+      "Clear architectural seam for future non-DOM renderers (Canvas/WebGPU)."
+    ],
+    "negative": [
+      "Increased logic complexity for state diffing and patching.",
+      "Risk of visual/DOM state desync if patch logic is incomplete."
+    ]
+  },
+  "related_adrs": ["0002", "0004", "0009"],
+  "sprints": [
+    {
+      "id": "ui-r1",
+      "name": "Retained Render Graph Exploration",
+      "status": "completed",
+      "results": "Verified 100% steady-state DOM churn reduction."
+    }
+  ]
+}

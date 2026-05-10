@@ -809,107 +809,23 @@ function _renderNodes(topologyState, layer, bounds, renderedIds = null) {
     // Create node visualization
     const nodeWidth = node.width || 100;
     const nodeHeight = node.height || 40;
-    
     const nodeBounds = rect(x, y, nodeWidth, nodeHeight);
     
-    // Create a simple rectangle node for now
-    // (Full node rendering would use more specific shapes)
-    const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    nodeGroup.setAttribute('id', `topology-node-${node.id}`);
-    nodeGroup.setAttribute('class', `topology-node kind-${node.kind} state-${node.state}`);
-    nodeGroup.setAttribute('data-node-id', node.id);
-    nodeGroup.setAttribute('data-kind', node.kind);
-    nodeGroup.setAttribute('data-state', node.state);
-
-    // Node background
-    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bg.setAttribute('x', x);
-    bg.setAttribute('y', y);
-    bg.setAttribute('width', nodeWidth);
-    bg.setAttribute('height', nodeHeight);
-    bg.setAttribute('rx', '4');
-    bg.setAttribute('ry', '4');
-    bg.setAttribute('fill', _getNodeFillColor(node));
-    bg.setAttribute('stroke', _getNodeStrokeColor(node));
-    bg.setAttribute('stroke-width', '1');
-    nodeGroup.appendChild(bg);
-
-    // Node label
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('x', x + nodeWidth / 2);
-    label.setAttribute('y', y + nodeHeight / 2 + 4);
-    label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('dominant-baseline', 'middle');
-    label.setAttribute('fill', '#fff');
-    label.setAttribute('font-size', '11');
-    label.setAttribute('font-family', 'system-ui, sans-serif');
-    label.textContent = node.label || node.id;
-    nodeGroup.appendChild(label);
-
-    // Selection indicator
-    if (node.selected) {
-      const selectionRing = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      selectionRing.setAttribute('x', x - 2);
-      selectionRing.setAttribute('y', y - 2);
-      selectionRing.setAttribute('width', nodeWidth + 4);
-      selectionRing.setAttribute('height', nodeHeight + 4);
-      selectionRing.setAttribute('rx', '6');
-      selectionRing.setAttribute('ry', '6');
-      selectionRing.setAttribute('fill', 'none');
-      selectionRing.setAttribute('stroke', '#2196F3');
-      selectionRing.setAttribute('stroke-width', '2');
-      nodeGroup.insertBefore(selectionRing, nodeGroup.firstChild);
-    }
-
-    // Violation count badge
-    if (node.violationCount > 0) {
-      const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      badge.setAttribute('cx', x + nodeWidth + 6);
-      badge.setAttribute('cy', y + 6);
-      badge.setAttribute('r', 8);
-      badge.setAttribute('fill', '#F44336');
-      nodeGroup.appendChild(badge);
-
-      const badgeLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      badgeLabel.setAttribute('x', x + nodeWidth + 6);
-      badgeLabel.setAttribute('y', y + 8);
-      badgeLabel.setAttribute('text-anchor', 'middle');
-      badgeLabel.setAttribute('dominant-baseline', 'middle');
-      badgeLabel.setAttribute('fill', '#fff');
-      badgeLabel.setAttribute('font-size', '9');
-      badgeLabel.textContent = String(node.violationCount);
-      nodeGroup.appendChild(badgeLabel);
-    }
-
-    layer.svg.appendChild(nodeGroup);
-    layer.elements.set(`node-${node.id}`, { 
-      primitive: node, 
-      element: nodeGroup 
+    const topologyNode = new SvgTopologyNode(node.id, nodeBounds, {
+      kind: node.kind,
+      state: node.state,
+      label: node.label,
+      selected: node.selected,
+      violationCount: node.violationCount,
+      connected: node.connected
     });
+
+    const id = layer.patchPrimitive(topologyNode);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
-/** Get fill color for a topology node */
-function _getNodeFillColor(node) {
-  const colors = {
-    'runtime': '#607D8B',
-    'capability': '#9C27B0',
-    'sandbox': '#795548',
-    'executor': '#4CAF50',
-    'validator': '#FF9800',
-    'supervisor': '#F44336',
-    'registry': '#00BCD4'
-  };
-  return colors[node.kind] || '#607D8B';
-}
 
-/** Get stroke color for a topology node */
-function _getNodeStrokeColor(node) {
-  if (node.selected) return '#2196F3';
-  if (node.violationCount > 0) return '#F44336';
-  if (node.connected) return '#4CAF50';
-  return '#616161';
-}
 
 /** Render proposals */
 function _renderProposals(topologyState, layer, bounds, renderedIds = null) {
