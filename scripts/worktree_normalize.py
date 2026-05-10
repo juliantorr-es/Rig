@@ -47,12 +47,92 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# Known legacy/ambiguous worktree names that should be migrated
+LEGACY_WORKTREE_NAMES = frozenset({
+    "rig-consolidation",
+    "rig-main-merge",
+    "ui-cockpit",
+})
+
+# Reserved worktree names that must not be used for ADR implementation
+RESERVED_WORKTREE_NAMES = frozenset({"preproduction", "main"})
+
+
+# ---------------------------------------------------------------------------
+# Canonical slug helpers (shared with _work_lib.py logic)
+# ---------------------------------------------------------------------------
+
+def _canonical_slug(text: str) -> str:
+    """Derive canonical slug from text (same logic as scripts/_work_lib.py)."""
+    if not text:
+        return ""
+    text = text.lower()
+    text = text.strip()
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    text = text.strip('-')
+    return text
+
+
+def _is_reserved_worktree_name(name: str) -> bool:
+    """Check if a worktree basename is reserved."""
+    return _canonical_slug(name) in RESERVED_WORKTREE_NAMES
+
+
+def _is_legacy_worktree_name(name: str) -> bool:
+    """Check if a worktree basename is a known legacy name."""
+    return _canonical_slug(name) in {_canonical_slug(n) for n in LEGACY_WORKTREE_NAMES}
+
+
+def _propose_canonical_name(legacy_name: str, branch: str) -> str | None:
+    """Propose a canonical name for a legacy worktree based on its branch.
+    
+    Returns None if no clear mapping can be determined.
+    """
+    legacy_slug = _canonical_slug(legacy_name)
+    
+    # If already canonical, no proposal
+    if not _is_legacy_worktree_name(legacy_name):
+        return None
+    
+    # If legacy name is preproduction, it maps to reserved name
+    if legacy_slug == "rig-consolidation":
+        return "preproduction"
+    
+    # Try to extract ADR info from branch using patterns
+    branch_lower = branch.lower()
+    
+    # Pattern: sprint/adrNNNN-title or agent/adrNNNN-mission or promotion/adrNNNN-title
+    adr_pattern = re.search(r'(?:sprint|agent|promotion)/adr(\d{4})[-_](.+)', branch_lower)
+    if adr_pattern:
+        adr_id = f"adr{adr_pattern.group(1)}"
+        title_part = adr_pattern.group(2)
+        title_slug = re.sub(r'[^a-z0-9]+', '-', title_part).strip('-')
+        return f"{adr_id}-{title_slug}"
+    
+    # Pattern: sprint/NNNN-title or agent/NNNN-mission  
+    adr_pattern2 = re.search(r'(?:sprint|agent|promotion)/(\d{4})[-_](.+)', branch_lower)
+    if adr_pattern2:
+        adr_id = f"adr{adr_pattern2.group(1)}"
+        title_part = adr_pattern2.group(2)
+        title_slug = re.sub(r'[^a-z0-9]+', '-', title_part).strip('-')
+        return f"{adr_id}-{title_slug}"
+    
+    # Fallback: use canonical slug of branch (remove refs/heads/ prefix)
+    clean_branch = branch_lower.replace("refs/heads/", "")
+    return _canonical_slug(clean_branch)
 
 
 # ---------------------------------------------------------------------------
@@ -73,10 +153,12 @@ class ParsedWorktree:
 class CandidateDecision:
     worktree: ParsedWorktree
     dest: Path | None = None
-    action: str = "skip"         # move | blocked | skip
+    action: str = "skip"         # move | blocked | skip | rename
     reason: str = ""
     dirty: bool = False
     has_submodules: bool = False
+    legacy_name: bool = False
+    canonical_proposal: str | None = None  # Proposed canonical name for legacy worktrees
 
 
 # ---------------------------------------------------------------------------
@@ -268,14 +350,55 @@ def evaluate_candidates(
             decisions.append(dec)
             continue
 
-        # 2. Skip worktrees already under .rig/worktrees/.
+        # 2. Check if worktree is under .rig/worktrees/.
         try:
-            wt.path.relative_to(worktrees_dir)
+            rel_path = wt.path.relative_to(worktrees_dir)
+            # This worktree is under .rig/worktrees/, check for legacy naming
+            basename = wt.path.name
+            
+            # Check if it's a known legacy name
+            if _is_legacy_worktree_name(basename):
+                dec.action = "rename"
+                dec.legacy_name = True
+                dec.reason = f"legacy name: '{basename}'"
+                # Propose canonical name
+                proposed = _propose_canonical_name(basename, wt.branch)
+                if proposed:
+                    dec.canonical_proposal = proposed
+                    try:
+                        dest, suffix = _dest_for(proposed, worktrees_dir, rename_conflicts=rename_conflicts)
+                        dec.dest = dest
+                    except ValueError as e:
+                        dec.action = "blocked"
+                        dec.reason = f"legacy name with no clear canonical mapping: {e}"
+                        dec.canonical_proposal = proposed
+                else:
+                    dec.canonical_proposal = f"needs-adr-mapping-{basename}"
+                    try:
+                        dest, suffix = _dest_for(dec.canonical_proposal, worktrees_dir, rename_conflicts=rename_conflicts)
+                        dec.dest = dest
+                    except ValueError:
+                        dec.action = "blocked"
+                        dec.reason = f"legacy name with no clear canonical mapping"
+                        dec.canonical_proposal = None
+                decisions.append(dec)
+                continue
+            
+            # Check if it's a reserved name (allowed for integration worktrees)
+            if _is_reserved_worktree_name(basename):
+                dec.action = "skip"
+                dec.reason = "reserved integration worktree"
+                decisions.append(dec)
+                continue
+            
+            # Valid canonical name - skip
             dec.action = "skip"
-            dec.reason = "already under .rig/worktrees/"
+            dec.reason = "already under .rig/worktrees/ with valid name"
             decisions.append(dec)
             continue
+            
         except ValueError:
+            # Not under .rig/worktrees/, continue with sibling check
             pass
 
         # 3. Only consider direct siblings of the main repo's parent directory.
@@ -401,6 +524,12 @@ def print_summary_table(decisions: list[CandidateDecision], *, apply: bool) -> N
         if dec.action == "move":
             action_label = "MOVE" if apply else "WOULD MOVE"
             dest_reason = _trunc(str(dec.dest or ""), _COL_WIDTHS[4])
+        elif dec.action == "rename":
+            action_label = "RENAME" if apply else "WOULD RENAME"
+            if dec.canonical_proposal:
+                dest_reason = _trunc(f"to {dec.canonical_proposal}", _COL_WIDTHS[4])
+            else:
+                dest_reason = _trunc(dec.reason, _COL_WIDTHS[4])
         elif dec.action == "blocked":
             action_label = "BLOCKED"
             dest_reason = _trunc(dec.reason, _COL_WIDTHS[4])
@@ -410,13 +539,21 @@ def print_summary_table(decisions: list[CandidateDecision], *, apply: bool) -> N
         print(row_fmt.format(path_str, branch, head, action_label, dest_reason))
     print(sep)
     moved = sum(1 for d in decisions if d.action == "move")
+    renamed = sum(1 for d in decisions if d.action == "rename")
     blocked = sum(1 for d in decisions if d.action == "blocked")
     skipped = sum(1 for d in decisions if d.action == "skip")
     mode_label = "--apply" if apply else "--dry-run"
+    
+    # Count legacy names
+    legacy_count = sum(1 for d in decisions if d.legacy_name)
+    
     print(
         f"\nMode: {mode_label}  |  Would move: {moved}"
+        f"  |  Would rename: {renamed}"
         f"  |  Blocked: {blocked}  |  Skipped: {skipped}"
     )
+    if legacy_count > 0:
+        print(f"  |  Legacy worktrees detected: {legacy_count}")
     print()
 
 

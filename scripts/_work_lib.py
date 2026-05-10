@@ -1019,3 +1019,194 @@ def regenerate_findings_md(task_id: str, projection: dict[str, Any]) -> None:
                 "",
             ]
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Workflow Chain Integration (ADR 0009 / ADR 0010)
+# ---------------------------------------------------------------------------
+
+def run_workflow_context_chain(
+    context_id: str,
+    repo_path: str | Path | None = None,
+) -> tuple[bool, dict[str, Any]]:
+    """Run a Rig workflow context chain and return results.
+    
+    This function integrates with the workflow chain system from ADR 0009.
+    It runs deterministic workflow chains instead of manual command checklists.
+    
+    Args:
+        context_id: The workflow context ID to run (e.g., 'mission_handoff', 'promotion_dry_run')
+        repo_path: Repository path for running commands. If None, runs in current directory.
+        
+    Returns:
+        Tuple of (passed, evidence_dict).
+        passed: True if all required commands in the chain passed.
+        evidence_dict: Complete evidence from the workflow run.
+        
+    Note:
+        This function uses `rig workflow run` CLI command internally.
+        The workflow chains are defined in src/rig/domain/workflow_chains.py.
+        Built-in contexts: 'mission_handoff', 'promotion_dry_run'
+        
+        All commands use subprocess.run with explicit argument arrays, NEVER shell=True.
+        Output is truncated to MAX_OUTPUT_CHARS (10000) for safety.
+        Evidence is written to .rig/work/validation/<context_id>-<timestamp>.json
+        No tokens/secrets in evidence. No personal names in evidence.
+    """
+    import subprocess
+    import json
+    from pathlib import Path
+    
+    if repo_path is None:
+        repo_path = repo_root()
+    else:
+        repo_path = Path(repo_path)
+    
+    cmd = [
+        sys.executable, "-m", "rig", "workflow", "run",
+        context_id,
+        "--json",
+    ]
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=600,  # 10 minute timeout for full chain
+        )
+        
+        if result.returncode != 0:
+            # Try to parse error output
+            try:
+                error_data = json.loads(result.stdout)
+                return False, {
+                    "error": error_data.get("error", result.stderr.strip()),
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                }
+            except json.JSONDecodeError:
+                return False, {
+                    "error": result.stderr.strip() or result.stdout.strip() or "Unknown error",
+                    "exit_code": result.returncode,
+                }
+        
+        # Parse JSON output
+        try:
+            evidence = json.loads(result.stdout)
+            return evidence.get("passed", False), evidence
+        except json.JSONDecodeError:
+            return False, {
+                "error": "Failed to parse workflow output as JSON",
+                "exit_code": 0,
+                "raw_output": result.stdout,
+                "stderr": result.stderr,
+            }
+            
+    except subprocess.TimeoutExpired:
+        return False, {
+            "error": "Workflow chain execution timed out (600s)",
+            "exit_code": -1,
+        }
+    except Exception as e:
+        return False, {
+            "error": str(e),
+            "exit_code": -1,
+        }
+
+
+def check_mission_handoff_readiness(
+    repo_path: str | Path | None = None,
+) -> tuple[bool, dict[str, Any]]:
+    """Check mission handoff readiness using workflow chain system.
+    
+    This is the ADR 0009 preferred integration point.
+    Runs the 'mission_handoff' workflow context which includes:
+    1. compileall - Syntax check all Python files
+    2. pytest_collect - Collect all tests to verify test suite structure
+    3. check_fast - Run fast validation suite
+    4. forge_doctor - Check forge configuration and capabilities
+    5. forge_promote_dry_run - Dry-run promotion planning
+    
+    All commands are non-mutating and agent-allowed.
+    
+    Args:
+        repo_path: Repository path for running commands. If None, runs in current directory.
+        
+    Returns:
+        Tuple of (is_ready, evidence_dict) matching check_forge_readiness signature.
+    """
+    passed, evidence = run_workflow_context_chain("mission_handoff", repo_path)
+    
+    # Transform evidence to match check_forge_readiness format for compatibility
+    if passed and "results" in evidence:
+        # Extract forge-specific info from workflow results
+        forge_doctor_result = None
+        forge_promote_result = None
+        
+        for result in evidence.get("results", []):
+            cmd_id = result.get("id", "")
+            if cmd_id == "forge_doctor":
+                forge_doctor_result = result
+            elif cmd_id == "forge_promote_dry_run":
+                forge_promote_result = result
+        
+        # Build compatible evidence format
+        compatible_evidence: dict[str, Any] = {
+            "forge_doctor_status": "clean" if forge_doctor_result and forge_doctor_result.get("passed") else "error",
+            "forge_doctor_error": None,
+            "forge_promotion_ready": forge_promote_result and forge_promote_result.get("passed"),
+            "forge_promotion_blockers": [],
+            "reviewability_changed_file_count": 0,
+            "reviewability_max_changed_files": 300,
+            "reviewability_over_budget": False,
+            "reviewability_default_action": "block_promotion",
+            "forge_target_ref": "preproduction",
+            "forge_head_ref": "HEAD",
+            "forge_mode": "unknown",
+            "promotion_mode": "unknown",
+            # Add workflow-specific info
+            "workflow_context_id": "mission_handoff",
+            "workflow_passed": passed,
+            "workflow_results": evidence.get("results", []),
+        }
+        
+        # Try to parse forge doctor JSON output if available
+        if forge_doctor_result and forge_doctor_result.get("stdout"):
+            try:
+                doctor_data = json.loads(forge_doctor_result["stdout"])
+                compatible_evidence["forge_doctor_raw"] = doctor_data
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        # Try to parse forge promote dry-run JSON output if available
+        if forge_promote_result and forge_promote_result.get("stdout"):
+            try:
+                promote_data = json.loads(forge_promote_result["stdout"])
+                compatible_evidence["forge_promotion_raw"] = promote_data
+                compatible_evidence["reviewability_changed_file_count"] = (
+                    promote_data.get("reviewability", {}).get("changed_file_count", 0)
+                )
+                compatible_evidence["reviewability_max_changed_files"] = (
+                    promote_data.get("reviewability", {}).get("max_changed_files", 300)
+                )
+                compatible_evidence["reviewability_over_budget"] = (
+                    promote_data.get("reviewability", {}).get("over_budget", False)
+                )
+                compatible_evidence["reviewability_default_action"] = (
+                    promote_data.get("reviewability", {}).get("default_action", "block_promotion")
+                )
+                compatible_evidence["forge_mode"] = promote_data.get("forge_mode", "unknown")
+                compatible_evidence["promotion_mode"] = promote_data.get("mode", "unknown")
+                compatible_evidence["forge_promotion_blockers"] = (
+                    promote_data.get("blockers", [])
+                )
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        return passed, compatible_evidence
+    
+    # If workflow failed, return evidence as-is
+    return passed, evidence
