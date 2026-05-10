@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig-skill.schema.json",
+  "title": "Rig Skill Contract",
+  "description": "Machine-readable contract for a Rig-native agent skill.",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "category",
+    "use_when",
+    "do_not_use_when",
+    "inputs",
+    "outputs",
+    "required_context",
+    "required_gates",
+    "workflow_stage",
+    "authority_boundaries",
+    "handoff_requirements"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "category": {
+      "type": "string",
+      "enum": ["engineering", "governance", "workflow", "forge", "writing", "maintenance"]
+    },
+    "use_when": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "do_not_use_when": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "required_context": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "required_gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "workflow_stage": {
+      "type": "string",
+      "enum": ["discovery", "adr", "sprint", "mission", "implementation", "validation", "handoff", "promotion"]
+    },
+    "authority_boundaries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "handoff_requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}
