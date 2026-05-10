@@ -28,12 +28,15 @@ from rig.domain.forge import (
     ForgeDoctorReport,
     ReviewabilityBudget,
     ReviewabilityReport,
+    PromotionPlan,
+    PromotionPlanStep,
     build_forge_identity,
     capabilities_for_mode,
     derive_promotion_mode,
     build_doctor_findings,
     build_doctor_report,
     build_reviewability_report,
+    build_promotion_plan,
 )
 
 
@@ -197,6 +200,156 @@ def _forge_doctor_handler(
     return 0
 
 
+def _serialize_reviewability_report_for_plan(report: ReviewabilityReport) -> dict[str, Any]:
+    """Serialize ReviewabilityReport to JSON-compatible dict for plan output."""
+    result: dict[str, Any] = {
+        "target_ref": report.target_ref,
+        "head_ref": report.head_ref,
+        "merge_base": report.merge_base,
+        "changed_file_count": report.changed_file_count,
+        "max_changed_files": report.max_changed_files,
+        "over_budget": report.over_budget,
+        "default_action": report.default_action,
+        "override_required": report.override_required,
+        "changed_files": list(report.changed_files),
+        "truncated": report.truncated,
+        "findings": [dataclasses.asdict(f) for f in report.findings],
+    }
+    for finding in result["findings"]:
+        finding["severity"] = finding["severity"].value  # type: ignore[typeddict-unknown-key]
+    return result
+
+
+def _serialize_promotion_plan_step(step: PromotionPlanStep) -> dict[str, Any]:
+    """Serialize PromotionPlanStep to JSON-compatible dict."""
+    return {
+        "step_id": step.step_id,
+        "description": step.description,
+        "command": step.command,
+        "mutates_state": step.mutates_state,
+        "required": step.required,
+    }
+
+
+def _serialize_promotion_plan(plan: PromotionPlan) -> dict[str, Any]:
+    """Serialize PromotionPlan to JSON-compatible dict."""
+    result: dict[str, Any] = {
+        "mode": plan.mode.name.lower(),
+        "forge_mode": plan.forge_mode.name.lower(),
+        "target_ref": plan.target_ref,
+        "head_ref": plan.head_ref,
+        "identity": dataclasses.asdict(plan.identity),
+        "reviewability": _serialize_reviewability_report_for_plan(plan.reviewability),
+        "steps": [_serialize_promotion_plan_step(s) for s in plan.steps],
+        "blockers": [dataclasses.asdict(b) for b in plan.blockers],
+        "ready": plan.ready,
+        "dry_run_only": plan.dry_run_only,
+    }
+    # Convert identity mode enum
+    result["identity"]["mode"] = plan.identity.mode.name  # type: ignore[typeddict-unknown-key]
+    # Convert blockers severity enums
+    for blocker in result["blockers"]:
+        blocker["severity"] = blocker["severity"].value  # type: ignore[typeddict-unknown-key]
+    return result
+
+
+def _emit_human_promotion_plan(plan: PromotionPlan) -> None:
+    """Emit human-readable promotion plan to stdout."""
+    print("Promotion Plan (Dry-Run)")
+    print("+" * 40)
+    print(f"  Forge Mode: {plan.forge_mode.name.lower().replace('_', '-')}")
+    print(f"  Promotion Mode: {plan.mode.name.lower().replace('_', '-')}")
+    print(f"  Target: {plan.target_ref}")
+    print(f"  Head: {plan.head_ref}")
+    print(f"  Ready: {'Yes' if plan.ready else 'No'}")
+    print(f"  Dry-run only: Yes - No Git or remote state was mutated.")
+    
+    # Reviewability summary
+    rev = plan.reviewability
+    print(f"\n  Reviewability:")
+    print(f"    Changed files: {rev.changed_file_count} / {rev.max_changed_files}")
+    if rev.over_budget:
+        print(f"    Status: OVER BUDGET ({rev.default_action})")
+    else:
+        print(f"    Status: Within budget")
+    
+    # Blockers
+    if plan.blockers:
+        print(f"\n  Blockers ({len(plan.blockers)}):")
+        for b in plan.blockers:
+            severity = b.severity.value.upper()
+            print(f"    [{severity}] {b.code}: {b.message}")
+            if b.remediation:
+                print(f"         -> {b.remediation}")
+    else:
+        print(f"\n  No blockers.")
+    
+    # Steps
+    print(f"\n  Action Plan ({len(plan.steps)} steps):")
+    for i, step in enumerate(plan.steps, 1):
+        status = "Y" if step.required else "N"
+        mutate_marker = " [would mutate]" if step.mutates_state else ""
+        print(f"    [{status}] {i}. {step.description}{mutate_marker}")
+        if step.command:
+            print(f"        -> {step.command}")
+    
+    print(f"\n  No Git or remote state was mutated.")
+
+
+def _promote_handler(
+    repo_root: Path,
+    dry_run: bool = True,
+    target_ref: str = "preproduction",
+    head_ref: str = "HEAD",
+    max_changed_files: int | None = None,
+    json_output: bool = False,
+) -> int:
+    """Handler for `rig forge promote` command.
+    
+    Builds a promotion plan and emits it. Currently dry-run only.
+    
+    Args:
+        repo_root: Path to the git repository
+        dry_run: If True, only plan (default: True). Only dry-run is implemented.
+        target_ref: Target reference for promotion (default: "preproduction")
+        head_ref: Head reference for promotion (default: "HEAD")
+        max_changed_files: Override max changed files budget (default: None = use 300)
+        json_output: If True, emit JSON; otherwise human-readable text
+        
+    Returns:
+        Exit code (0 for success/ready, 1 for errors/not ready)
+    """
+    # Only dry-run is implemented for now
+    if not dry_run:
+        print("Only --dry-run is implemented for now.", file=sys.stderr)
+        print("No Git or remote state was mutated.", file=sys.stderr)
+        return 1
+    
+    try:
+        budget = ReviewabilityBudget(
+            max_changed_files=max_changed_files if max_changed_files is not None else 300,
+        )
+        plan = build_promotion_plan(
+            repo_root,
+            target_ref=target_ref,
+            head_ref=head_ref,
+            budget=budget,
+        )
+    except Exception as e:
+        if json_output:
+            _emit({"status": "error", "error": str(e)})
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+    
+    if json_output:
+        _emit(_serialize_promotion_plan(plan))
+        return 0
+    
+    _emit_human_promotion_plan(plan)
+    return 0 if plan.ready else 1
+
+
 def register(subparsers, helpers):
     """Register forge command with CLI.
     
@@ -252,6 +405,50 @@ def register(subparsers, helpers):
             head_ref=args.head_ref,
             max_changed_files=args.max_changed_files,
             max_listed_files=args.max_listed_files,
+        )
+    )
+    
+    # forge promote subcommand
+    promote_parser = sub.add_parser(
+        "promote",
+        help="Plan promotion to target branch",
+        description="Plan and validate promotion. Currently dry-run only (--dry-run is the default). No Git mutation is performed.",
+    )
+    promote_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Dry-run only, do not mutate state (default: True, only mode implemented)",
+    )
+    promote_parser.add_argument(
+        "--target-ref",
+        default="preproduction",
+        help="Target reference for promotion (default: preproduction)",
+    )
+    promote_parser.add_argument(
+        "--head-ref",
+        default="HEAD",
+        help="Head reference for promotion (default: HEAD)",
+    )
+    promote_parser.add_argument(
+        "--max-changed-files",
+        type=int,
+        default=None,
+        help="Maximum changed files budget (default: 300)",
+    )
+    promote_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output JSON instead of human-readable text",
+    )
+    promote_parser.set_defaults(
+        handler=lambda args: _promote_handler(
+            helpers.repo_root,
+            dry_run=args.dry_run,
+            target_ref=args.target_ref,
+            head_ref=args.head_ref,
+            max_changed_files=args.max_changed_files,
+            json_output=args.json,
         )
     )
     

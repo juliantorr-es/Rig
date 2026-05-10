@@ -42,6 +42,8 @@ from rig.domain.forge import (
     ForgeDoctorReport,
     ReviewabilityBudget,
     ReviewabilityReport,
+    PromotionPlanStep,
+    PromotionPlan,
     # Classification functions
     classify_remote_url,
     derive_promotion_mode,
@@ -59,6 +61,7 @@ from rig.domain.forge import (
     build_doctor_findings,
     build_doctor_report,
     build_reviewability_report,
+    build_promotion_plan,
 )
 
 
@@ -1453,6 +1456,676 @@ class TestReviewabilityIntegration:
             report = build_reviewability_report(mock_repo_root)
             
             assert report.target_ref == "preproduction"
+
+
+# ---------------------------------------------------------------------------
+# PromotionPlanStep Dataclass Tests
+# ---------------------------------------------------------------------------
+
+class TestPromotionPlanStep:
+    """Tests for PromotionPlanStep dataclass."""
+
+    def test_required_fields(self):
+        """PromotionPlanStep must have all required fields."""
+        step = PromotionPlanStep(
+            step_id="test_step",
+            description="Test description",
+            command="git status",
+            mutates_state=False,
+            required=True,
+        )
+        assert step.step_id == "test_step"
+        assert step.description == "Test description"
+        assert step.command == "git status"
+        assert step.mutates_state is False
+        assert step.required is True
+
+    def test_optional_and_defaults(self):
+        """PromotionPlanStep must have correct defaults."""
+        step = PromotionPlanStep(
+            step_id="test_step",
+            description="Test",
+        )
+        assert step.command is None
+        assert step.mutates_state is False
+        assert step.required is True
+
+    def test_frozen(self):
+        """PromotionPlanStep must be immutable."""
+        step = PromotionPlanStep(
+            step_id="test_step",
+            description="Test",
+        )
+        with pytest.raises(AttributeError):
+            step.step_id = "changed"  # type: ignore[reportAttributeAccessIssue]
+
+    def test_slots(self):
+        """PromotionPlanStep must use slots."""
+        step = PromotionPlanStep(
+            step_id="test_step",
+            description="Test",
+        )
+        with pytest.raises((AttributeError, TypeError)):
+            step.extra_field = "test"  # type: ignore[reportAttributeAccessIssue]
+
+
+# ---------------------------------------------------------------------------
+# PromotionPlan Dataclass Tests
+# ---------------------------------------------------------------------------
+
+class TestPromotionPlan:
+    """Tests for PromotionPlan dataclass."""
+
+    def test_required_fields(self):
+        """PromotionPlan must have all required fields."""
+        identity = ForgeIdentity(mode=ForgeMode.LOCAL_ONLY)
+        rev_report = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="HEAD",
+            merge_base="abc123",
+            changed_file_count=0,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        plan = PromotionPlan(
+            mode=PromotionMode.LOCAL_BRANCH,
+            forge_mode=ForgeMode.LOCAL_ONLY,
+            target_ref="preproduction",
+            head_ref="HEAD",
+            identity=identity,
+            reviewability=rev_report,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+        )
+        assert plan.mode == PromotionMode.LOCAL_BRANCH
+        assert plan.forge_mode == ForgeMode.LOCAL_ONLY
+        assert plan.target_ref == "preproduction"
+        assert plan.head_ref == "HEAD"
+        assert plan.identity == identity
+        assert plan.reviewability == rev_report
+        assert plan.steps == ()
+        assert plan.blockers == ()
+        assert plan.ready is True
+        assert plan.dry_run_only is True
+
+    def test_dry_run_only_default_true(self):
+        """PromotionPlan dry_run_only must default to True."""
+        identity = ForgeIdentity(mode=ForgeMode.LOCAL_ONLY)
+        rev_report = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="HEAD",
+            merge_base=None,
+            changed_file_count=0,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        plan = PromotionPlan(
+            mode=PromotionMode.LOCAL_BRANCH,
+            forge_mode=ForgeMode.LOCAL_ONLY,
+            target_ref="preproduction",
+            head_ref="HEAD",
+            identity=identity,
+            reviewability=rev_report,
+            steps=(),
+            blockers=(),
+            ready=True,
+        )
+        assert plan.dry_run_only is True
+
+    def test_frozen(self):
+        """PromotionPlan must be immutable."""
+        identity = ForgeIdentity(mode=ForgeMode.LOCAL_ONLY)
+        rev_report = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="HEAD",
+            merge_base=None,
+            changed_file_count=0,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        plan = PromotionPlan(
+            mode=PromotionMode.LOCAL_BRANCH,
+            forge_mode=ForgeMode.LOCAL_ONLY,
+            target_ref="preproduction",
+            head_ref="HEAD",
+            identity=identity,
+            reviewability=rev_report,
+            steps=(),
+            blockers=(),
+            ready=True,
+        )
+        with pytest.raises(AttributeError):
+            plan.ready = False  # type: ignore[reportAttributeAccessIssue]
+
+
+# ---------------------------------------------------------------------------
+# build_promotion_plan() Tests
+# ---------------------------------------------------------------------------
+
+class TestBuildPromotionPlan:
+    """Tests for build_promotion_plan() function."""
+
+    def test_local_only_ready_path(self, mock_repo_root):
+        """build_promotion_plan must return ready=True for local-only with valid setup."""
+        # Mock: no remote (local only)
+        remote_proc = Mock()
+        remote_proc.returncode = 1
+        remote_proc.stdout = ""
+        
+        # Mock: merge-base succeeds
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        # Mock: branch exists for preproduction
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        # Mock: no changed files
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        # Mock: inside repo
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base preproduction HEAD
+            # 3. build_reviewability_report: git branch --list preproduction
+            # 4. build_reviewability_report: git diff --name-only abc123 HEAD
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree
+            # 6. build_promotion_plan blocker check: git branch --list preproduction
+            mock_run.side_effect = [
+                remote_proc,           # git remote get-url origin -> None -> LOCAL_ONLY
+                merge_base_proc,       # git merge-base preproduction HEAD
+                branch_prod_proc,      # git branch --list preproduction
+                files_proc,            # git diff --name-only abc123 HEAD
+                inside_proc,           # git rev-parse --is-inside-work-tree
+                branch_prod_proc,      # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.forge_mode == ForgeMode.LOCAL_ONLY
+            assert plan.mode == PromotionMode.LOCAL_BRANCH
+            assert plan.target_ref == "preproduction"
+            assert plan.ready is True
+            assert plan.dry_run_only is True
+            assert len(plan.blockers) == 0
+            # Should have base steps + local merge steps
+            step_ids = [s.step_id for s in plan.steps]
+            assert "verify_git_repo" in step_ids
+            assert "local_merge" in step_ids
+
+    def test_github_path_produces_pr_steps(self, mock_repo_root):
+        """build_promotion_plan for GitHub must produce pull-request-oriented steps."""
+        # Mock: remote URL -> github
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base preproduction HEAD
+            # 3. build_reviewability_report: git branch --list preproduction
+            # 4. build_reviewability_report: git diff --name-only abc123 HEAD
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree
+            # 6. build_promotion_plan blocker check: git branch --list preproduction
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin -> GITHUB
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.forge_mode == ForgeMode.GITHUB
+            assert plan.mode == PromotionMode.PULL_REQUEST
+            step_ids = [s.step_id for s in plan.steps]
+            assert "create_pull_request" in step_ids
+            assert "push_promotion_branch" in step_ids
+
+    def test_gitlab_path_produces_mr_steps(self, mock_repo_root):
+        """build_promotion_plan for GitLab must produce merge-request-oriented steps."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://gitlab.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base preproduction HEAD
+            # 3. build_reviewability_report: git branch --list preproduction
+            # 4. build_reviewability_report: git diff --name-only abc123 HEAD
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree
+            # 6. build_promotion_plan blocker check: git branch --list preproduction
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin -> GITLAB
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.forge_mode == ForgeMode.GITLAB
+            assert plan.mode == PromotionMode.MERGE_REQUEST
+            step_ids = [s.step_id for s in plan.steps]
+            assert "create_merge_request" in step_ids
+            assert "push_promotion_branch" in step_ids
+
+    def test_gitea_path_produces_pr_steps(self, mock_repo_root):
+        """build_promotion_plan for Gitea must produce pull-request-oriented steps."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://gitea.example.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base preproduction HEAD
+            # 3. build_reviewability_report: git branch --list preproduction
+            # 4. build_reviewability_report: git diff --name-only abc123 HEAD
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree
+            # 6. build_promotion_plan blocker check: git branch --list preproduction
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin -> GITEA
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,
+                inside_proc,
+                branch_prod_proc,
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.forge_mode == ForgeMode.GITEA
+            assert plan.mode == PromotionMode.PULL_REQUEST
+            step_ids = [s.step_id for s in plan.steps]
+            assert "create_pull_request" in step_ids
+
+    def test_over_budget_blocker(self, mock_repo_root):
+        """build_promotion_plan must add blocker when over budget."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        # 350 files exceeds budget
+        files_list = "\n".join([f"file{i}.py" for i in range(350)])
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = files_list
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base preproduction HEAD
+            # 3. build_reviewability_report: git branch --list preproduction
+            # 4. build_reviewability_report: git diff --name-only abc123 HEAD (350 files)
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree
+            # 6. build_promotion_plan blocker check: git branch --list preproduction
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(
+                mock_repo_root,
+                target_ref="preproduction",
+            )
+            
+            assert plan.ready is False
+            blocker_codes = [b.code for b in plan.blockers]
+            assert "PROMOTION-003" in blocker_codes
+
+    def test_missing_target_blocker(self, mock_repo_root):
+        """build_promotion_plan must add blocker when target branch missing."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        # Branch does NOT exist
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = ""  # No branch found
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base missing-branch HEAD
+            # 3. build_reviewability_report: git branch --list missing-branch (not found)
+            # 4. build_reviewability_report: git diff --name-only abc123 HEAD
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree
+            # 6. build_promotion_plan blocker check: git branch --list missing-branch (not found again)
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin
+                merge_base_proc,  # git merge-base missing-branch HEAD
+                branch_prod_proc, # git branch --list missing-branch (not found in reviewability)
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list missing-branch (not found in blocker check)
+            ]
+            
+            plan = build_promotion_plan(
+                mock_repo_root,
+                target_ref="missing-branch",
+            )
+            
+            assert plan.ready is False
+            blocker_codes = [b.code for b in plan.blockers]
+            assert "PROMOTION-002" in blocker_codes
+
+    def test_not_git_repo_blocker(self, mock_repo_root):
+        """build_promotion_plan must add blocker when not in git repo."""
+        # No remote (local only mode)
+        remote_proc = Mock()
+        remote_proc.returncode = 1
+        remote_proc.stdout = ""
+        
+        # Not inside repo - all git commands fail
+        failing_proc = Mock()
+        failing_proc.returncode = 1
+        failing_proc.stdout = ""
+        
+        # inside repo check returns false
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "false\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin -> fails
+            # 2. build_reviewability_report: git merge-base preproduction HEAD -> fails (not in repo)
+            # 3. build_reviewability_report: git branch --list preproduction -> fails
+            # 4. build_reviewability_report: git diff --name-only ... HEAD -> fails
+            # 5. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree -> "false"
+            # We need to mock all 5 calls
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin -> fails -> LOCAL_ONLY
+                failing_proc,     # git merge-base preproduction HEAD -> fails
+                failing_proc,     # git branch --list preproduction -> fails
+                failing_proc,     # git diff --name-only ... HEAD -> fails
+                inside_proc,      # git rev-parse --is-inside-work-tree -> "false"
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.ready is False
+            blocker_codes = [b.code for b in plan.blockers]
+            assert "PROMOTION-001" in blocker_codes
+
+    def test_merge_base_unavailable_blocker(self, mock_repo_root):
+        """build_promotion_plan must add blocker when merge base unavailable."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        # merge-base fails -> returns None
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 1
+        merge_base_proc.stdout = ""
+        
+        # branch exists (for blocker check in build_promotion_plan)
+        branch_proc = Mock()
+        branch_proc.returncode = 0
+        branch_proc.stdout = "  preproduction\n"
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence:
+            # 1. build_forge_identity: git remote get-url origin
+            # 2. build_reviewability_report: git merge-base preproduction HEAD -> fails, returns early
+            #    so git branch --list and git diff are NOT called in reviewability
+            # 3. build_promotion_plan blocker check: git rev-parse --is-inside-work-tree -> true
+            # 4. build_promotion_plan blocker check: git branch --list preproduction -> exists
+            # Note: reviewability.merge_base is None, so PROMOTION-004 is added
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin
+                merge_base_proc,  # git merge-base preproduction HEAD -> fails
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_proc,      # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.ready is False
+            blocker_codes = [b.code for b in plan.blockers]
+            # merge_base is None from reviewability, so PROMOTION-004
+            assert "PROMOTION-004" in blocker_codes
+
+    def test_no_mutation_steps_in_dry_run(self, mock_repo_root):
+        """All core verification steps must NOT mutate state."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence: see comments in other fixed tests
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            # Core verification steps should not mutate
+            for step in plan.steps:
+                if step.step_id.startswith("verify_"):
+                    assert step.mutates_state is False
+                if step.step_id == "compute_reviewability":
+                    assert step.mutates_state is False
+            # Future apply steps may mutate
+            for step in plan.steps:
+                if step.mutates_state:
+                    assert "future" in step.description.lower() or "merge" in step.description.lower()
+
+    def test_json_serialization_uses_lowercase(self, mock_repo_root):
+        """PromotionPlan JSON serialization must use lowercase enum values."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = ""
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        # Import the serialization function from commands_forge
+        from rig.commands_forge import _serialize_promotion_plan
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence: see comments in other fixed tests
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            serialized = _serialize_promotion_plan(plan)
+            
+            assert serialized["forge_mode"] == "github"
+            assert serialized["mode"] == "pull_request"
+            assert serialized["identity"]["mode"] == "GITHUB"
+
+    def test_promotion_plan_includes_reviewability(self, mock_repo_root):
+        """PromotionPlan must include reviewability report."""
+        remote_proc = Mock()
+        remote_proc.returncode = 0
+        remote_proc.stdout = "https://github.com/owner/repo.git\n"
+        
+        merge_base_proc = Mock()
+        merge_base_proc.returncode = 0
+        merge_base_proc.stdout = "abc123\n"
+        
+        branch_prod_proc = Mock()
+        branch_prod_proc.returncode = 0
+        branch_prod_proc.stdout = "  preproduction\n"
+        
+        files_proc = Mock()
+        files_proc.returncode = 0
+        files_proc.stdout = "file1.py\nfile2.py\n"
+        
+        inside_proc = Mock()
+        inside_proc.returncode = 0
+        inside_proc.stdout = "true\n"
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            # Call sequence: see comments in other fixed tests
+            mock_run.side_effect = [
+                remote_proc,      # git remote get-url origin
+                merge_base_proc,  # git merge-base preproduction HEAD
+                branch_prod_proc, # git branch --list preproduction
+                files_proc,       # git diff --name-only abc123 HEAD
+                inside_proc,      # git rev-parse --is-inside-work-tree
+                branch_prod_proc, # git branch --list preproduction (blocker check)
+            ]
+            
+            plan = build_promotion_plan(mock_repo_root)
+            
+            assert plan.reviewability.changed_file_count == 2
+            assert plan.reviewability.target_ref == "preproduction"
 
 
 def main() -> int:

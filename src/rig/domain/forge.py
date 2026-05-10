@@ -156,6 +156,39 @@ class ReviewabilityReport:
     findings: tuple[ForgeDoctorFinding, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class PromotionPlanStep:
+    """A single step in the promotion plan.
+    
+    Represents an action that would be taken during promotion.
+    For Mission 3 (dry-run only), mutates_state steps are planned but not executed.
+    """
+    step_id: str
+    description: str
+    command: str | None = None
+    mutates_state: bool = False
+    required: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class PromotionPlan:
+    """Complete promotion plan for a repository.
+    
+    Result of planning a promotion from head_ref to target_ref.
+    This is a dry-run only plan for Mission 3 - no state is mutated.
+    """
+    mode: PromotionMode
+    forge_mode: ForgeMode
+    target_ref: str
+    head_ref: str
+    identity: ForgeIdentity
+    reviewability: ReviewabilityReport
+    steps: tuple[PromotionPlanStep, ...]
+    blockers: tuple[ForgeDoctorFinding, ...]
+    ready: bool
+    dry_run_only: bool = True
+
+
 # ---------------------------------------------------------------------------
 # Pure Classification Functions
 # ---------------------------------------------------------------------------
@@ -663,4 +696,239 @@ def build_reviewability_report(
         changed_files=changed_files,
         truncated=truncated,
         findings=tuple(findings),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Promotion Plan Building
+# ---------------------------------------------------------------------------
+
+def _build_promotion_steps(
+    forge_mode: ForgeMode,
+    target_ref: str,
+    head_ref: str,
+    reviewability: ReviewabilityReport,
+    ready: bool,
+) -> list[PromotionPlanStep]:
+    """Build ordered promotion steps based on forge mode.
+    
+    All steps have mutates_state=False for read-only verification steps.
+    Future --apply mode would execute mutates_state=True steps.
+    
+    Args:
+        forge_mode: The forge mode (LOCAL_ONLY, GITHUB, GITLAB, GITEA, UNKNOWN)
+        target_ref: Target reference for promotion
+        head_ref: Head reference for promotion
+        reviewability: Reviewability report
+        ready: Whether promotion is ready (no blockers)
+        
+    Returns:
+        List of PromotionPlanStep objects in execution order.
+    """
+    steps: list[PromotionPlanStep] = [
+        PromotionPlanStep(
+            step_id="verify_git_repo",
+            description="Verify repository is a valid Git repository",
+            command=None,
+            mutates_state=False,
+            required=True,
+        ),
+        PromotionPlanStep(
+            step_id="verify_clean_worktree",
+            description="Verify working tree is clean (no uncommitted changes)",
+            command="git status --porcelain",
+            mutates_state=False,
+            required=True,
+        ),
+        PromotionPlanStep(
+            step_id="verify_target_branch_exists",
+            description=f"Verify target branch '{target_ref}' exists locally",
+            command=f"git branch --list {target_ref}",
+            mutates_state=False,
+            required=True,
+        ),
+        PromotionPlanStep(
+            step_id="compute_reviewability",
+            description=f"Compute changed files against '{target_ref}'",
+            command=f"git merge-base {target_ref} {head_ref} && git diff --name-only $(git merge-base {target_ref} {head_ref}) {head_ref}",
+            mutates_state=False,
+            required=True,
+        ),
+    ]
+    
+    # Add mode-specific steps
+    if ready:
+        promotion_mode = derive_promotion_mode(forge_mode)
+        match promotion_mode:
+            case PromotionMode.LOCAL_BRANCH:
+                steps.extend([
+                    PromotionPlanStep(
+                        step_id="local_merge",
+                        description=f"Merge {head_ref} into {target_ref} locally (future: --apply)",
+                        command=f"git merge {head_ref} --no-ff",
+                        mutates_state=True,
+                        required=True,
+                    ),
+                    PromotionPlanStep(
+                        step_id="local_verify",
+                        description="Verify merge result",
+                        command="git status",
+                        mutates_state=False,
+                        required=True,
+                    ),
+                ])
+            case PromotionMode.PULL_REQUEST:
+                steps.extend([
+                    PromotionPlanStep(
+                        step_id="push_promotion_branch",
+                        description="Push promotion branch to remote (future: --apply)",
+                        command=None,
+                        mutates_state=True,
+                        required=True,
+                    ),
+                    PromotionPlanStep(
+                        step_id="create_pull_request",
+                        description="Create or update Pull Request (future: --apply)",
+                        command=None,
+                        mutates_state=True,
+                        required=True,
+                    ),
+                    PromotionPlanStep(
+                        step_id="wait_required_checks",
+                        description="Wait for required checks to pass (future: forge adapter)",
+                        command=None,
+                        mutates_state=False,
+                        required=False,
+                    ),
+                ])
+            case PromotionMode.MERGE_REQUEST:
+                steps.extend([
+                    PromotionPlanStep(
+                        step_id="push_promotion_branch",
+                        description="Push promotion branch to remote (future: --apply)",
+                        command=None,
+                        mutates_state=True,
+                        required=True,
+                    ),
+                    PromotionPlanStep(
+                        step_id="create_merge_request",
+                        description="Create or update Merge Request (future: --apply)",
+                        command=None,
+                        mutates_state=True,
+                        required=True,
+                    ),
+                    PromotionPlanStep(
+                        step_id="wait_pipeline",
+                        description="Wait for pipeline to pass (future: forge adapter)",
+                        command=None,
+                        mutates_state=False,
+                        required=False,
+                    ),
+                ])
+            case PromotionMode.MANUAL:
+                steps.append(PromotionPlanStep(
+                    step_id="manual_merge",
+                    description="Manual merge required (unknown forge mode)",
+                    command=None,
+                    mutates_state=True,
+                    required=True,
+                ))
+    
+    return steps
+
+
+def build_promotion_plan(
+    repo_root: Path,
+    target_ref: str = "preproduction",
+    head_ref: str = "HEAD",
+    budget: ReviewabilityBudget | None = None,
+) -> PromotionPlan:
+    """Build a promotion plan for repository promotion.
+    
+    This is a dry-run only function. It does NOT mutate Git state.
+    It explains what Rig would do if promotion were applied.
+    
+    Args:
+        repo_root: Path to the git repository
+        target_ref: Target reference for promotion (default: "preproduction")
+        head_ref: Head reference to compare against (default: "HEAD")
+        budget: Reviewability budget (default: None uses ReviewabilityBudget())
+        
+    Returns:
+        PromotionPlan with analysis and ordered steps.
+        dry_run_only is always True for this mission.
+    """
+    # Build identity and reviewability
+    identity = build_forge_identity(repo_root)
+    reviewability = build_reviewability_report(
+        repo_root,
+        budget=budget,
+        target_ref=target_ref,
+        head_ref=head_ref,
+    )
+    
+    # Collect blockers
+    blockers: list[ForgeDoctorFinding] = []
+    ready: bool = True
+    
+    # Check if inside git repo
+    if not git_inside_repo(repo_root):
+        blockers.append(ForgeDoctorFinding(
+            code="PROMOTION-001",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="Not inside a Git repository",
+            remediation="Initialize a git repository with 'git init' or navigate to a git repo",
+        ))
+        ready = False
+    else:
+        # Check if target_ref exists
+        if not git_branch_exists(repo_root, target_ref):
+            blockers.append(ForgeDoctorFinding(
+                code="PROMOTION-002",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"Target branch '{target_ref}' does not exist locally",
+                remediation=f"Create the branch with 'git branch {target_ref} <source>'",
+            ))
+            ready = False
+        
+        # Check if over budget and blocking
+        if reviewability.over_budget and reviewability.default_action == "block_promotion":
+            blockers.append(ForgeDoctorFinding(
+                code="PROMOTION-003",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"Reviewability budget exceeded: {reviewability.changed_file_count} > {reviewability.max_changed_files}",
+                remediation="Reduce changes or request override with reason",
+            ))
+            ready = False
+        
+        # Check if merge base is unavailable
+        if reviewability.merge_base is None:
+            blockers.append(ForgeDoctorFinding(
+                code="PROMOTION-004",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"Cannot find merge base between '{target_ref}' and '{head_ref}'",
+                remediation="Ensure both references exist and are reachable",
+            ))
+            ready = False
+    
+    # Build steps
+    steps = _build_promotion_steps(
+        identity.mode,
+        target_ref,
+        head_ref,
+        reviewability,
+        ready,
+    )
+    
+    return PromotionPlan(
+        mode=derive_promotion_mode(identity.mode),
+        forge_mode=identity.mode,
+        target_ref=target_ref,
+        head_ref=head_ref,
+        identity=identity,
+        reviewability=reviewability,
+        steps=tuple(steps),
+        blockers=tuple(blockers),
+        ready=ready,
+        dry_run_only=True,
     )
