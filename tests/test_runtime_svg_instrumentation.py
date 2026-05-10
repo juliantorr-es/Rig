@@ -1726,25 +1726,86 @@ class TestVisualizationExtensibility:
         assert "disclosureLayer" in content
         assert "lowStimulation" in content
 
-    def test_extension_docs_define_required_contracts(self):
+    def test_visualization_extensibility_contract_schema(self):
+        """Visualization extensibility contracts are defined by machine-readable schema."""
+        import json
+        from jsonschema import validate
+
         root = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture")
-        composition = open(os.path.join(root, "visualization-composition.md"), encoding="utf-8").read()
-        extension_api = open(os.path.join(root, "instrumentation-extension-api.md"), encoding="utf-8").read()
-        replay_model = open(os.path.join(root, "replay-safe-extension-model.md"), encoding="utf-8").read()
-        lifecycle = open(os.path.join(root, "visualization-lifecycle.md"), encoding="utf-8").read()
+        contract_path = os.path.join(root, "visualization-extensibility-contract.json")
 
-        assert "projection ownership" in composition.lower()
-        assert "disclosure layer" in extension_api.lower()
-        assert "Replay-Safe Extension Model" in replay_model
-        assert "cleanup lifecycle" in lifecycle.lower()
+        with open(contract_path, encoding="utf-8") as handle:
+            contract = json.load(handle)
 
+        schema = {
+            "type": "object",
+            "required": [
+                "$schema",
+                "$id",
+                "schema_version",
+                "projection_ownership",
+                "composition_contracts",
+                "lifecycle_contracts",
+                "extension_requirements",
+                "non_authority",
+            ],
+            "properties": {
+                "$schema": {"type": "string"},
+                "$id": {"const": "rig.visualization-extensibility-contract.v1"},
+                "schema_version": {"type": "string"},
+                "projection_ownership": {
+                    "type": "object",
+                    "required": [
+                        "owner",
+                        "visualizations_are_authority",
+                        "projection_derived_input_only",
+                        "canonical_projection_state_required",
+                    ],
+                    "properties": {
+                        "owner": {"const": "runtime_projection"},
+                        "visualizations_are_authority": {"const": False},
+                        "projection_derived_input_only": {"const": True},
+                        "canonical_projection_state_required": {"const": True},
+                    },
+                    "additionalProperties": False,
+                },
+                "composition_contracts": {
+                    "type": "array",
+                    "minItems": 8,
+                    "items": {"type": "string"},
+                    "contains": {"const": "no arbitrary geometry generation"},
+                },
+                "lifecycle_contracts": {
+                    "type": "array",
+                    "minItems": 5,
+                    "items": {"type": "string"},
+                    "contains": {"const": "clean up stale elements deterministically"},
+                },
+                "extension_requirements": {
+                    "type": "array",
+                    "minItems": 5,
+                    "items": {"type": "string"},
+                    "contains": {"const": "stable id strategy"},
+                },
+                "non_authority": {
+                    "type": "object",
+                    "required": [
+                        "workflow_authority",
+                        "runtime_truth_authority",
+                        "receipt_authority",
+                    ],
+                    "properties": {
+                        "workflow_authority": {"const": False},
+                        "runtime_truth_authority": {"const": False},
+                        "receipt_authority": {"const": False},
+                    },
+                    "additionalProperties": False,
+                },
+            },
+            "additionalProperties": False,
+        }
 
-# =============================================================================
-# PHASE 9: Workspace UX & Guided Onboarding Validation Tests
-# =============================================================================
-
-class TestStartupExperienceDoctrine:
-    """Tests for Startup Experience Doctrine compliance."""
+        validate(instance=contract, schema=schema)
 
     def test_startup_experience_doc_exists(self):
         """Startup experience doctrine document exists."""
