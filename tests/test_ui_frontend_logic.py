@@ -128,6 +128,7 @@ def test_progressive_disclosure_doctrine_docs_exist():
     spatial = (root / "spatial-stability.md").read_text(encoding="utf-8")
     density = (root / "density-collapse.md").read_text(encoding="utf-8")
     hierarchy = (root / "visual-priority-hierarchy.md").read_text(encoding="utf-8")
+    rehearsal = (root / "governance-routing-rehearsal.md").read_text(encoding="utf-8")
 
     assert "Layer 1" in progressive
     assert "Layer 4" in progressive
@@ -135,6 +136,7 @@ def test_progressive_disclosure_doctrine_docs_exist():
     assert "persistent topology" in spatial.lower()
     assert "Higher complexity must collapse into clearer summary structures" in density
     assert "High" in hierarchy and "integrity divergence" in hierarchy
+    assert "CODEOWNER review routing" in rehearsal
 
 
 def test_runtime_instrumentation_contains_low_stimulation_helpers():

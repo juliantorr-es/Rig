@@ -1904,3 +1904,16 @@ class TestMissingGoldenReplayFixtures:
             for c in result.conflicts
         )
         assert has_stale_finding or has_stale_conflict or result.is_partial
+
+
+def test_governance_rehearsal_doc_exists() -> None:
+    path = Path(__file__).parent.parent / "docs" / "architecture" / "governance-routing-rehearsal.md"
+    content = path.read_text(encoding="utf-8")
+    assert "routing should be observable on a live PR" in content
+
+
+def test_solo_maintainer_governance_doc_exists() -> None:
+    path = Path(__file__).parent.parent / "docs" / "architecture" / "solo-maintainer-governance.md"
+    content = path.read_text(encoding="utf-8")
+    assert "branch protection" in content
+    assert "CODEOWNER auto-routing does not prove separation of duties" in content
