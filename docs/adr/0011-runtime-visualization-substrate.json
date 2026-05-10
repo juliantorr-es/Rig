@@ -1,7 +1,7 @@
 {
   "adr_id": "0011",
   "title": "Runtime Visualization Substrate",
-  "status": "proposed",
+  "status": "accepted",
   "date": "2026-05-10",
   "authors": ["antigravity"],
   "context": "UI performance bottlenecks were identified as DOM lifecycle churn (teardown/rebuild) rather than SVG throughput. Exploratory sprint UI-R1 proved that a retained patching model eliminates this churn while preserving semantic identity.",

@@ -31,6 +31,17 @@
  * - Runtime topology connectors
  */
 
+import { SceneGraphManager, createSvgElement, setSvgAttr, svgId, SVG_NS } from './core/render-graph.js';
+import { SvgExecutionLane, SvgTopologyNode } from './core/visual-primitives.js';
+
+export { 
+  SvgExecutionLane, 
+  SvgRoutingPath, 
+  SvgTopologyConnector, 
+  SvgTopologyNode,
+  SvgThroughputBar
+} from './core/visual-primitives.js';
+
 export function normalizeRuntimeEventEnvelope(envelope = {}) {
   if (!envelope || typeof envelope !== 'object') {
     return null;
@@ -585,288 +596,9 @@ export function centerOf(rect) {
 }
 
 // =============================================================================
-// SVG Primitive: Execution Lane
-// =============================================================================
-
-/** Execution lane visualization
- * Represents a logical execution channel/path
- */
-export class SvgExecutionLane {
-  constructor(id, bounds, options = {}) {
-    this.id = svgId('lane', id);
-    this.bounds = bounds;
-    this.state = options.state || 'idle';
-    this.label = options.label || `Lane ${id}`;
-    this.index = options.index || 0;
-    this.active = options.active || false;
-    this.stalled = options.stalled || false;
-    this.completed = options.completed || false;
-    this.throughput = options.throughput || 0;
-    this.maxThroughput = options.maxThroughput || 100;
-  }
-
-  /** Patch existing DOM element */
-  patch(g) {
-    // Update group attributes
-    setSvgAttr(g, 'data-state', this.state);
-    g.setAttribute('class', `svg-lane state-${this.state}`);
-
-    // Update background
-    const bg = g.querySelector('rect');
-    if (bg) {
-      setSvgAttr(bg, 'fill', this._getBgColor());
-      setSvgAttr(bg, 'stroke', this._getStrokeColor());
-      setSvgAttr(bg, 'opacity', this.active ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_LOW);
-      setSvgAttr(bg, 'x', this.bounds.x);
-      setSvgAttr(bg, 'y', this.bounds.y);
-      setSvgAttr(bg, 'width', this.bounds.width);
-      setSvgAttr(bg, 'height', this.bounds.height);
-    }
-
-    // Update label
-    const label = g.querySelector('text');
-    if (label) {
-      setSvgAttr(label, 'x', this.bounds.x + GEOMETRY.PADDING);
-      setSvgAttr(label, 'y', this.bounds.y + this.bounds.height / 2 + GEOMETRY.LABEL_OFFSET);
-      if (label.textContent !== this.label) {
-        label.textContent = this.label;
-      }
-    }
-  }
-
-  /** Render the lane as SVG group */
-  render(parent) {
-    const g = createSvgElement('g', {
-      id: this.id,
-      'data-lane-id': this.id,
-      'data-state': this.state,
-      class: `svg-lane state-${this.state}`
-    });
-
-    // Lane background
-    const bg = createSvgElement('rect', {
-      x: this.bounds.x,
-      y: this.bounds.y,
-      width: this.bounds.width,
-      height: this.bounds.height,
-      rx: 2,
-      ry: 2,
-      fill: this._getBgColor(),
-      stroke: this._getStrokeColor(),
-      'stroke-width': STROKE_WIDTH_THIN,
-      opacity: this.active ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_LOW
-    });
-    g.appendChild(bg);
-
-    // Lane label (left-aligned)
-    const label = createSvgElement('text', {
-      x: this.bounds.x + GEOMETRY.PADDING,
-      y: this.bounds.y + this.bounds.height / 2 + GEOMETRY.LABEL_OFFSET,
-      'text-anchor': 'start',
-      'dominant-baseline': 'middle',
-      fill: SVG_COLORS.TEXT,
-      'font-size': '11',
-      'font-family': 'system-ui, sans-serif'
-    });
-    label.textContent = this.label;
-    g.appendChild(label);
-
-    // Throughput indicator (right-aligned)
-    if (this.throughput > 0) {
-      const throughputText = createSvgElement('text', {
-        x: this.bounds.x + this.bounds.width - GEOMETRY.PADDING,
-        y: this.bounds.y + this.bounds.height / 2 + GEOMETRY.LABEL_OFFSET,
-        'text-anchor': 'end',
-        'dominant-baseline': 'middle',
-        fill: SVG_COLORS.TEXT_MUTED,
-        'font-size': '10',
-        'font-family': 'system-ui, sans-serif'
-      });
-      const throughputPercent = Math.round((this.throughput / this.maxThroughput) * 100);
-      throughputText.textContent = `${this.throughput}/${this.maxThroughput} (${throughputPercent}%)`;
-      g.appendChild(throughputText);
-    }
-
-    // Center line (visual guide)
-    const centerY = this.bounds.y + this.bounds.height / 2;
-    const centerLine = createSvgElement('line', {
-      x1: this.bounds.x,
-      y1: centerY,
-      x2: this.bounds.x + this.bounds.width,
-      y2: centerY,
-      stroke: SVG_COLORS.GRID,
-      'stroke-width': STROKE_WIDTH_THIN,
-      'stroke-dasharray': '4,2',
-      opacity: this.active ? SVG_COLORS.OPACITY_MEDIUM : SVG_COLORS.OPACITY_MINIMAL
-    });
-    g.appendChild(centerLine);
-
-    parent.appendChild(g);
-    return g;
-  }
-
-  _getBgColor() {
-    if (this.completed) return SVG_COLORS.COMPLETE;
-    if (this.stalled) return SVG_COLORS.STALLED;
-    if (this.active) {
-      switch (this.state) {
-        case 'streaming': return SVG_COLORS.STREAMING;
-        case 'proposing': return SVG_COLORS.PROPOSING;
-        case 'validating': return SVG_COLORS.VALIDATING;
-        case 'replaying': return SVG_COLORS.REPLAYING;
-        case 'failure': return SVG_COLORS.FAILURE;
-        default: return SVG_COLORS.EXECUTING;
-      }
-    }
-    return SVG_COLORS.IDLE;
-  }
-
-  _getStrokeColor() {
-    if (this.stalled) return SVG_COLORS.INTEGRITY_WARNING;
-    if (this.completed) return SVG_COLORS.COMPLETE;
-    return SVG_COLORS.STROKE;
-  }
-
-  /** Update lane state and re-render */
-  update(options = {}) {
-    Object.assign(this, options);
-  }
-}
-
-// =============================================================================
-// SVG Primitive: Routing Path
-// =============================================================================
-
 /** Routing path between capability nodes
  * Represents runtime -> capability -> sandbox routing
  */
-export class SvgRoutingPath {
-  constructor(id, points, options = {}) {
-    this.id = svgId('route', id);
-    this.points = points;
-    this.state = options.state || 'idle';
-    this.capability = options.capability || 'default';
-    this.trustLevel = options.trustLevel || 'default';
-    this.active = options.active || false;
-    this.direction = options.direction || 'forward';
-    this.thickness = options.thickness || STROKE_WIDTH_NORMAL;
-  }
-
-  /** Patch existing DOM element */
-  patch(g) {
-    setSvgAttr(g, 'data-state', this.state);
-    
-    const path = g.querySelector('path');
-    if (path) {
-      setSvgAttr(path, 'd', this._buildSmoothPath());
-      setSvgAttr(path, 'stroke', this._getStrokeColor());
-      setSvgAttr(path, 'stroke-width', this.thickness);
-      setSvgAttr(path, 'opacity', this.active ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_MINIMAL);
-    }
-  }
-
-  /** Render the path with smooth curves */
-  render(parent) {
-    const g = createSvgElement('g', {
-      id: this.id,
-      'data-route-id': this.id,
-      'data-capability': this.capability,
-      'data-state': this.state,
-      class: `svg-route capability-${this.capability} state-${this.state}`
-    });
-
-    // Build smooth path through points
-    if (this.points.length >= 2) {
-      const d = this._buildSmoothPath();
-      const path = createSvgElement('path', {
-        d,
-        fill: 'none',
-        stroke: this._getStrokeColor(),
-        'stroke-width': this.thickness,
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        opacity: this.active ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_MEDIUM
-      });
-      g.appendChild(path);
-    }
-
-    // Direction arrow (if active)
-    if (this.active && this.points.length >= 2) {
-      const lastPoint = this.points[this.points.length - 1];
-      const arrow = this._createDirectionArrow(lastPoint);
-      g.appendChild(arrow);
-    }
-
-    parent.appendChild(g);
-    return g;
-  }
-
-  _buildSmoothPath() {
-    if (this.points.length === 2) {
-      return `M ${this.points[0].x} ${this.points[0].y} L ${this.points[1].x} ${this.points[1].y}`;
-    }
-
-    // Bezier smooth for multi-point paths
-    const commands = [];
-    commands.push(`M ${this.points[0].x} ${this.points[0].y}`);
-
-    for (let i = 1; i < this.points.length - 1; i++) {
-      const prev = this.points[i - 1];
-      const curr = this.points[i];
-      const next = this.points[i + 1];
-
-      const cp1x = (prev.x + curr.x) / 2;
-      const cp1y = (prev.y + curr.y) / 2;
-      const cp2x = (curr.x + next.x) / 2;
-      const cp2y = (curr.y + next.y) / 2;
-
-      commands.push(`C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`);
-    }
-
-    // Final segment to last point
-    if (this.points.length > 1) {
-      const last = this.points[this.points.length - 1];
-      commands.push(`L ${last.x} ${last.y}`);
-    }
-
-    return commands.join(' ');
-  }
-
-  _createDirectionArrow(tipPoint) {
-    const arrowSize = GEOMETRY.MARKER_SIZE * 0.8;
-    const angle = this.direction === 'reverse' ? Math.PI : 0;
-
-    const points = [
-      point(tipPoint.x, tipPoint.y),
-      point(
-        tipPoint.x - arrowSize * Math.cos(angle) - arrowSize * 0.5 * Math.sin(angle),
-        tipPoint.y - arrowSize * Math.sin(angle) + arrowSize * 0.5 * Math.cos(angle)
-      ),
-      point(
-        tipPoint.x - arrowSize * Math.cos(angle) + arrowSize * 0.5 * Math.sin(angle),
-        tipPoint.y - arrowSize * Math.sin(angle) - arrowSize * 0.5 * Math.cos(angle)
-      )
-    ];
-
-    return createSvgElement('polygon', {
-      points: points.map(p => `${p.x},${p.y}`).join(' '),
-      fill: this._getStrokeColor(),
-      opacity: SVG_COLORS.OPACITY_HIGH
-    });
-  }
-
-  _getStrokeColor() {
-    switch (this.capability) {
-      case 'elevated': return SVG_COLORS.CAPABILITY_ELEVATED;
-      case 'restricted': return SVG_COLORS.CAPABILITY_RESTRICTED;
-      default: return SVG_COLORS.CAPABILITY_DEFAULT;
-    }
-  }
-
-  update(options = {}) {
-    Object.assign(this, options);
-  }
-}
 
 // =============================================================================
 // SVG Primitive: Stream Density Line
@@ -1010,125 +742,6 @@ export class SvgStreamDensityLine {
 // =============================================================================
 
 /** Throughput bar - shows real runtime throughput as bar chart */
-export class SvgThroughputBar {
-  constructor(id, bounds, options = {}) {
-    this.id = svgId('throughput', id);
-    this.bounds = bounds;
-    this.value = options.value || 0;
-    this.maxValue = options.maxValue || 100;
-    this.minValue = options.minValue || 0;
-    this.label = options.label || '';
-    this.state = options.state || 'idle';
-    this.channel = options.channel || 'assistant';
-  }
-
-  render(parent) {
-    const g = createSvgElement('g', {
-      id: this.id,
-      'data-throughput-id': this.id,
-      class: `svg-throughput state-${this.state}`
-    });
-
-    // Background track
-    const track = createSvgElement('rect', {
-      x: this.bounds.x,
-      y: this.bounds.y,
-      width: this.bounds.width,
-      height: this.bounds.height,
-      rx: 2,
-      ry: 2,
-      fill: SVG_COLORS.FILL_SUBTLE,
-      stroke: SVG_COLORS.GRID,
-      'stroke-width': STROKE_WIDTH_THIN
-    });
-    g.appendChild(track);
-
-    // Fill bar
-    const fillWidth = this._getFillWidth();
-    const fill = createSvgElement('rect', {
-      x: this.bounds.x,
-      y: this.bounds.y,
-      width: fillWidth,
-      height: this.bounds.height,
-      rx: 2,
-      ry: 2,
-      fill: this._getFillColor(),
-      opacity: this.state === 'streaming' ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_MEDIUM
-    });
-    g.appendChild(fill);
-
-    // Value label
-    if (this.bounds.height >= 16 && this.value !== undefined) {
-      const label = createSvgElement('text', {
-        x: this.bounds.x + this.bounds.width / 2,
-        y: this.bounds.y + this.bounds.height / 2 + GEOMETRY.LABEL_OFFSET,
-        'text-anchor': 'middle',
-        'dominant-baseline': 'middle',
-        fill: this._getTextColor(fillWidth),
-        'font-size': '10',
-        'font-family': 'system-ui, sans-serif'
-      });
-      label.textContent = this._formatValue();
-      g.appendChild(label);
-    }
-
-    // Label (left-aligned)
-    if (this.label) {
-      const nameLabel = createSvgElement('text', {
-        x: this.bounds.x,
-        y: this.bounds.y - GEOMETRY.LABEL_OFFSET,
-        'text-anchor': 'start',
-        'dominant-baseline': 'bottom',
-        fill: SVG_COLORS.TEXT_MUTED,
-        'font-size': '9',
-        'font-family': 'system-ui, sans-serif'
-      });
-      nameLabel.textContent = this.label;
-      g.appendChild(nameLabel);
-    }
-
-    parent.appendChild(g);
-    return g;
-  }
-
-  _getFillWidth() {
-    return mapRange(
-      clamp(this.value, this.minValue, this.maxValue),
-      this.minValue,
-      this.maxValue,
-      0,
-      this.bounds.width
-    );
-  }
-
-  _getFillColor() {
-    const channelMap = {
-      'assistant': SVG_COLORS.STREAMING,
-      'user': SVG_COLORS.FOREGROUND,
-      'tool': SVG_COLORS.PROPOSING,
-      'proposal': SVG_COLORS.VALIDATING
-    };
-    return channelMap[this.channel] || SVG_COLORS.STREAMING;
-  }
-
-  _getTextColor(fillWidth) {
-    if (fillWidth > this.bounds.width * 0.6) {
-      return SVG_COLORS.FOREGROUND;
-    }
-    return SVG_COLORS.TEXT;
-  }
-
-  _formatValue() {
-    if (typeof this.value === 'number') {
-      return this.value.toFixed(this.value % 1 === 0 ? 0 : 1);
-    }
-    return String(this.value);
-  }
-
-  update(options = {}) {
-    Object.assign(this, options);
-  }
-}
 
 // =============================================================================
 // SVG Primitive: Replay Sweep
@@ -1585,129 +1198,6 @@ export class SvgProposalNode {
 // =============================================================================
 
 /** Topology connector - connects runtime components visually */
-export class SvgTopologyConnector {
-  constructor(id, source, target, options = {}) {
-    this.id = svgId('connector', id);
-    this._source = source;
-    this._target = target;
-    this.state = options.state || 'connected';
-    this.kind = options.kind || 'direct';
-    this.thickness = options.thickness || STROKE_WIDTH_NORMAL;
-    this.inactive = options.inactive || false;
-    this.sequence = options.sequence || 0;
-    this.label = options.label || '';
-  }
-
-  get source() {
-    return this._source;
-  }
-
-  get target() {
-    return this._target;
-  }
-
-  render(parent) {
-    const g = createSvgElement('g', {
-      id: this.id,
-      'data-connector-id': this.id,
-      'data-source': this._source.id || String(this._source),
-      'data-target': this._target.id || String(this._target),
-      'data-state': this.state,
-      class: `svg-connector kind-${this.kind} state-${this.state}`
-    });
-
-    const sourcePoint = typeof this._source === 'object' ?
-      point(this._source.x || 0, this._source.y || 0) : point(0, 0);
-    const targetPoint = typeof this._target === 'object' ?
-      point(this._target.x || 0, this._target.y || 0) : point(0, 0);
-
-    const path = `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;
-
-    const line = createSvgElement('path', {
-      d: path,
-      fill: 'none',
-      stroke: this._getLineColor(),
-      'stroke-width': this.thickness,
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-      opacity: this.inactive ? SVG_COLORS.OPACITY_LOW : SVG_COLORS.OPACITY_MEDIUM
-    });
-    g.appendChild(line);
-
-    const midPoint = point(
-      (sourcePoint.x + targetPoint.x) / 2,
-      (sourcePoint.y + targetPoint.y) / 2
-    );
-
-    if (this.sequence > 0) {
-      const seqLabel = createSvgElement('text', {
-        x: midPoint.x,
-        y: midPoint.y - GEOMETRY.LABEL_OFFSET,
-        'text-anchor': 'middle',
-        'dominant-baseline': 'bottom',
-        fill: SVG_COLORS.TEXT_MUTED,
-        'font-size': '8',
-        'font-family': 'system-ui, sans-serif'
-      });
-      seqLabel.textContent = String(this.sequence);
-      g.appendChild(seqLabel);
-    }
-
-    if (this.state !== 'connected') {
-      const indicator = createSvgElement('circle', {
-        cx: midPoint.x,
-        cy: midPoint.y,
-        r: 3,
-        fill: this._getStateColor(),
-        opacity: SVG_COLORS.OPACITY_HIGH
-      });
-      g.appendChild(indicator);
-    }
-
-    if (!this.inactive) {
-      const arrowSize = 6;
-      const angle = Math.atan2(
-        targetPoint.y - sourcePoint.y,
-        targetPoint.x - sourcePoint.x
-      );
-      const arrowPoints = [
-        point(targetPoint.x, targetPoint.y),
-        point(
-          targetPoint.x - arrowSize * Math.cos(angle) - arrowSize * 0.5 * Math.sin(angle),
-          targetPoint.y - arrowSize * Math.sin(angle) + arrowSize * 0.5 * Math.cos(angle)
-        ),
-        point(
-          targetPoint.x - arrowSize * Math.cos(angle) + arrowSize * 0.5 * Math.sin(angle),
-          targetPoint.y - arrowSize * Math.sin(angle) - arrowSize * 0.5 * Math.cos(angle)
-        )
-      ];
-      const arrow = createSvgElement('path', {
-        d: `M ${arrowPoints[0].x} ${arrowPoints[0].y} L ${arrowPoints[1].x} ${arrowPoints[1].y} L ${arrowPoints[2].x} ${arrowPoints[2].y} Z`,
-        fill: this._getStrokeColor(),
-        opacity: SVG_COLORS.OPACITY_HIGH
-      });
-      g.appendChild(arrow);
-    }
-
-    parent.appendChild(g);
-    return g;
-  }
-
-  _getStrokeColor() {
-    if (this.state === 'violation') return SVG_COLORS.INTEGRITY_ERROR;
-    if (this.state === 'warning') return SVG_COLORS.INTEGRITY_WARNING;
-    return SVG_COLORS.STROKE;
-  }
-
-  _getStateColor() {
-    switch (this.state) {
-      case 'active': return SVG_COLORS.EXECUTING;
-      case 'idle': return SVG_COLORS.IDLE;
-      case 'error': return SVG_COLORS.FAILURE;
-      default: return SVG_COLORS.STROKE;
-    }
-  }
-}
 
 // =============================================================================
 // SVG Primitive: Topology Node
@@ -1842,43 +1332,6 @@ export class SvgTopologyNode {
         ry: 6,
         fill: 'none',
         stroke: 'var(--color-streaming, #2196F3)',
-        'stroke-width': 2
-      });
-      g.appendChild(ring);
-    }
-
-    const bg = createSvgElement('rect', {
-      class: 'node-bg',
-      x: this.bounds.x,
-      y: this.bounds.y,
-      width: this.bounds.width,
-      height: this.bounds.height,
-      rx: 4,
-      ry: 4,
-      fill: this._getFillColor(),
-      stroke: this._getStrokeColor(),
-      'stroke-width': 1
-    });
-    g.appendChild(bg);
-
-    const label = createSvgElement('text', {
-      class: 'node-label',
-      x: this.bounds.x + this.bounds.width / 2,
-      y: this.bounds.y + this.bounds.height / 2 + 4,
-      'text-anchor': 'middle',
-      'dominant-baseline': 'middle',
-      fill: '#fff',
-      'font-size': '11',
-      'font-family': 'system-ui, sans-serif'
-    });
-    label.textContent = this.label;
-    g.appendChild(label);
-
-    if (this.violationCount > 0) {
-      const cx = this.bounds.x + this.bounds.width + 6;
-      const cy = this.bounds.y + 6;
-      const badge = createSvgElement('circle', {
-        class: 'violation-badge',
         cx,
         cy,
         r: 8,
@@ -1969,10 +1422,18 @@ export class SvgInstrumentationLayer {
   constructor(container, options = {}) {
     this.container = container;
     this.id = svgId('layer', options.id || 'main');
-    this.svg = null;
-    this.elements = new Map();
-    this.maxElements = options.maxElements || MAX_SVG_ELEMENTS_PER_GROUP;
-    this.bounds = options.bounds || rect(0, 0, 800, 600);
+    this.bounds = options.bounds || { width: 800, height: 600 };
+    
+    // Scene Graph Manager (ADR 0011 stabilization)
+    this.manager = new SceneGraphManager(this.container);
+    
+    this.topology = {
+      nodeCount: 0,
+      edgeCount: 0,
+      stableNodeIds: new Set(),
+      stableEdgeIds: new Set()
+    };
+    
     this._initSvg();
   }
 
@@ -1992,84 +1453,64 @@ export class SvgInstrumentationLayer {
     this.svg.style.display = 'block';
     this.svg.style.backgroundColor = 'transparent';
     this.container.appendChild(this.svg);
+    
+    // Update manager container to the SVG element for child mounting
+    this.manager.container = this.svg;
   }
 
-  /** Add an SVG primitive to the layer */
+  /** Refactored: Delegate to SceneGraphManager */
   addPrimitive(primitive) {
-    if (this.elements.size >= this.maxElements) {
-      const oldestId = this.elements.keys().next().value;
-      this.removePrimitive(oldestId);
-    }
-
-    const rendered = primitive.render(this.svg);
-    this.elements.set(primitive.id, { primitive, element: rendered });
-    return primitive.id;
+    return this.manager.patchPrimitive(primitive);
   }
 
-  /** Remove an SVG primitive from the layer */
-  removePrimitive(id) {
-    const existing = this.elements.get(id);
-    if (existing && existing.element && existing.element.parentNode) {
-      if (window.__rig_metrics) window.__rig_metrics.domOperations.removeChild++;
-      existing.element.parentNode.removeChild(existing.element);
-    }
-    this.elements.delete(id);
-  }
-
-  /** Patch an SVG primitive (retained mode update) */
+  /** Refactored: Delegate to SceneGraphManager */
   patchPrimitive(primitive) {
-    const existing = this.elements.get(primitive.id);
-    if (existing && existing.element) {
-      // Retained update: patch the existing DOM element
-      if (primitive.patch) {
-        primitive.patch(existing.element);
-      } else {
-        // Fallback: full replacement if primitive doesn't support patching yet
-        this.removePrimitive(primitive.id);
-        this.addPrimitive(primitive);
-      }
-    } else {
-      // First time render
-      this.addPrimitive(primitive);
-    }
-    return primitive.id;
+    return this.manager.patchPrimitive(primitive);
   }
 
-  /** Update an existing primitive */
-  updatePrimitive(id, options = {}) {
-    const existing = this.elements.get(id);
+  /** Refactored: Delegate to SceneGraphManager */
+  removePrimitive(id) {
+    const existing = this.manager.elements.get(id);
     if (existing) {
-      existing.primitive.update(options);
-      this.patchPrimitive(existing.primitive);
+      if (existing.element && existing.element.parentNode) {
+        existing.element.parentNode.removeChild(existing.element);
+      }
+      this.manager.elements.delete(id);
     }
   }
 
-  /** Remove primitives not included in the current render pass */
+  /** Refactored: Delegate to SceneGraphManager */
   garbageCollect(activeIds) {
-    for (const id of this.elements.keys()) {
-      if (!activeIds.has(id)) {
-        this.removePrimitive(id);
-      }
-    }
+    this.manager.garbageCollect(activeIds);
+  }
+
+  /** Refactored: Delegate to SceneGraphManager */
+  clear() {
+    this.manager.clear();
+    this.topology.nodeCount = 0;
+    this.topology.edgeCount = 0;
+    this.topology.stableNodeIds.clear();
+    this.topology.stableEdgeIds.clear();
   }
 
   /** Clear all primitives from the layer */
   clear() {
     if (window.__rig_metrics) window.__rig_metrics.lifecycle.clearCalls++;
-    for (const id of this.elements.keys()) {
-      this.removePrimitive(id);
-    }
-    this.elements.clear();
+    this.manager.clear();
+    this.topology.nodeCount = 0;
+    this.topology.edgeCount = 0;
+    this.topology.stableNodeIds.clear();
+    this.topology.stableEdgeIds.clear();
   }
 
   /** Get primitive by ID */
   getPrimitive(id) {
-    return this.elements.get(id)?.primitive;
+    return this.manager.elements.get(id)?.primitive;
   }
 
   /** Get all primitives */
   getAllPrimitives() {
-    return Array.from(this.elements.values()).map(v => v.primitive);
+    return Array.from(this.manager.elements.values()).map(v => v.primitive);
   }
 
   /** Resize the SVG container */

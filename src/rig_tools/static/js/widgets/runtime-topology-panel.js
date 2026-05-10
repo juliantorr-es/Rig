@@ -45,15 +45,26 @@
  * - No frontend fetching
  */
 
+import { 
+  SceneGraphManager, 
+  point, 
+  rect, 
+  size 
+} from '../core/render-graph.js';
+
 import {
   SvgExecutionLane,
   SvgRoutingPath,
-  SvgProposalNode,
   SvgTopologyConnector,
+  SvgTopologyNode,
+  SvgThroughputBar
+} from '../core/visual-primitives.js';
+
+import {
+  SvgProposalNode,
   SvgIntegrityMarker,
   SvgReplaySweep,
   SvgStreamDensityLine,
-  SvgThroughputBar,
   SvgInstrumentationLayer,
   ProjectionGeometryMapper,
   SvgAnimationState,
@@ -61,9 +72,6 @@ import {
   SvgReconciliationCadenceIndicator,
   SvgDampingIndicator,
   SvgConvergenceIndicator,
-  point,
-  rect,
-  size,
   MotionUtils,
   normalizeRuntimeEventEnvelope,
   normalizeOperationalStatusEnvelope

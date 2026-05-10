@@ -4,7 +4,7 @@
 
 This ADR defines the architectural transition of Rig's UI from a stateless, imperative redraw model to a **Retained Render Graph** with incremental patching. This transition is informed by the successful **UI-R1 exploratory sprint**, which demonstrated that the primary performance bottleneck in Rig's visualization was **DOM lifecycle churn** (constant teardown and rebuild), not the choice of rendering backend (SVG).
 
-**Status**: proposed
+**Status**: accepted
 
 **Related ADRs**:
 - [0002 Projection Domain Consolidation](0002-projection-domain-consolidation.md) — visualization remains a subordinate projection of authoritative state.
