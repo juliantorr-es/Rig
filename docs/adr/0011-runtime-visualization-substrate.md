@@ -98,21 +98,55 @@ Implement targeted invalidation to avoid patching sub-trees that haven't changed
 
 ---
 
-## 5. Consequences
+## 6. Cognitive Runtime Experience (UI-R3)
 
-### 5.1. Leverage
-- **Performance**: 90-100% reduction in DOM lifecycle operations for stable views.
-- **Maintainability**: Clear separation between "what to draw" (Projection) and "how to patch it" (Render Graph).
+The substrate has evolved beyond rendering into a **Cognitive Infrastructure** that manages information density through progressive disclosure and semantic motion.
 
-### 5.2. Locality
-Visual logic is encapsulated within specific `RenderNode` classes rather than scattered across procedural re-rendering loops in the widgets.
+### 6.1. Progressive Cognitive Disclosure (Layers 1-4)
+Advanced systems become unusable if all telemetry is equally visible. Rig implements a visibility governance system that layers information density:
+- **Layer 1 (Health)**: Primary intent, current progress, and system health.
+- **Layer 2 (Topology)**: Execution lanes and runtime graph structures.
+- **Layer 3 (Trace)**: Governance logs, streaming audits, and trace projections.
+- **Layer 4 (Debug)**: Internal telemetry, replay timelines, and renderer metrics.
 
-### 5.3. Risk
-- **State Desync**: Risk of the DOM "ghosting" if the `patch()` logic doesn't perfectly match the `render()` logic. Mitigated by strict testing and shared styling tokens.
-- **Memory Growth**: The retained graph must be rigorously garbage-collected. Mitigated by the `SceneGraphManager.garbageCollect` pass.
+### 6.2. Meaningful Motion Doctrine
+Motion in Rig is not decorative; it is **causal**. Animations must explain system state and reinforce the deterministic flow of execution:
+- **Execution Pulses**: Highlighting propagation paths through the graph.
+- **Governance Shakes**: Visually resisting invalid or blocked proposals.
+- **Stable Transitions**: Maintaining persistent identity across state changes.
+
+### 6.3. Spatial Architecture
+The UI maintains a persistent visual geography ("Spatial Cognition") allowing users to learn where concepts live (e.g., "Execution West", "Governance East").
 
 ---
 
-## 6. Summary
+## 7. Implementation Progress
 
-ADR 0011 transforms Rig's UI from a reactive display into a **persistent visual runtime**. By embracing retention semantics over imperative redraws, we preserve semantic identity and accessibility while achieving the performance levels required for professional agent orchestration tooling. Rig remains committed to **truthful visualization**, where every pixel on the screen is a deterministic projection of the governed execution state.
+### 7.1. UI-R1: Retained Prototype
+Explored incremental graph patching and established the SVG backend seam. (Completed)
+
+### 7.2. UI-R2: Substrate Expansion
+Migrated heterogeneous widgets (Timeline, Audit Trail) to `RenderNode` and implemented global renderer observability. (Completed)
+
+### 7.3. UI-R3: Cognitive Experience
+Established Rig Design Language v1 and implemented the Progressive Disclosure system and Meaningful Motion primitives. (Completed)
+
+---
+
+## 8. Consequences
+
+### 8.1. Leverage
+- **Performance**: 90-100% reduction in DOM lifecycle operations for stable views.
+- **Cognition**: Users can manage system complexity by unfolding layers at their own pace.
+
+### 8.2. Locality
+Visual logic is encapsulated within specific `RenderNode` classes, while visibility governance is managed by the `CognitiveDisclosure` controller.
+
+### 8.3. Risk
+- **Information Hiding**: Risk of critical errors being hidden in Layer 3/4. Mitigated by "Health" layer alerts that trigger visibility escalation.
+
+---
+
+## 9. Summary
+
+ADR 0011 transforms Rig's UI from a reactive display into a **persistent cognitive runtime**. By embracing retention semantics and progressive disclosure, we provide a visual language for governed computation. Rig remains committed to **truthful visualization**, where every pixel on the screen is a deterministic projection of the governed execution state.
