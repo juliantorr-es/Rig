@@ -152,6 +152,11 @@
       "id": "mission-7",
       "research_required": false,
       "title": "GitHub Draft PR Apply"
+    },
+    {
+      "id": "mission-8",
+      "research_required": false,
+      "title": "GitHub Apply Safety Doctor"
     }
   ],
   "status": "proposed",

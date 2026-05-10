@@ -393,6 +393,462 @@ def git_remote_url(repo_root: Path, remote: str = "origin") -> str | None:
     return result if result else None
 
 
+# ---------------------------------------------------------------------------
+# GitHub Remote URL Parsing (Mission 8)
+# ---------------------------------------------------------------------------
+
+def parse_github_remote_url(remote_url: str | None) -> tuple[str | None, str | None]:
+    """Parse a Git remote URL to extract GitHub owner and repository.
+
+    Mission 8: GitHub Apply Safety Doctor
+
+    Supports URL formats:
+    - https://github.com/owner/repo.git
+    - https://github.com/owner/repo
+    - git@github.com:owner/repo.git
+    - ssh://git@github.com/owner/repo.git
+
+    Args:
+        remote_url: The Git remote URL to parse, or None
+
+    Returns:
+        Tuple of (owner, repository), both None if not a GitHub URL or parsing fails
+    """
+    if not remote_url:
+        return None, None
+
+    # Normalize URL
+    url = remote_url.strip()
+
+    # Check if this is a GitHub URL
+    url_lower = url.lower()
+    if "github.com" not in url_lower:
+        return None, None
+
+    # Remove .git suffix if present
+    if url.endswith(".git"):
+        url = url[:-4]
+
+    # Parse different URL formats
+    # Format 1: https://github.com/owner/repo
+    if url.startswith("https://") or url.startswith("http://"):
+        # Remove protocol
+        no_protocol = url[8:] if url.startswith("https://") else url[7:]
+        # Remove github.com
+        if no_protocol.startswith("github.com/"):
+            path = no_protocol[11:]  # len("github.com/")
+        elif no_protocol.startswith("www.github.com/"):
+            path = no_protocol[15:]  # len("www.github.com/")
+        else:
+            return None, None
+        # Split on /
+        parts = path.strip("/").split("/")
+        if len(parts) >= 2:
+            return parts[0], parts[1]
+        return None, None
+
+    # Format 2: git@github.com:owner/repo (SCP-like)
+    if url.startswith("git@"):
+        # Remove git@
+        no_user = url[4:]
+        # Split on :
+        if ":" in no_user:
+            host_port, path = no_user.split(":", 1)
+            # Check host is github.com
+            if "github.com" in host_port:
+                parts = path.strip("/").split("/")
+                if len(parts) >= 2:
+                    return parts[0], parts[1]
+        return None, None
+
+    # Format 3: ssh://git@github.com/owner/repo
+    if url.startswith("ssh://"):
+        # Remove ssh://
+        no_protocol = url[6:]
+        # Remove git@ if present
+        if no_protocol.startswith("git@"):
+            no_user = no_protocol[4:]
+        else:
+            no_user = no_protocol
+        # Remove github.com
+        if no_user.startswith("github.com/"):
+            path = no_user[11:]
+        else:
+            return None, None
+        parts = path.strip("/").split("/")
+        if len(parts) >= 2:
+            return parts[0], parts[1]
+        return None, None
+
+    return None, None
+
+
+# ---------------------------------------------------------------------------
+# GitHub Apply Safety Report (Mission 8)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class GitHubApplySafetyReport:
+    """Safety report for GitHub apply operations.
+
+    Mission 8: GitHub Apply Safety Doctor
+
+    Read-only safety verification for GitHub promotion apply path.
+    This report must pass before any mutation is allowed.
+    """
+    provider: str
+    owner: str | None
+    repository: str | None
+    remote_url: str | None
+    gh_available: bool
+    gh_authenticated: bool
+    artifact_valid: bool
+    existing_pr_url: str | None
+    promotion_branch_safe: bool
+    direct_target_mutation_detected: bool
+    forbidden_commands_detected: tuple[str, ...]
+    ready: bool
+    findings: tuple[ForgeDoctorFinding, ...]
+
+
+# ---------------------------------------------------------------------------
+# Forbidden Command Patterns (Mission 8)
+# ---------------------------------------------------------------------------
+
+# Forbidden command patterns that must never appear in apply command lists
+# Note: "git push" is NOT in this list because pushing to promotion branches is allowed.
+# Direct target mutation is checked separately via _check_direct_target_mutation.
+FORBIDDEN_COMMAND_PATTERNS: tuple[str, ...] = (
+    # Git mutation commands that are always forbidden
+    "git checkout",
+    "git merge",
+    "git reset",
+    "git clean",
+    "git stash",
+    # PR merge operations
+    "gh pr merge",
+    "gh pr merge --admin",
+    # PR ready without explicit control
+    "gh pr ready",
+    # PR editing that could bypass rules
+    "gh pr edit",
+    # Branch protection via API
+    "gh api repos/",
+    # Worktree mutation
+    "git worktree move",
+    "git worktree remove",
+)
+
+
+def _contains_forbidden_pattern(command_str: str) -> tuple[bool, tuple[str, ...]]:
+    """Check if a command string contains any forbidden patterns.
+
+    Mission 8: GitHub Apply Safety Doctor
+
+    Args:
+        command_str: The command string to check
+
+    Returns:
+        Tuple of (has_forbidden, detected_patterns)
+    """
+    detected: list[str] = []
+    for pattern in FORBIDDEN_COMMAND_PATTERNS:
+        if pattern in command_str:
+            detected.append(pattern)
+    return len(detected) > 0, tuple(detected)
+
+
+def _check_direct_target_mutation(
+    command_str: str,
+    target_ref: str,
+) -> bool:
+    """Check if a command would directly mutate the target branch.
+
+    Mission 8: GitHub Apply Safety Doctor
+
+    Args:
+        command_str: The command string to check
+        target_ref: The target branch reference (e.g., "preproduction")
+
+    Returns:
+        True if the command would directly mutate target_ref
+    """
+    # Check for git push to target_ref
+    # Patterns like: git push origin preproduction
+    #               git push -u origin preproduction
+    #               git push origin preproduction:preproduction
+    push_patterns = [
+        f"git push {target_ref}",
+        f"git push -u {target_ref}",
+        f"git push origin {target_ref}",
+        f"git push -u origin {target_ref}",
+    ]
+    for pattern in push_patterns:
+        if pattern in command_str:
+            return True
+    return False
+
+
+def _check_promotion_branch_safe(promotion_branch: str, target_ref: str) -> bool:
+    """Check if promotion branch name is safe.
+
+    Mission 8: GitHub Apply Safety Doctor
+
+    Rules:
+    - Promotion branch must not be empty
+    - Promotion branch must not match target_ref exactly
+    - Promotion branch should not contain dangerous characters
+
+    Args:
+        promotion_branch: The promotion branch name
+        target_ref: The target branch reference
+
+    Returns:
+        True if the promotion branch is safe
+    """
+    if not promotion_branch:
+        return False
+    if promotion_branch == target_ref:
+        return False
+    # Check for dangerous characters (very basic check)
+    if ".." in promotion_branch or promotion_branch.startswith("-"):
+        return False
+    return True
+
+
+def build_github_apply_safety_report(
+    repo_path: Path | str,
+    plan: PromotionPlan,
+    artifact: PromotionArtifact,
+    remote: str = "origin",
+) -> GitHubApplySafetyReport:
+    """Build a read-only safety report for GitHub apply operations.
+
+    Mission 8: GitHub Apply Safety Doctor
+
+    This function is READ-ONLY and performs no mutations.
+    It may run:
+    - gh --version
+    - gh auth status
+    - gh pr list --base <target_ref> --head <promotion_branch> --json url,number,state --limit 1
+    - git remote get-url <remote>
+
+    Args:
+        repo_path: Path to the git repository root
+        plan: The promotion plan
+        artifact: The promotion artifact
+        remote: The Git remote name (default: "origin")
+
+    Returns:
+        GitHubApplySafetyReport with safety verification results
+    """
+    import datetime
+
+    repo_path = Path(repo_path)
+    findings: list[ForgeDoctorFinding] = []
+
+    # Parse remote URL
+    remote_url = git_remote_url(repo_path, remote)
+    owner, repository = parse_github_remote_url(remote_url)
+
+    # Check gh CLI availability
+    gh_available, gh_version, gh_check_findings = _check_gh_cli_available()
+    findings.extend(gh_check_findings)
+
+    # Check gh authentication
+    gh_authenticated = False
+    if gh_available:
+        # Check auth status specifically for github.com
+        try:
+            proc = subprocess.run(
+                ["/usr/bin/env", "gh", "auth", "status", "--hostname", "github.com"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            auth_output = proc.stdout + proc.stderr
+            if proc.returncode == 0:
+                if ("logged in" in auth_output.lower() or 
+                    "logged into" in auth_output.lower() or
+                    "active" in auth_output.lower()):
+                    gh_authenticated = True
+            # If --hostname didn't work, try without
+            if not gh_authenticated:
+                proc2 = subprocess.run(
+                    ["/usr/bin/env", "gh", "auth", "status"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                auth_output2 = proc2.stdout + proc2.stderr
+                if proc2.returncode == 0:
+                    if ("github.com" in auth_output2 and
+                        ("logged in" in auth_output2.lower() or
+                         "logged into" in auth_output2.lower() or
+                         "active" in auth_output2.lower())):
+                        gh_authenticated = True
+        except subprocess.TimeoutExpired:
+            findings.append(ForgeDoctorFinding(
+                code="SAFETY-001",
+                severity=ForgeDoctorSeverity.WARNING,
+                message="gh auth status check timed out",
+                remediation="Check GitHub CLI responsiveness",
+            ))
+        except Exception as e:
+            findings.append(ForgeDoctorFinding(
+                code="SAFETY-002",
+                severity=ForgeDoctorSeverity.WARNING,
+                message=f"gh auth status check failed: {e}",
+                remediation="Check GitHub CLI installation",
+            ))
+
+    # Verify artifact
+    artifact_valid, artifact_findings = verify_promotion_artifact(repo_path, artifact)
+    findings.extend(artifact_findings)
+
+    # Check for existing PR
+    existing_pr_url: str | None = None
+    if plan.draft is not None and gh_available:
+        pr_exists, pr_url, pr_findings = _check_existing_pr(
+            target_ref=plan.target_ref,
+            promotion_branch=plan.draft.promotion_branch,
+            remote=remote,
+        )
+        findings.extend(pr_findings)
+        if pr_exists and pr_url:
+            existing_pr_url = pr_url
+
+    # Check promotion branch safety
+    promotion_branch_safe = False
+    if plan.draft is not None:
+        promotion_branch_safe = _check_promotion_branch_safe(
+            plan.draft.promotion_branch, plan.target_ref
+        )
+        if not promotion_branch_safe:
+            findings.append(ForgeDoctorFinding(
+                code="SAFETY-003",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"Promotion branch '{plan.draft.promotion_branch}' is not safe for target '{plan.target_ref}'",
+                remediation="Use a different promotion branch name",
+            ))
+
+    # Build command list from plan (simulating what apply would build)
+    # This is the same logic as in apply_github_draft_pr_promotion
+    commands: list[str] = []
+    if plan.draft is not None:
+        promotion_branch = plan.draft.promotion_branch
+        title = plan.draft.title
+        body_path = artifact.body_path
+
+        # Command 1: Create/update promotion branch
+        cmd1_args = ["git", "branch", "-f", promotion_branch]
+        if plan.head_ref != "HEAD":
+            cmd1_args.append(plan.head_ref)
+        commands.append(" ".join(cmd1_args))
+
+        # Command 2: Push promotion branch to remote
+        cmd2_args = ["git", "push", "-u", remote, promotion_branch]
+        commands.append(" ".join(cmd2_args))
+
+        # Command 3: Create draft PR
+        cmd3_args = [
+            "gh", "pr", "create",
+            "--draft",
+            "--base", plan.target_ref,
+            "--head", promotion_branch,
+            "--title", title,
+            "--body-file", body_path,
+        ]
+        commands.append(" ".join(cmd3_args))
+
+    # Check for forbidden commands
+    forbidden_commands_detected: list[str] = []
+    for cmd in commands:
+        has_forbidden, detected = _contains_forbidden_pattern(cmd)
+        if has_forbidden:
+            forbidden_commands_detected.extend(detected)
+
+    # Check for direct target mutation
+    direct_target_mutation_detected = False
+    for cmd in commands:
+        if _check_direct_target_mutation(cmd, plan.target_ref):
+            direct_target_mutation_detected = True
+            break
+
+    if forbidden_commands_detected:
+        findings.append(ForgeDoctorFinding(
+            code="SAFETY-004",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Forbidden commands detected: {', '.join(forbidden_commands_detected)}",
+            remediation="Review and remove forbidden commands from promotion plan",
+        ))
+
+    if direct_target_mutation_detected:
+        findings.append(ForgeDoctorFinding(
+            code="SAFETY-005",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Direct mutation of target branch '{plan.target_ref}' detected",
+            remediation="Commands must not push directly to target branch",
+        ))
+
+    # Determine overall ready status
+    # Ready only if:
+    # 1. gh is available and authenticated
+    # 2. artifact is valid
+    # 3. promotion branch is safe
+    # 4. no forbidden commands detected
+    # 5. no direct target mutation detected
+    ready = (
+        gh_available and
+        gh_authenticated and
+        artifact_valid and
+        promotion_branch_safe and
+        not direct_target_mutation_detected and
+        len(forbidden_commands_detected) == 0
+    )
+
+    # Add findings for any missing requirements
+    if not gh_available:
+        findings.append(ForgeDoctorFinding(
+            code="SAFETY-006",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub CLI (gh) is not available",
+            remediation="Install GitHub CLI from https://cli.github.com",
+        ))
+
+    if not gh_authenticated:
+        findings.append(ForgeDoctorFinding(
+            code="SAFETY-007",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub CLI is not authenticated for github.com",
+            remediation="Run 'gh auth login' to authenticate",
+        ))
+
+    if not artifact_valid:
+        findings.append(ForgeDoctorFinding(
+            code="SAFETY-008",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="Artifact verification failed",
+            remediation="Regenerate artifact with --write-artifact",
+        ))
+
+    return GitHubApplySafetyReport(
+        provider="github",
+        owner=owner,
+        repository=repository,
+        remote_url=remote_url,
+        gh_available=gh_available,
+        gh_authenticated=gh_authenticated,
+        artifact_valid=artifact_valid,
+        existing_pr_url=existing_pr_url,
+        promotion_branch_safe=promotion_branch_safe,
+        direct_target_mutation_detected=direct_target_mutation_detected,
+        forbidden_commands_detected=tuple(forbidden_commands_detected),
+        ready=ready,
+        findings=tuple(findings),
+    )
+
+
 def git_current_branch(repo_root: Path) -> str | None:
     """Get the current branch name.
     
@@ -756,19 +1212,23 @@ def build_forge_identity(repo_root: Path, remote: str = "origin") -> ForgeIdenti
         ForgeIdentity with detected configuration.
         
     Note:
-        Owner and repository fields are currently None. Full URL parsing
-        is deferred to a future mission. Only the mode, remote_url, and host
-        are populated based on simple string classification.
+        For GitHub remotes, owner and repository are parsed from the URL.
+        For other forges, owner and repository remain None (deferred to future missions).
     """
     remote_url = git_remote_url(repo_root, remote)
     mode = classify_remote_url(remote_url)
     
     # Parse remote URL for host (simple string matching)
     host = None
+    owner = None
+    repository = None
+    
     if remote_url:
         url_lower = remote_url.lower()
         if "github.com" in url_lower:
             host = "github.com"
+            # Parse owner and repository for GitHub URLs (Mission 8)
+            owner, repository = parse_github_remote_url(remote_url)
         elif "gitlab.com" in url_lower:
             host = "gitlab.com"
         elif "gitea" in url_lower:
@@ -778,8 +1238,8 @@ def build_forge_identity(repo_root: Path, remote: str = "origin") -> ForgeIdenti
         mode=mode,
         remote_url=remote_url,
         host=host,
-        owner=None,  # Deferred to future mission
-        repository=None,  # Deferred to future mission
+        owner=owner,
+        repository=repository,
     )
 
 
@@ -1958,10 +2418,12 @@ def apply_github_draft_pr_promotion(
     artifact: PromotionArtifact,
     remote: str = "origin",
     dry_run: bool = False,
+    skip_safety_report: bool = False,
 ) -> GitHubPromotionApplyResult:
     """Apply promotion by creating/updating a GitHub draft PR.
 
     Mission 7: GitHub Draft PR Apply
+    Mission 8: Updated with GitHub Apply Safety Doctor
 
     This is the first mutating adapter path for ADR 0010.
     When dry_run=True, only plan and return commands without executing.
@@ -1973,6 +2435,7 @@ def apply_github_draft_pr_promotion(
     - If artifact verification fails, fail closed
     - If gh is missing or unauthenticated, fail closed
     - If PR already exists, do not create duplicate
+    - If safety report is not ready, fail closed (unless skip_safety_report=True)
     - Write evidence under .rig/work/promotions/<artifact_id>/apply-result.json
     - Do NOT merge PR, enable auto-merge, configure branch protection,
       push to preproduction, or run destructive Git commands
@@ -1989,6 +2452,7 @@ def apply_github_draft_pr_promotion(
         artifact: The promotion artifact (must have wrote_files=True)
         remote: The Git remote name (default: "origin")
         dry_run: If True, do not execute commands (default: False)
+        skip_safety_report: If True, skip safety report check (default: False)
 
     Returns:
         GitHubPromotionApplyResult with full information about what was done
@@ -2104,25 +2568,29 @@ def apply_github_draft_pr_promotion(
             findings=tuple(findings),
         )
 
-    # Verify artifact
-    is_valid, verify_findings = verify_promotion_artifact(repo_path, artifact)
-    findings.extend(verify_findings)
-    if not is_valid:
-        return GitHubPromotionApplyResult(
-            provider="github",
-            promotion_branch=promotion_branch,
-            target_ref=plan.target_ref,
-            head_ref=plan.head_ref,
-            artifact_id=artifact.artifact_id,
-            body_path=body_path,
-            pr_url=None,
-            commands=(),
-            ready_before_apply=True,
-            applied=False,
-            skipped_existing_pr=False,
-            evidence_path=None,
-            findings=tuple(findings),
-        )
+    # === Build safety report (Mission 8) ===
+    safety_report: GitHubApplySafetyReport | None = None
+    if not skip_safety_report:
+        safety_report = build_github_apply_safety_report(repo_path, plan, artifact, remote)
+        findings.extend(safety_report.findings)
+        
+        # Fail closed if safety report is not ready
+        if not safety_report.ready:
+            return GitHubPromotionApplyResult(
+                provider="github",
+                promotion_branch=promotion_branch,
+                target_ref=plan.target_ref,
+                head_ref=plan.head_ref,
+                artifact_id=artifact.artifact_id,
+                body_path=body_path,
+                pr_url=None,
+                commands=(),
+                ready_before_apply=True,
+                applied=False,
+                skipped_existing_pr=False,
+                evidence_path=None,
+                findings=tuple(findings),
+            )
 
     # Check gh CLI
     gh_available, gh_version, gh_findings = _check_gh_cli_available()
@@ -2307,6 +2775,33 @@ def apply_github_draft_pr_promotion(
             except (OSError, IOError):
                 pass
 
+        # Build safety report serialization if available
+        safety_report_evidence = None
+        if safety_report is not None:
+            safety_report_evidence = {
+                "provider": safety_report.provider,
+                "owner": safety_report.owner,
+                "repository": safety_report.repository,
+                "remote_url": safety_report.remote_url,
+                "gh_available": safety_report.gh_available,
+                "gh_authenticated": safety_report.gh_authenticated,
+                "artifact_valid": safety_report.artifact_valid,
+                "existing_pr_url": safety_report.existing_pr_url,
+                "promotion_branch_safe": safety_report.promotion_branch_safe,
+                "direct_target_mutation_detected": safety_report.direct_target_mutation_detected,
+                "forbidden_commands_detected": list(safety_report.forbidden_commands_detected),
+                "ready": safety_report.ready,
+                "findings": [
+                    {
+                        "code": f.code,
+                        "severity": f.severity.value,
+                        "message": f.message,
+                        "remediation": f.remediation,
+                    }
+                    for f in safety_report.findings
+                ],
+            }
+
         evidence = {
             "provider": "github",
             "promotion_branch": promotion_branch,
@@ -2319,6 +2814,7 @@ def apply_github_draft_pr_promotion(
             "pr_url": pr_url,
             "applied": applied,
             "skipped_existing_pr": skipped_existing_pr,
+            "safety_report": safety_report_evidence,
             "findings": [
                 {
                     "code": f.code,

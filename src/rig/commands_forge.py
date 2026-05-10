@@ -33,6 +33,8 @@ from rig.domain.forge import (
     PromotionDraft,
     PromotionArtifact,
     GitHubPromotionApplyResult,
+    GitHubApplySafetyReport,
+    parse_github_remote_url,
     build_forge_identity,
     capabilities_for_mode,
     derive_promotion_mode,
@@ -44,6 +46,7 @@ from rig.domain.forge import (
     build_promotion_plan,
     build_promotion_draft,
     build_promotion_artifact,
+    build_github_apply_safety_report,
     apply_github_draft_pr_promotion,
     verify_promotion_artifact,
 )
@@ -383,6 +386,7 @@ def _promote_handler(
     apply: bool = False,
     provider: str | None = None,
     remote: str = "origin",
+    safety_report: bool = False,
 ) -> int:
     """Handler for `rig forge promote` command.
     
@@ -392,6 +396,7 @@ def _promote_handler(
     Mission 6: Added --write-artifact and --artifact-dir support for local
     body file artifact generation.
     Mission 7: Added --apply and --provider support for GitHub draft PR apply.
+    Mission 8: Added --safety-report for read-only safety verification.
     
     Args:
         repo_root: Path to the git repository
@@ -406,6 +411,7 @@ def _promote_handler(
         apply: If True, apply the promotion (requires --provider) (default: False)
         provider: Provider for apply (e.g., "github") (default: None)
         remote: Git remote name for apply (default: "origin")
+        safety_report: If True, emit safety report and exit without mutation (default: False)
         
     Returns:
         Exit code (0 for success/ready, 1 for errors/not ready)
@@ -453,8 +459,58 @@ def _promote_handler(
         else:
             print(f"Error: {e}", file=sys.stderr)
         return 1
+
+    # Handle --safety-report mode (Mission 8)
+    if safety_report and provider == "github":
+        if not write_artifact:
+            write_artifact = True
+        
+        # Build artifact with write=True for safety report
+        if plan.draft is not None:
+            try:
+                artifact = build_promotion_artifact(
+                    repo_path=repo_root,
+                    plan=plan,
+                    write=True,
+                    artifact_dir=artifact_dir,
+                )
+                
+                # Build safety report
+                safety_report_obj = build_github_apply_safety_report(
+                    repo_path=repo_root,
+                    plan=plan,
+                    artifact=artifact,
+                    remote=remote,
+                )
+                
+                if json_output:
+                    result = _serialize_promotion_plan(plan)
+                    result["artifact"] = _serialize_promotion_artifact(artifact)
+                    result["safety_report"] = _serialize_safety_report(safety_report_obj)
+                    _emit(result)
+                    # Return 0 if safety report is ready, 1 otherwise
+                    if safety_report_obj.ready:
+                        return 0
+                    return 1
+                else:
+                    _emit_human_safety_report(safety_report_obj, plan)
+                    if safety_report_obj.ready:
+                        return 0
+                    return 1
+            except Exception as e:
+                if json_output:
+                    _emit({"status": "error", "error": f"Failed to build safety report: {e}"})
+                else:
+                    print(f"Error: Failed to build safety report: {e}", file=sys.stderr)
+                return 1
+        else:
+            if json_output:
+                _emit({"status": "error", "error": "Plan has no draft - cannot build safety report"})
+            else:
+                print("Error: Plan has no draft - cannot build safety report", file=sys.stderr)
+            return 1
     
-    # Handle --apply mode (Mission 7)
+    # Handle --apply mode (Mission 7 + 8)
     if apply and provider == "github":
         # For apply mode, we need artifact files written
         # If write_artifact is False, automatically write artifact
@@ -666,6 +722,98 @@ def _serialize_apply_result(apply_result: GitHubPromotionApplyResult) -> dict[st
     return result
 
 
+def _serialize_safety_report(safety_report: GitHubApplySafetyReport) -> dict[str, Any]:
+    """Serialize GitHubApplySafetyReport to JSON-compatible dict.
+
+    Mission 8: GitHub Apply Safety Doctor
+    """
+    result: dict[str, Any] = {
+        "provider": safety_report.provider,
+        "owner": safety_report.owner,
+        "repository": safety_report.repository,
+        "remote_url": safety_report.remote_url,
+        "gh_available": safety_report.gh_available,
+        "gh_authenticated": safety_report.gh_authenticated,
+        "artifact_valid": safety_report.artifact_valid,
+        "existing_pr_url": safety_report.existing_pr_url,
+        "promotion_branch_safe": safety_report.promotion_branch_safe,
+        "direct_target_mutation_detected": safety_report.direct_target_mutation_detected,
+        "forbidden_commands_detected": list(safety_report.forbidden_commands_detected),
+        "ready": safety_report.ready,
+        "findings": [dataclasses.asdict(f) for f in safety_report.findings],
+    }
+    # Convert findings severity enums
+    for finding in result["findings"]:
+        finding["severity"] = finding["severity"].value  # type: ignore[typeddict-unknown-key]
+    return result
+
+
+def _emit_human_safety_report(
+    safety_report: GitHubApplySafetyReport,
+    plan: PromotionPlan,
+) -> None:
+    """Emit human-readable safety report to stdout.
+
+    Mission 8: GitHub Apply Safety Doctor
+    """
+    print("GitHub Apply Safety Report")
+    print("+" * 40)
+    print(f"  Provider: {safety_report.provider}")
+    print(f"  Ready: {'Yes' if safety_report.ready else 'No'}")
+    print()
+    
+    # GitHub identity
+    print(f"  GitHub Identity:")
+    print(f"    Owner: {safety_report.owner or 'N/A'}")
+    print(f"    Repository: {safety_report.repository or 'N/A'}")
+    print(f"    Remote URL: {safety_report.remote_url or 'N/A'}")
+    print()
+    
+    # gh CLI status
+    print(f"  GitHub CLI:")
+    print(f"    Available: {'Yes' if safety_report.gh_available else 'No'}")
+    print(f"    Authenticated: {'Yes' if safety_report.gh_authenticated else 'No'}")
+    print()
+    
+    # Artifact status
+    print(f"  Artifact Valid: {'Yes' if safety_report.artifact_valid else 'No'}")
+    print()
+    
+    # PR status
+    if safety_report.existing_pr_url:
+        print(f"  Existing PR URL: {safety_report.existing_pr_url}")
+    else:
+        print(f"  Existing PR: None detected")
+    print()
+    
+    # Branch safety
+    print(f"  Promotion Branch Safe: {'Yes' if safety_report.promotion_branch_safe else 'No'}")
+    print(f"  Direct Target Mutation Detected: {'Yes' if safety_report.direct_target_mutation_detected else 'No'}")
+    
+    # Forbidden commands
+    if safety_report.forbidden_commands_detected:
+        print(f"  Forbidden Commands Detected: {', '.join(safety_report.forbidden_commands_detected)}")
+    else:
+        print(f"  Forbidden Commands Detected: None")
+    print()
+    
+    # Safety confirmation
+    print(f"  SAFETY: No mutations were performed (read-only report).")
+    print()
+    
+    # Findings
+    if safety_report.findings:
+        print(f"  Findings ({len(safety_report.findings)}):")
+        for f in safety_report.findings:
+            severity_icon = {"error": " ERROR ", "warning": " WARN ", "info": " INFO ", "critical": " CRIT "}.get(f.severity.value, " ? ")
+            print(f"    [{f.code}] {severity_icon} {f.message}")
+            if f.remediation:
+                print(f"            -> {f.remediation}")
+    else:
+        print(f"  Findings: All checks passed.")
+    print()
+
+
 def _emit_human_apply_result(
     apply_result: GitHubPromotionApplyResult,
     plan: PromotionPlan,
@@ -845,6 +993,13 @@ def register(subparsers, helpers):
         default="origin",
         help="Git remote name for --apply (default: origin)",
     )
+    # Mission 8: Safety report
+    promote_parser.add_argument(
+        "--safety-report",
+        action="store_true",
+        default=False,
+        help="Emit GitHub apply safety report and exit without mutation. Requires --provider github. Read-only verification of preconditions.",
+    )
     promote_parser.set_defaults(
         handler=lambda args: _promote_handler(
             helpers.repo_root,
@@ -858,6 +1013,7 @@ def register(subparsers, helpers):
             apply=args.apply,
             provider=args.provider,
             remote=args.remote,
+            safety_report=args.safety_report,
         )
     )
     
