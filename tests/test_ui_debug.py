@@ -25,9 +25,11 @@ class TestRigUIDebugFlag:
     def test_ui_debug_flag_in_argparse(self):
         """Verify --debug flag is registered in argparse."""
         import subprocess
+        import sys
 
+        python_exec = sys.executable if sys.version_info >= (3, 14) else "python3.14"
         result = subprocess.run(
-            ["python", "-m", "rig", "ui", "--help"],
+            [python_exec, "-m", "rig", "ui", "--help"],
             capture_output=True,
             text=True,
             cwd="/Users/user/Developer/GitHub/Rig",
@@ -41,9 +43,11 @@ class TestRigUIDebugFlag:
     def test_ui_debug_dry_run_prints_debug_messages(self):
         """Verify --debug flag prints debug help messages to stderr."""
         import subprocess
+        import sys
 
+        python_exec = sys.executable if sys.version_info >= (3, 14) else "python3.14"
         result = subprocess.run(
-            ["python", "-m", "rig", "ui", "--debug", "--dry-run"],
+            [python_exec, "-m", "rig", "ui", "--debug", "--dry-run"],
             capture_output=True,
             text=True,
             cwd="/Users/user/Developer/GitHub/Rig",
@@ -54,9 +58,11 @@ class TestRigUIDebugFlag:
     def test_ui_debug_dry_run_redacts_session_token(self):
         """Verify session token is redacted in dry-run output."""
         import subprocess
+        import sys
 
+        python_exec = sys.executable if sys.version_info >= (3, 14) else "python3.14"
         result = subprocess.run(
-            ["python", "-m", "rig", "ui", "--debug", "--dry-run"],
+            [python_exec, "-m", "rig", "ui", "--debug", "--dry-run"],
             capture_output=True,
             text=True,
             cwd="/Users/user/Developer/GitHub/Rig",
@@ -70,9 +76,11 @@ class TestRigUIDebugFlag:
     def test_ui_debug_dry_run_includes_debug_param(self):
         """Verify rig_debug=true is in the URL when --debug is specified."""
         import subprocess
+        import sys
 
+        python_exec = sys.executable if sys.version_info >= (3, 14) else "python3.14"
         result = subprocess.run(
-            ["python", "-m", "rig", "ui", "--debug", "--dry-run"],
+            [python_exec, "-m", "rig", "ui", "--debug", "--dry-run"],
             capture_output=True,
             text=True,
             cwd="/Users/user/Developer/GitHub/Rig",

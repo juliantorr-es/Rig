@@ -2,6 +2,36 @@ from dataclasses import dataclass, field
 import uuid
 from typing import Any, Dict, List, Optional
 
+
+@dataclass
+class AuthState:
+    """Authentication state for UI projection."""
+    
+    active_grant_id: Optional[str] = None
+    active_grant_scope: Optional[str] = None
+    auth_state: str = "unauthenticated"  # "unauthenticated", "authorized", "challenge_pending"
+    destructive_actions_unlocked: bool = False
+    challenge_id: Optional[str] = None
+    auth_method: Optional[str] = None
+    
+    @classmethod
+    def from_grant(
+        cls,
+        grant_id: Optional[str] = None,
+        scope: Optional[str] = None,
+        expires_at: Optional[str] = None,
+    ) -> "AuthState":
+        """Create AuthState from an active grant."""
+        if grant_id and scope:
+            return cls(
+                active_grant_id=grant_id,
+                active_grant_scope=scope,
+                auth_state="authorized",
+                destructive_actions_unlocked=True,
+            )
+        return cls()
+
+
 @dataclass
 class WidgetProjection:
     type: str
@@ -74,3 +104,4 @@ class UIProjection:
     layout: ProjectionLayout = field(default_factory=lambda: ProjectionLayout({}))
     widgets: Dict[str, WidgetProjection] = field(default_factory=dict)
     intents: Dict[str, IntentProjection] = field(default_factory=dict)
+    auth: AuthState = field(default_factory=AuthState)

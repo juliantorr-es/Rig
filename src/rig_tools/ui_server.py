@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 # Safe intents that can be accepted even with stale projection revisions
 SAFE_INTENTS = {"rig.intent.refresh_projection", "rig.intent.workspace_status"}
 
+# Legacy message rejection constant
+LEGACY_FORMAT_REJECTED = "legacy_format_rejected"
+
 
 class UIServer:
     def __init__(self, repo_root: Path, session_token: str):
@@ -471,9 +474,42 @@ class UIServer:
         self._next_stream_sequence[stream_id] = self._next_stream_sequence.get(stream_id, 0) + 1
         return self._next_stream_sequence[stream_id]
 
-    def _schedule_send(self, msg: Dict[str, Any]):
-        """Thread-safe method to schedule sending a message to all clients."""
+    def _is_legacy_flattened_message(self, data: Dict[str, Any]) -> bool:
+        """Detect legacy flattened message format (kind_name workaround)."""
+        # Legacy format uses kind_name instead of nested intent
+        return data.get("kind") == "intent" and "kind_name" in data
+
+    def _validate_stream_chunk(self, chunk: Dict[str, Any]) -> bool:
+        """Validate stream chunk has required fields."""
+        required_fields = ["stream_id", "sequence", "content", "channel"]
+        return all(field in chunk for field in required_fields)
+
+    def _validate_intent_authority(self, intent_kind: str, client_id: str, client_kind: str) -> bool:
+        """Validate intent authority based on client capabilities."""
+        # For now, all intents are validated through projection enabled check
+        # This method is a seam for future authority validation
+        return True
+
+    def _reject_legacy_message(self, data: Dict[str, Any], reason: str) -> Dict[str, Any]:
+        """Create rejection response for legacy message."""
+        return {
+            "schema_version": "rig.ui.message.v1",
+            "kind": "error",
+            "message": f"Legacy message rejected: {reason}",
+            "status": "legacy_format_rejected"
+        }
+
+    def _schedule_send(self, msg: Dict[str, Any], validate_chunk: bool = False):
+        """Thread-safe method to schedule sending a message to all clients.
+        
+        If validate_chunk is True and msg is a stream_chunk, validates it first.
+        """
         msg["schema_version"] = "rig.ui.message.v1"
+        # Validate stream chunks if requested
+        if validate_chunk and msg.get("kind") == "stream_chunk":
+            if not self._validate_stream_chunk(msg.get("data", {})):
+                logger.warning("Dropping invalid stream chunk", extra={"reason": "validation_failed"})
+                return
         async def _do_send():
             for ws in self.clients.copy():
                 try:
@@ -634,6 +670,14 @@ class UIServer:
         if kind == "hello":
             await self.broadcast_projection(ws)
         elif kind == "intent":
+            # Reject legacy flattened message format
+            if self._is_legacy_flattened_message(data):
+                await ws.send_json(self._reject_legacy_message(data, "Uses legacy flattened intent format"))
+                logger.warning(
+                    "Legacy flattened message rejected",
+                    extra={"data_keys": list(data.keys())}
+                )
+                return
             # New protocol: intent message has rig.ui.message.v1 envelope with nested intent
             # Validate envelope schema
             if schema != "rig.ui.message.v1":

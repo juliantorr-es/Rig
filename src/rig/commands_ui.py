@@ -44,6 +44,7 @@ def register(subparsers, helpers):
     parser.add_argument("--browser", action="store_true", help="Force browser mode instead of pywebview")
     parser.add_argument("--allow-lan", action="store_true", help="Allow binding to 0.0.0.0")
     parser.add_argument("--chat", action="store_true", help="Enable chat console in the windowed UI")
+    parser.add_argument("--debug", action="store_true", help="Enable browser DevTools and debug logging")
     parser.set_defaults(handler=lambda args: _ui_handler(helpers.repo_root, args))
 
 
@@ -67,7 +68,8 @@ def _ui_handler(repo_root: Path, args) -> int:
         port=args.port,
         browser=args.browser,
         allow_lan=args.allow_lan,
-        chat_enabled=args.chat
+        chat_enabled=args.chat,
+        debug=args.debug
     )
     if args.dry_run:
         print(json.dumps(result, indent=2, sort_keys=True))

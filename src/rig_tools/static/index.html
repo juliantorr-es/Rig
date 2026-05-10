@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rig UI</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <script>
+      // Parse URL params before loading main JS
+      const urlParams = new URLSearchParams(window.location.search);
+      window.RigDebug = {
+        enabled: urlParams.has('rig_debug') && urlParams.get('rig_debug') !== 'false',
+        debugLevel: urlParams.get('rig_debug_level') || 'info'
+      };
+      // Set RIG_DEBUG global for other scripts
+      window.RIG_DEBUG = window.RigDebug.enabled;
+    </script>
 </head>
 <body>
     <div id="boot-fallback">Rig UI is booting.</div>

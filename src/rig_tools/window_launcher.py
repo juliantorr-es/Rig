@@ -387,6 +387,7 @@ def open_window(
     browser: bool = False,
     allow_lan: bool = False,
     chat_enabled: bool = False,
+    debug: bool = False,
 ) -> Dict[str, Any]:
     # Check UI dependencies before proceeding
     deps_ok, missing_deps = check_ui_dependencies()
@@ -410,6 +411,14 @@ def open_window(
         warnings.append("Textual not installed. Install Rig product dependencies with: python3.14 -m pip install -e .")
 
     if dry_run:
+        # Always redact session token in dry_run JSON output
+        redacted_token = "REDACTED"
+        url = f"http://{host}:{port}/?rig_session={redacted_token}"
+        if debug:
+            url += "&rig_debug=true"
+        # Print debug message if in debug mode
+        if debug:
+            print("Debug mode enabled", file=sys.stderr)
         return {
             "schema_version": WINDOW_SESSION_SCHEMA_VERSION,
             "session_id": session_id,
@@ -417,11 +426,12 @@ def open_window(
             "mode": "dry_run",
             "host": host,
             "port": port,
-            "url": f"http://{host}:{port}/?rig_session={session_token}",
+            "url": url,
             "command_argv": [sys.executable, "-m", "rig", "ui"],
             "server_pid": None,
             "token_enabled": True,
             "status": "dry_run",
+            "debug": debug,
             "warnings": warnings,
             "authoritative": False,
         }
@@ -468,7 +478,7 @@ def open_window(
         if use_webview:
             import webview
             webview.create_window("Rig", url=url, width=1200, height=800)
-            webview.start()
+            webview.start(debug=debug)
         else:
             import webbrowser
             webbrowser.open(url)
