@@ -1187,11 +1187,11 @@ class TestBuildReviewabilityReport:
             report = build_reviewability_report(
                 mock_repo_root,
                 budget=budget,
-                target_ref="main",
+                target_ref="preproduction",
                 head_ref="HEAD",
             )
             
-            assert report.target_ref == "main"
+            assert report.target_ref == "preproduction"
             assert report.head_ref == "HEAD"
             assert report.merge_base == "abc123"
             assert report.changed_file_count == 2
@@ -1230,7 +1230,7 @@ class TestBuildReviewabilityReport:
             report = build_reviewability_report(
                 mock_repo_root,
                 budget=budget,
-                target_ref="main",
+                target_ref="preproduction",
                 head_ref="HEAD",
             )
             
@@ -1309,11 +1309,11 @@ class TestBuildReviewabilityReport:
             report = build_reviewability_report(
                 mock_repo_root,
                 budget=budget,
-                target_ref="main",
+                target_ref="preproduction",
                 head_ref="HEAD",
             )
             
-            assert report.target_ref == "main"
+            assert report.target_ref == "preproduction"
             assert report.head_ref == "HEAD"
 
     def test_default_budget(self, mock_repo_root):
@@ -1340,7 +1340,7 @@ class TestBuildReviewabilityReport:
             report = build_reviewability_report(
                 mock_repo_root,
                 budget=None,  # Use defaults
-                target_ref="main",
+                target_ref="preproduction",
                 head_ref="HEAD",
             )
             
@@ -1376,7 +1376,7 @@ class TestBuildReviewabilityReport:
             report = build_reviewability_report(
                 mock_repo_root,
                 budget=budget,
-                target_ref="main",
+                target_ref="preproduction",
                 head_ref="HEAD",
             )
             
@@ -1427,6 +1427,32 @@ class TestReviewabilityIntegration:
         assert hasattr(report, "changed_files")
         assert hasattr(report, "truncated")
         assert hasattr(report, "findings")
+
+    def test_default_target_is_preproduction(self, mock_repo_root):
+        """build_reviewability_report must default to preproduction target_ref."""
+        mock_merge_base_proc = Mock()
+        mock_merge_base_proc.returncode = 0
+        mock_merge_base_proc.stdout = "abc123\n"
+        
+        mock_branch_check_proc = Mock()
+        mock_branch_check_proc.returncode = 0
+        mock_branch_check_proc.stdout = "  preproduction\n"
+        
+        mock_files_proc = Mock()
+        mock_files_proc.returncode = 0
+        mock_files_proc.stdout = ""
+        
+        with patch("rig.domain.forge._git_run") as mock_run:
+            mock_run.side_effect = [
+                mock_merge_base_proc,
+                mock_branch_check_proc,
+                mock_files_proc,
+            ]
+            
+            # Call without explicit target_ref - should default to preproduction
+            report = build_reviewability_report(mock_repo_root)
+            
+            assert report.target_ref == "preproduction"
 
 
 def main() -> int:

@@ -570,7 +570,7 @@ def git_changed_files(
 def build_reviewability_report(
     repo_root: Path,
     budget: ReviewabilityBudget | None = None,
-    target_ref: str = "main",
+    target_ref: str = "preproduction",
     head_ref: str = "HEAD",
 ) -> ReviewabilityReport:
     """Build a reviewability report for promotion gating.
@@ -581,7 +581,7 @@ def build_reviewability_report(
     Args:
         repo_root: Path to the git repository
         budget: Reviewability budget configuration (uses defaults if None)
-        target_ref: Target reference for promotion (default: "main")
+        target_ref: Target reference for promotion (default: "preproduction")
         head_ref: Head reference to compare against (default: "HEAD")
         
     Returns:

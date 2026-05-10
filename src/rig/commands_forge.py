@@ -45,7 +45,7 @@ def _emit(payload: dict[str, object]) -> None:
 def _forge_doctor_handler(
     repo_root: Path,
     json_output: bool = False,
-    target_ref: str = "main",
+    target_ref: str = "preproduction",
     head_ref: str = "HEAD",
     max_changed_files: int | None = None,
     max_listed_files: int | None = None,
@@ -57,7 +57,7 @@ def _forge_doctor_handler(
     Args:
         repo_root: Path to the git repository
         json_output: If True, emit JSON; otherwise human-readable text
-        target_ref: Target reference for reviewability check (default: "main")
+        target_ref: Target reference for reviewability check (default: "preproduction")
         head_ref: Head reference for reviewability check (default: "HEAD")
         max_changed_files: Override max changed files budget (default: None = use budget default)
         max_listed_files: Override max listed files (default: None = use budget default)
@@ -224,8 +224,8 @@ def register(subparsers, helpers):
     )
     doctor_parser.add_argument(
         "--target-ref",
-        default="main",
-        help="Target reference for reviewability check (default: main)",
+        default="preproduction",
+        help="Target reference for reviewability check (default: preproduction)",
     )
     doctor_parser.add_argument(
         "--head-ref",
