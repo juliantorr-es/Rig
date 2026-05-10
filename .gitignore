@@ -13,6 +13,12 @@ build/
 *.log
 # Rig local state
 .build/rig/
+.rig/worktrees/
+.rig/artifacts/
+.rig/replay/
+.rig/topology/
+.rig/receipts/
+.rig/runtime/
 .rig/tmp/
 .rig/cache/
 

@@ -10,6 +10,31 @@ readme = "README.md"
 requires-python = ">=3.14"
 license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "Rig maintainers" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
+  "Topic :: Software Development :: Version Control :: Git",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Security :: Cryptography",
+  "Typing :: Typed",
+]
+keywords = [
+  "git",
+  "automation",
+  "governance",
+  "ai",
+  "coding",
+  "control-plane",
+  "receipts",
+  "replay",
+  "integrity",
+]
 dependencies = [
   "jsonschema>=4.23",
   "duckdb>=1.0.0",
@@ -20,6 +45,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Core development tools
+# Install: pip install -e ".[dev]"
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
@@ -27,28 +54,51 @@ dev = [
   "pyright>=1.1",
   "ruff>=0.6",
 ]
+
+# Documentation tooling
+# Install: pip install -e ".[docs]"
 docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
 ]
-# UI dependencies for the windowed WebSocket UI
+
+# Windowed UI dependencies (aiohttp for WebSocket server, pywebview for native window)
+# Install: pip install -e ".[ui]"
 ui = [
   "aiohttp>=3.9",
   "pywebview>=5.3",
 ]
-# Legacy Textual TUI (deprecated)
+
+# Legacy Textual TUI (DEPRECATED - use rig ui instead)
+# Install: pip install -e ".[legacy_tui]"
 legacy_tui = [
   "textual>=0.76",
   "textual-serve>=1.1.0",
 ]
-# ML dependencies for macOS
+
+# ML dependencies for macOS (Apple Silicon only)
+# Install: pip install -e ".[ml]"
 ml = [
   "mlx>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
   "llama-cpp-python>=0.3.0",
 ]
-# Full Rig with all features
+
+# Full Rig with all features (ui + dev + docs + legacy_tui + ml)
+# Install: pip install -e ".[all]"
 all = [
-  "rig[ui,legacy_tui,ml]",
+  "aiohttp>=3.9",
+  "pywebview>=5.3",
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "build>=1.2",
+  "pyright>=1.1",
+  "ruff>=0.6",
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "textual>=0.76",
+  "textual-serve>=1.1.0",
+  "mlx>=0.20; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "llama-cpp-python>=0.3.0",
 ]
 
 [project.scripts]
@@ -56,13 +106,52 @@ rig = "rig.cli.main:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
+zip-safe = false
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["rig*", "rig_tools*", "anigma_common*"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
+addopts = "-v --tb=short"
+testpaths = ["tests"]
+markers = [
+  "asyncio: mark a test as async and run it with the local asyncio shim",
+]
+
+[tool.pyright]
+pythonVersion = "3.14"
+pythonPath = ["src"]
+typeCheckingMode = "strict"
+reportMissingImports = true
+reportMissingTypeStubs = true
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+select = [
+  "E",   # pycodestyle errors
+  "F",   # Pyflakes
+  "I",   # isort
+  "N",   # pep8-naming
+  "W",   # pycodestyle warnings
+  "UP",  # pyupgrade
+]
+ignore = [
+  "E501",  # Line too long (handled by black)
+  "N801",  # coherence-naming (allow single letter names)
+]
+
+[tool.ruff.per-file-ignores]
+"src/rig_tools/*" = ["N", "E", "F", "W"]
+
+[tool.build]
+# Packaging metadata validation
+# Run: python -m build --sdist && python -m build --wheel
+sdist = true
+wheel = true
 
 [tool.rig]
 

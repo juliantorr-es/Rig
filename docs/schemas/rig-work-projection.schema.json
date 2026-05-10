@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig-work-projection.schema.json",
+  "title": "Rig Work Projection",
+  "description": "Generated snapshot of an ADR task's current state including sprints, research status, and patch batches. Do not hand-edit. Regenerate with work_status.py.",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "task_id",
+    "adr",
+    "task_status",
+    "sprints",
+    "active_claims",
+    "stale_claims",
+    "conflicts",
+    "last_heartbeat_by_worker",
+    "latest_events",
+    "out_of_scope_findings_count",
+    "next_safe_action",
+    "research_complete",
+    "patch_batches_summary",
+    "promotion_summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "adr": {
+      "type": "string"
+    },
+    "task_status": {
+      "type": "string"
+    },
+    "research_complete": {
+      "type": "boolean",
+      "description": "Whether all sprints in this task have completed mandatory research. Implementation cannot begin until true."
+    },
+    "sprints": {
+      "type": "array",
+      "description": "Sprint status including research status and missions.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "research_status"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string" },
+          "research_status": {
+            "type": "string",
+            "description": "not_started, in_progress, completed, or blocked. Must be 'completed' before implementation."
+          },
+          "missions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "status"],
+              "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "status": { "type": "string" },
+                "active_claim": { "type": ["string", "null"] },
+                "last_heartbeat": { "type": ["string", "null"] },
+                "patch_batches": {
+                  "type": "array",
+                  "description": "Patch batches applied for this mission.",
+                  "default": [],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "status": { "type": "string" },
+                      "precheck_passed": { "type": "boolean" },
+                      "applied_at": { "type": ["string", "null"] },
+                      "validated_at": { "type": ["string", "null"] },
+                      "planned_files_count": { "type": ["integer", "null"] },
+                      "actual_files_count": { "type": ["integer", "null"] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "active_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "mission_id": { "type": ["string", "null"] },
+          "sprint_id": { "type": ["string", "null"] },
+          "worker": { "type": "string" },
+          "claimed_at": { "type": "string" },
+          "paths": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "stale_claims": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Claims with no heartbeat for more than 4 hours."
+    },
+    "conflicts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Detected overlapping claims or other coordination conflicts."
+    },
+    "last_heartbeat_by_worker": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "latest_events": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Last 10 events from progress.jsonl."
+    },
+    "out_of_scope_findings_count": {
+      "type": "integer"
+    },
+    "next_safe_action": {
+      "type": "string",
+      "description": "Next safe action, which may be 'Complete sprint research', 'Claim a mission', etc."
+    },
+    "patch_batches_summary": {
+      "type": "object",
+      "description": "Summary of patch batch status across all sprints and missions.",
+      "additionalProperties": false,
+      "properties": {
+        "total_planned": { "type": "integer", "description": "Total patch batches planned." },
+        "total_prechecked": { "type": "integer", "description": "Total patch batches that passed precheck." },
+        "total_applied": { "type": "integer", "description": "Total patch batches applied." },
+        "total_validated": { "type": "integer", "description": "Total patch batches validated." },
+        "total_blocked": { "type": "integer", "description": "Total patch batches blocked." },
+        "total_merge_checked": { "type": "integer", "description": "Total patch batches with merge-friendliness check." },
+        "total_merge_safe": { "type": "integer", "description": "Total patch batches with safe merge-friendliness result." },
+        "total_merge_blocked": { "type": "integer", "description": "Total patch batches with unsafe merge-friendliness result." },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Reasons batches were blocked (precheck failed, protected paths touched, etc.)."
+        },
+        "merge_blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Reasons batches were blocked by merge-friendliness check."
+        }
+      }
+    },
+    "promotion_summary": {
+      "type": "object",
+      "description": "Summary of preproduction promotion status.",
+      "additionalProperties": false,
+      "properties": {
+        "rite_of_deterministic_passage_complete": {
+          "type": "boolean",
+          "description": "Whether all Rite of Deterministic Passage gates have passed."
+        },
+        "last_promotion_attempt": {
+          "type": ["string", "null"],
+          "description": "Timestamp of last promotion attempt, or null if none."
+        },
+        "last_promotion_success": {
+          "type": "boolean",
+          "description": "Whether the last promotion attempt succeeded."
+        },
+        "promotion_target": {
+          "type": "string",
+          "description": "Target branch for promotion (typically 'preproduction')."
+        },
+        "promotion_source_branch": {
+          "type": ["string", "null"],
+          "description": "Source branch of last promotion attempt, or null if none."
+        },
+        "promotion_gate_failures": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of gate failures in last promotion attempt."
+        },
+        "preproduction_exists": {
+          "type": "boolean",
+          "description": "Whether the preproduction branch exists locally."
+        }
+      }
+    }
+  }
+}

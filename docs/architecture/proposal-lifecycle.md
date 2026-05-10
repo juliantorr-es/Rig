@@ -1,4 +1,7 @@
-# Proposal Lifecycle Module (Future Implementation)
+# Proposal Lifecycle Module
+
+> **Status: FUTURE / DESIGN ONLY**
+> This document describes the planned Proposal Lifecycle Module. It is currently in the design phase and not yet implemented in the runtime.
 
 ## Overview
 

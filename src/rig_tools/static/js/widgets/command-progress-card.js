@@ -4,6 +4,25 @@ import { card } from '../components/cards.js';
 export function renderCommandProgressCard(_id, data) {
   const el = card(data.command || data.phase || 'Progress');
   el.className = 'widget command-progress-card';
+  if (data.schema_version || data.projection_revision !== undefined) {
+    const lineage = document.createElement('div');
+    lineage.className = 'muted';
+    lineage.textContent = [
+      data.schema_version ? `schema: ${data.schema_version}` : null,
+      data.projection_revision !== undefined ? `revision: ${data.projection_revision}` : null,
+    ].filter(Boolean).join(' · ');
+    el.appendChild(lineage);
+  }
+  const envelope = document.createElement('div');
+  envelope.className = 'muted';
+  envelope.textContent = [
+    data.operation_id ? `operation: ${data.operation_id}` : null,
+    data.timestamp ? `at: ${data.timestamp}` : null,
+    typeof data.sequence === 'number' ? `seq: ${data.sequence}` : null,
+  ].filter(Boolean).join(' · ');
+  if (envelope.textContent) {
+    el.appendChild(envelope);
+  }
   const state = (data.status || 'unknown').toLowerCase();
   const severity = state === 'completed' ? 'success' : state === 'failed' ? 'danger' : state === 'blocked' ? 'attention' : 'info';
   el.appendChild(badge(data.status || 'unknown', severity));
@@ -19,15 +38,6 @@ export function renderCommandProgressCard(_id, data) {
   message.className = 'muted';
   message.textContent = data.message || '';
   el.appendChild(message);
-
-  const details = document.createElement('div');
-  details.className = 'muted';
-  details.textContent = [
-    data.operation_id ? `operation: ${data.operation_id}` : null,
-    data.timestamp ? `at: ${data.timestamp}` : null,
-    typeof data.sequence === 'number' ? `seq: ${data.sequence}` : null,
-  ].filter(Boolean).join(' · ');
-  el.appendChild(details);
 
   const history = Array.isArray(data.events) ? data.events : [];
   if (history.length > 0) {

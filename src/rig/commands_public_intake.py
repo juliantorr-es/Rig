@@ -9,6 +9,13 @@ Phase 1: Local-first, governed intake/funding spine.
 
 Connectors are stubs that produce normalized packets.
 Rig remains the authority.
+
+Architecture (ADR 0005):
+- IntakeRegistry: repo-scoped connector registry (inventory and routing only)
+- IntakeStore: packet persistence only
+- Connectors: own normalization, config validation
+- Sync receipts: operational evidence, NOT moved to IntakeStore (future EvidenceDomain)
+- Pledges: funding concern, NOT moved (future extraction)
 """
 
 from __future__ import annotations
@@ -30,128 +37,8 @@ from rig.domain.public_intake import (
     PLACEHOLDER_UNFUNDED,
     PLACEHOLDER_ADVISORY_ONLY,
 )
-from rig.domain.connectors import (
-    GoogleFormsIntakeAdapter,
-    GoogleSheetsSyncAdapter,
-    GitHubIssueSyncAdapter,
-    PublicIntakeConnector,
-)
-
-
-def _get_connector(connector_name: str, config: Optional[dict[str, Any]] = None) -> PublicIntakeConnector:
-    """Get a connector instance by name."""
-    connectors: dict[str, type] = {
-        "google_forms": GoogleFormsIntakeAdapter,
-        "google_sheets": GoogleSheetsSyncAdapter,
-        "github_issues": GitHubIssueSyncAdapter,
-    }
-    
-    cls = connectors.get(connector_name)
-    if cls is None:
-        available = ", ".join(sorted(connectors.keys()))
-        raise ValueError(f"Unknown connector '{connector_name}'. Available: {available}")
-    
-    return cls(config)
-
-
-def _intake_store_path(repo_root: Path) -> Path:
-    """Path to local intake store.
-    
-    Phase 1: Stores intake packets JSONL in .build/rig/public_intake/
-    Advisory only - does not make external systems authoritative.
-    """
-    return repo_root / ".build" / "rig" / "public_intake"
-
-
-def _load_intake_packets(repo_root: Path, limit: Optional[int] = None) -> list[PublicIntakePacket]:
-    """Load intake packets from local store.
-    
-    Returns empty list if store doesn't exist.
-    Read-only operation.
-    """
-    store_path = _intake_store_path(repo_root)
-    intake_file = store_path / "packets.jsonl"
-    
-    if not intake_file.exists():
-        return []
-    
-    packets: list[PublicIntakePacket] = []
-    try:
-        with open(intake_file, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                    # Reconstruct packet (keep as dict for now, or use asdict)
-                    packets.append(PublicIntakePacket(**data))
-                except (json.JSONDecodeError, TypeError, KeyError):
-                    # Skip malformed lines
-                    continue
-                
-                if limit and len(packets) >= limit:
-                    break
-    except (OSError, IOError):
-        pass
-    
-    return packets
-
-
-def _save_intake_packet(repo_root: Path, packet: PublicIntakePacket, dry_run: bool = False) -> bool:
-    """Save a packet to local intake store.
-    
-    If dry_run=True, does not write.
-    Returns True if wrote (or would write), False otherwise.
-    Advisory only - does not persist authority state.
-    """
-    if dry_run:
-        return True
-    
-    store_path = _intake_store_path(repo_root)
-    try:
-        store_path.mkdir(parents=True, exist_ok=True)
-        intake_file = store_path / "packets.jsonl"
-        
-        with open(intake_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(packet.to_dict()) + "\n")
-        return True
-    except (OSError, IOError):
-        return False
-
-
-def _list_pledges_store_path(repo_root: Path) -> Path:
-    """Path to local pledges store."""
-    return repo_root / ".build" / "rig" / "public_intake" / "pledges"
-
-
-def _load_pledges(repo_root: Path, limit: Optional[int] = None) -> list[FundingPledge]:
-    """Load funding pledges from local store.
-    
-    Returns empty list if store doesn't exist.
-    Read-only operation.
-    """
-    store_path = _list_pledges_store_path(repo_root)
-    
-    if not store_path.exists():
-        return []
-    
-    pledges: list[FundingPledge] = []
-    try:
-        for pledge_file in sorted(store_path.glob("*.json")):
-            try:
-                with open(pledge_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    pledges.append(FundingPledge(**data))
-            except (OSError, IOError, json.JSONDecodeError, TypeError, KeyError):
-                continue
-            
-            if limit and len(pledges) >= limit:
-                break
-    except (OSError, IOError):
-        pass
-    
-    return pledges
+from rig.domain.intake_registry import IntakeRegistry
+from rig.domain.intake_store import IntakeStore
 
 
 def register(subparsers, helpers):
@@ -191,17 +78,105 @@ def register(subparsers, helpers):
     funding_export.set_defaults(handler=lambda args: funding_export_cmd(helpers, args))
 
 
+def _get_registry(repo_root: Path) -> IntakeRegistry:
+    """Get the intake registry for a repo."""
+    return IntakeRegistry.from_repo_root(repo_root)
+
+
+def _get_store(repo_root: Path) -> IntakeStore:
+    """Get the intake store for a repo."""
+    return IntakeStore(repo_root)
+
+
+# =============================================================================
+# Pledge storage helpers (NOT part of IntakeStore - separate concern)
+# These remain in CLI layer as future extraction candidates.
+# =============================================================================
+
+
+def _list_pledges_store_path(repo_root: Path) -> Path:
+    """Path to local pledges store."""
+    return repo_root / ".build" / "rig" / "public_intake" / "pledges"
+
+
+def _load_pledges(repo_root: Path, limit: Optional[int] = None) -> list[FundingPledge]:
+    """Load funding pledges from local store.
+    
+    Returns empty list if store doesn't exist.
+    Read-only operation.
+    """
+    store_path = _list_pledges_store_path(repo_root)
+    
+    if not store_path.exists():
+        return []
+    
+    pledges: list[FundingPledge] = []
+    try:
+        for pledge_file in sorted(store_path.glob("*.json")):
+            try:
+                with open(pledge_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    pledges.append(FundingPledge(**data))
+            except (OSError, IOError, json.JSONDecodeError, TypeError, KeyError):
+                continue
+            
+            if limit and len(pledges) >= limit:
+                break
+    except (OSError, IOError):
+        pass
+    
+    return pledges
+
+
+# =============================================================================
+# Sync receipt storage (NOT part of IntakeStore - operational evidence)
+# Future EvidenceDomain candidate. Kept in CLI layer per ADR 0005.
+# =============================================================================
+
+
+def _save_sync_receipt(repo_root: Path, receipt: PublicSyncReceipt) -> Path:
+    """Save a sync receipt to the filesystem for audit trail.
+    
+    Advisory only - does not make external systems authoritative.
+    Persists the receipt so there's a durable record of the import operation.
+    
+    NOT moved to IntakeStore: sync receipts are operational evidence,
+    not ingress persistence. Future EvidenceDomain (ADR 0007) may unify.
+    
+    Uses same path construction as IntakeStore for consistency,
+    but does NOT import from IntakeStore to preserve separation of concerns.
+    """
+    # Path construction mirrors IntakeStore for consistency
+    # but sync receipts remain a separate concern
+    store_path = repo_root / ".build" / "rig" / "public_intake"
+    receipt_dir = store_path / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    
+    receipt_path = receipt_dir / f"{receipt.receipt_id}.json"
+    with open(receipt_path, "w", encoding="utf-8") as f:
+        json.dump(receipt.to_dict(), f, indent=2, sort_keys=True)
+    
+    return receipt_path
+
+
+# =============================================================================
+# Command handlers
+# =============================================================================
+
+
 def public_intake_list(helpers, args):
     """List public intake packets from a connector or local store."""
     repo_root = helpers.repo_root
+    registry = _get_registry(repo_root)
+    store = _get_store(repo_root)
     
     if args.connector:
         # List from connector
-        connector = _get_connector(args.connector, args.source_config)
+        connector = registry.get_connector(args.connector, args.source_config)
         packets = connector.list_packets(limit=args.limit, source_config=args.source_config)
     else:
         # List from local store
-        packets = _load_intake_packets(repo_root, limit=args.limit)
+        packets = store.load_packets(limit=args.limit)
     
     payload = {
         "connector": args.connector or "local",
@@ -217,8 +192,10 @@ def public_intake_list(helpers, args):
 def public_intake_import(helpers, args):
     """Import public intake packets from a connector."""
     repo_root = helpers.repo_root
+    registry = _get_registry(repo_root)
+    store = _get_store(repo_root)
     
-    connector = _get_connector(args.connector, args.source_config)
+    connector = registry.get_connector(args.connector, args.source_config)
     
     result = connector.import_packets(
         source_config=args.source_config,
@@ -230,10 +207,10 @@ def public_intake_import(helpers, args):
     # In non-dry-run mode, save packets AND sync receipt to local store
     if not args.dry_run:
         for packet in result.packets:
-            _save_intake_packet(repo_root, packet, dry_run=False)
+            store.save_packet(packet, dry_run=False)
         
-        # FIX: Save the PublicSyncReceipt to filesystem for audit trail
-        # Sync receipts are advisory_only but should be persisted for traceability
+        # Sync receipts are operational evidence, not intake persistence
+        # Kept separate per ADR 0005 design
         sync_receipt_path = _save_sync_receipt(repo_root, result.receipt)
     else:
         sync_receipt_path = None
@@ -261,31 +238,15 @@ def public_intake_import(helpers, args):
     return 0
 
 
-def _save_sync_receipt(repo_root: Path, receipt: PublicSyncReceipt) -> Path:
-    """Save a sync receipt to the filesystem for audit trail.
-    
-    Advisory only - does not make external systems authoritative.
-    Persists the receipt so there's a durable record of the import operation.
-    """
-    store_path = _intake_store_path(repo_root)
-    receipt_dir = store_path / "receipts"
-    receipt_dir.mkdir(parents=True, exist_ok=True)
-    
-    receipt_path = receipt_dir / f"{receipt.receipt_id}.json"
-    with open(receipt_path, "w", encoding="utf-8") as f:
-        json.dump(receipt.to_dict(), f, indent=2, sort_keys=True)
-    
-    return receipt_path
-
-
 def funding_summary_cmd(helpers, args):
     """Show funding summary for proposals."""
     repo_root = helpers.repo_root
+    store = _get_store(repo_root)
     
     if args.all:
         # Load all and summarize
         pledges = _load_pledges(repo_root)
-        packets = _load_intake_packets(repo_root)
+        packets = store.load_packets()
         
         # Group pledges by proposal
         pledge_map: dict[str, list[FundingPledge]] = {}
@@ -312,7 +273,7 @@ def funding_summary_cmd(helpers, args):
     elif args.proposal_id:
         # Single proposal
         pledges = [p for p in _load_pledges(repo_root) if p.proposal_id == args.proposal_id]
-        packets = [p for p in _load_intake_packets(repo_root) 
+        packets = [p for p in store.load_packets() 
                    if p.normalizes_to == args.proposal_id or p.packet_id == args.proposal_id]
         
         enrichment = build_proposal_funding_enrichment(
@@ -337,7 +298,7 @@ def funding_summary_cmd(helpers, args):
     else:
         # Default: show overall summary
         pledges = _load_pledges(repo_root)
-        packets = _load_intake_packets(repo_root)
+        packets = store.load_packets()
         
         enrichment = build_proposal_funding_enrichment(
             proposal_id="all",

@@ -46,3 +46,17 @@ The Governance Engine is the authority behind the UI's projection and intention 
 - **Leverage:** Callers (CLI commands, UI servers) get high leverage by asking a single question to receive a comprehensive legality decision.
 - **Consistency:** The same rules apply whether you are using the terminal or the dashboard.
 - **Testability:** The engine is pure and can be exhaustively tested against various state combinations without requiring complex environment mocks or filesystem operations.
+
+---
+
+## Related Documents
+
+| Section | Link |
+|---------|------|
+| **Core Governance** | [governance-engine.md](governance-engine.md) |
+| **Replay & Audit** | [governance-replay.md](governance-replay.md) |
+| **Receipt Formalization** | [receipt-formalization.md](receipt-formalization.md) |
+| **Integrity Validation** | [integrity-validation.md](integrity-validation.md) |
+| **Workspace Doctrine** | [workspace-control-plane.md](workspace-control-plane.md) |
+| **Terminology** | [terminology.md](terminology.md) |
+| **Contributor Guide** | [contributor-orientation.md](contributor-orientation.md) |

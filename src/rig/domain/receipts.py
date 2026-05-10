@@ -69,7 +69,8 @@ class Receipt:
             timestamp=self.timestamp,
             verified=self.verified,
             summary=self.summary,
-            raw_reference=self.raw_ref
+            raw_reference=self.raw_ref,
+            schema_version="rig.ui.projection.v1",
         )
 
 

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rig.visualization-extensibility-contract.v1",
+  "schema_version": "1.0.0",
+  "projection_ownership": {
+    "owner": "runtime_projection",
+    "visualizations_are_authority": false,
+    "projection_derived_input_only": true,
+    "canonical_projection_state_required": true
+  },
+  "composition_contracts": [
+    "projection-derived input only",
+    "deterministic element identifiers",
+    "replay-safe ordering",
+    "bounded graph and DOM growth",
+    "lane-safe topology placement",
+    "no arbitrary geometry generation",
+    "reduced-motion compatibility",
+    "low-stimulation compatibility",
+    "density-aware simplification",
+    "stable serialization",
+    "bounded extension registration"
+  ],
+  "lifecycle_contracts": [
+    "register",
+    "initialize from projection state",
+    "render deterministic elements",
+    "update from new projection state",
+    "collapse or simplify under density pressure",
+    "clean up stale elements deterministically",
+    "tear down without preserving hidden state"
+  ],
+  "extension_requirements": [
+    "projection fields consumed",
+    "stable id strategy",
+    "ordering rule",
+    "bounds enforced",
+    "fallback behavior",
+    "reduced-motion behavior",
+    "density-collapse behavior"
+  ],
+  "non_authority": {
+    "workflow_authority": false,
+    "runtime_truth_authority": false,
+    "receipt_authority": false
+  }
+}

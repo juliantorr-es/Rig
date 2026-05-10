@@ -81,7 +81,6 @@ class UIServer:
                 "reason": "Repository initialization requires a path. Enter a local repository path in the UI or use the manual browser fallback.",
                 "status": "workspace_path_required",
             }
-
         return {
             "accepted": False,
             "reason": f"Intent '{intent.kind}' not implemented in this phase.",
