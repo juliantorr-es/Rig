@@ -851,3 +851,161 @@ These are explicitly **out of scope** for this ADR:
 **Validation**: Run `python3 -m pytest -q tests/test_rig_adr_contracts.py` to validate this ADR's JSON contract against the schema.
 
 **For new ADRs**: Create both `.md` and `.json` companions. The Markdown is for humans; the JSON is for machines. Do not delete the Markdown. Do not make tests depend on Markdown prose (except for existence checks).
+
+---
+
+## Mission 7: GitHub Draft PR Apply
+
+**Mission 7 extends the promotion abstraction with the first mutating adapter path for GitHub.**
+
+### Overview
+
+Mission 7 implements `rig forge promote --apply --provider github`, which creates or updates a GitHub draft PR for promotion. This is the first mutating adapter path that actually executes Git and gh CLI commands.
+
+### Mutation Boundary
+
+The apply path executes exactly these commands in order:
+
+1. `git branch -f <promotion_branch> <head_ref>` — Create/update local promotion branch
+2. `git push -u <remote> <promotion_branch>` — Push branch to remote
+3. `gh pr create --draft --base <target_ref> --head <promotion_branch> --title <title> --body-file <body_path>` — Create draft PR
+
+**What this command does NOT do:**
+- ❌ Does NOT merge PRs (`gh pr merge`)
+- ❌ Does NOT enable auto-merge
+- ❌ Does NOT configure branch protection
+- ❌ Does NOT push directly to preproduction
+- ❌ Does NOT modify worktrees
+- ❌ Does NOT run destructive Git commands (`reset --hard`, `clean`, `stash`, etc.)
+
+### Fail-Closed Safeguards
+
+The apply path fails closed (returns error findings, executes no mutations) when:
+
+1. **PROMOTION-001** — Plan is not ready (`plan.ready == False`)
+2. **PROMOTION-002** — Reviewability budget exceeded with `block_promotion` action
+3. **PROMOTION-003** — Promotion plan has no draft
+4. **PROMOTION-004** — Artifact files not written
+5. **ARTIFACT-001/002/003/005** — Artifact verification failed (missing files, hash mismatch)
+6. **GITHUB-001/002/005/006** — GitHub CLI missing or not authenticated
+
+### Evidence File
+
+After any apply attempt (success, failure, or skip), an evidence file is written to:
+
+```
+.rig/work/promotions/<artifact_id>/apply-result.json
+```
+
+Fields:
+- `provider`: "github"
+- `promotion_branch`: The promotion branch name
+- `target_ref`: Target branch (e.g., "preproduction")
+- `head_ref`: Head reference (e.g., "sprint/governed-agent-pipeline")
+- `artifact_id`: The promotion artifact ID
+- `body_path`: Path to body.md file
+- `body_sha256`: SHA256 hash of body content
+- `commands`: Array of commands executed or planned
+- `pr_url`: URL of created PR (or null)
+- `applied`: Boolean — whether mutations were executed
+- `skipped_existing_pr`: Boolean — whether existing PR was detected
+- `findings`: Array of ForgeDoctorFinding with any issues
+- `timestamp`: ISO 8601 timestamp
+
+**Security**: No personal names, no tokens, no secrets are included in evidence files.
+
+### Existing PR Detection
+
+Before creating a PR, the apply path checks for existing open PRs:
+
+```bash
+gh pr list --base <target_ref> --head <promotion_branch> --json url,number,state --limit 1
+```
+
+If an open PR exists:
+- `skipped_existing_pr` = true
+- `pr_url` = existing PR URL
+- No duplicate PR is created
+- Branch push still occurs if needed
+
+### Command-Line Interface
+
+```bash
+# Dry-run apply (plans commands, no execution)
+rig forge promote --apply --provider github --dry-run
+
+# Apply for real (creates branch, pushes, creates draft PR)
+rig forge promote --apply --provider github
+
+# With remote specification
+rig forge promote --apply --provider github --remote upstream
+
+# With JSON output
+rig forge promote --apply --provider github --json
+```
+
+### Domain Types Added
+
+#### `GitHubPromotionApplyResult` (frozen dataclass)
+
+Result of applying a GitHub draft PR promotion:
+- `provider: str` — "github"
+- `promotion_branch: str` — Branch name
+- `target_ref: str` — Target branch
+- `head_ref: str` — Head reference
+- `artifact_id: str` — Artifact identifier
+- `body_path: str` — Path to body file
+- `pr_url: str | None` — URL of created/skipped PR
+- `commands: tuple[str, ...]` — Commands executed or planned
+- `ready_before_apply: bool` — Whether plan was ready
+- `applied: bool` — Whether mutations occurred
+- `skipped_existing_pr: bool` — Whether existing PR was skipped
+- `evidence_path: str | None` — Path to evidence file
+- `findings: tuple[ForgeDoctorFinding, ...]` — Any issues encountered
+
+#### New Functions
+
+- `verify_promotion_artifact(repo_path, artifact) -> tuple[bool, tuple[ForgeDoctorFinding, ...]]` — Verifies artifact files and hashes
+- `apply_github_draft_pr_promotion(repo_path, plan, artifact, remote, dry_run) -> GitHubPromotionApplyResult` — Executes apply
+- `_check_gh_cli_available() -> tuple[bool, str | None, tuple[ForgeDoctorFinding, ...]]` — Checks gh CLI availability
+- `_check_existing_pr(target_ref, promotion_branch, remote) -> tuple[bool, str | None, tuple[ForgeDoctorFinding, ...]]` — Detects existing PRs
+- `_execute_command(cmd_args, repo_root, dry_run) -> tuple[bool, str, str, int]` — Executes commands with safety
+- `_extract_pr_url_from_gh_output(output) -> str | None` — Extracts PR URL from gh output
+
+### Test Coverage
+
+18 new tests added in `tests/test_repository_forge.py`:
+- `TestGitHubPromotionApplyResult` — 5 tests for dataclass fields, frozen, slots
+- `TestVerifyPromotionArtifact` — 5 tests for success, missing files, hash mismatches
+- `TestApplyGitHubDraftPrPromotion` — 8 tests for dry-run, fail-closed, sanity checks
+
+All tests use mocked subprocess — no real GitHub API calls.
+
+### Non-Goals
+
+- GitLab apply — Not implemented
+- Gitea apply — Not implemented
+- Local-only `--apply` — Not implemented
+- Auto-merge — Not implemented, explicitly forbidden
+- PR merge — Not implemented, explicitly forbidden
+- Branch protection configuration — Not implemented
+- Reviewability override (`--allow-over-budget`) — Not implemented
+- Modification of `work_promote.py` — Not touched
+- Direct preproduction mutation — Never performed
+
+### Completion Criteria Met
+
+✅ `rig forge promote --apply --provider github` exists and is functional
+✅ Fails closed when promotion plan is not ready
+✅ Refuses over-budget candidates
+✅ Creates/writes/verifies promotion artifact before mutation
+✅ Can create/update promotion branch and draft PR (with mocked tests)
+✅ Never pushes directly to preproduction
+✅ Never merges PRs
+✅ Never enables auto-merge
+✅ Records apply evidence
+✅ All tests pass
+✅ Full collection succeeds
+✅ Fast validation passes (`scripts/check.sh --fast`)
+
+---

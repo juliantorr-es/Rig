@@ -32,6 +32,7 @@ from rig.domain.forge import (
     PromotionPlanStep,
     PromotionDraft,
     PromotionArtifact,
+    GitHubPromotionApplyResult,
     build_forge_identity,
     capabilities_for_mode,
     derive_promotion_mode,
@@ -43,6 +44,8 @@ from rig.domain.forge import (
     build_promotion_plan,
     build_promotion_draft,
     build_promotion_artifact,
+    apply_github_draft_pr_promotion,
+    verify_promotion_artifact,
 )
 
 
@@ -377,32 +380,62 @@ def _promote_handler(
     json_output: bool = False,
     write_artifact: bool = False,
     artifact_dir: str = ".rig/work/promotions",
+    apply: bool = False,
+    provider: str | None = None,
+    remote: str = "origin",
 ) -> int:
     """Handler for `rig forge promote` command.
     
-    Builds a promotion plan and emits it. Currently dry-run only.
+    Builds a promotion plan and emits it. Can also apply promotion
+    with --apply and --provider flags.
     
     Mission 6: Added --write-artifact and --artifact-dir support for local
     body file artifact generation.
+    Mission 7: Added --apply and --provider support for GitHub draft PR apply.
     
     Args:
         repo_root: Path to the git repository
-        dry_run: If True, only plan (default: True). Only dry-run is implemented.
+        dry_run: If True, only plan (default: True). Only dry-run is implemented
+            for non-apply mode. When apply=True, dry_run controls execution.
         target_ref: Target reference for promotion (default: "preproduction")
         head_ref: Head reference for promotion (default: "HEAD")
         max_changed_files: Override max changed files budget (default: None = use 300)
         json_output: If True, emit JSON; otherwise human-readable text
         write_artifact: If True, write artifact files to filesystem (default: False)
         artifact_dir: Base directory for artifacts (default: ".rig/work/promotions")
+        apply: If True, apply the promotion (requires --provider) (default: False)
+        provider: Provider for apply (e.g., "github") (default: None)
+        remote: Git remote name for apply (default: "origin")
         
     Returns:
         Exit code (0 for success/ready, 1 for errors/not ready)
     """
-    # Only dry-run is implemented for now
-    if not dry_run:
-        print("Only --dry-run is implemented for now.", file=sys.stderr)
-        print("No Git or remote state was mutated.", file=sys.stderr)
-        return 1
+    # Validate apply parameters
+    if apply:
+        if provider is None:
+            if json_output:
+                _emit({"status": "error", "error": "--apply requires --provider to be specified"})
+            else:
+                print("--apply requires --provider to be specified", file=sys.stderr)
+            return 1
+        
+        if provider != "github":
+            if json_output:
+                _emit({"status": "error", "error": f"Provider {provider} not yet implemented. Only 'github' is supported."})
+            else:
+                print(f"Provider {provider} not yet implemented. Only 'github' is supported.", file=sys.stderr)
+            return 1
+        
+        if not dry_run:
+            # When apply=True and dry_run=False, we actually want to execute
+            # This is the only case where dry_run=False is meaningful
+            pass
+    else:
+        # Legacy behavior: only dry-run mode without --apply
+        if not dry_run:
+            print("Only --dry-run is implemented for now.", file=sys.stderr)
+            print("No Git or remote state was mutated.", file=sys.stderr)
+            return 1
     
     try:
         budget = ReviewabilityBudget(
@@ -421,7 +454,126 @@ def _promote_handler(
             print(f"Error: {e}", file=sys.stderr)
         return 1
     
-    # Build artifact if requested (Mission 6)
+    # Handle --apply mode (Mission 7)
+    if apply and provider == "github":
+        # For apply mode, we need artifact files written
+        # If write_artifact is False, automatically write artifact
+        if not write_artifact:
+            write_artifact = True
+        
+        # Build artifact with write=True for apply mode
+        artifact: PromotionArtifact | None = None
+        if plan.draft is not None:
+            try:
+                artifact = build_promotion_artifact(
+                    repo_path=repo_root,
+                    plan=plan,
+                    write=True,
+                    artifact_dir=artifact_dir,
+                )
+                # Rebuild draft with artifact info and updated provider command
+                if artifact is not None:
+                    body_path_to_use = artifact.body_path
+                    new_provider_command, new_provider_url_hint = _derive_provider_command(
+                        forge_mode=plan.forge_mode,
+                        promotion_branch=plan.draft.promotion_branch,
+                        target_ref=plan.target_ref,
+                        title=plan.draft.title,
+                        body_path=body_path_to_use,
+                    )
+                    
+                    # Update the plan with the new draft
+                    updated_draft = PromotionDraft(
+                        promotion_branch=plan.draft.promotion_branch,
+                        base_ref=plan.draft.base_ref,
+                        head_ref=plan.draft.head_ref,
+                        title=plan.draft.title,
+                        body=plan.draft.body,
+                        provider_command=new_provider_command,
+                        provider_url_hint=new_provider_url_hint,
+                        draft_only=plan.draft.draft_only,
+                        body_path=body_path_to_use,
+                    )
+                    plan = PromotionPlan(
+                        mode=plan.mode,
+                        forge_mode=plan.forge_mode,
+                        target_ref=plan.target_ref,
+                        head_ref=plan.head_ref,
+                        identity=plan.identity,
+                        reviewability=plan.reviewability,
+                        steps=plan.steps,
+                        blockers=plan.blockers,
+                        ready=plan.ready,
+                        dry_run_only=plan.dry_run_only,
+                        draft=updated_draft,
+                    )
+            except (ValueError, OSError) as e:
+                if json_output:
+                    _emit({"status": "error", "error": f"Failed to build artifact for apply: {e}"})
+                else:
+                    print(f"Error: Failed to build artifact for apply: {e}", file=sys.stderr)
+                return 1
+        else:
+            if json_output:
+                _emit({"status": "error", "error": "Plan has no draft - cannot apply"})
+            else:
+                print("Error: Plan has no draft - cannot apply", file=sys.stderr)
+            return 1
+        
+        # Execute apply for GitHub
+        if artifact is not None:
+            try:
+                apply_result = apply_github_draft_pr_promotion(
+                    repo_path=repo_root,
+                    plan=plan,
+                    artifact=artifact,
+                    remote=remote,
+                    dry_run=dry_run,
+                )
+                
+                if json_output:
+                    result = _serialize_promotion_plan(plan)
+                    if artifact is not None:
+                        result["artifact"] = _serialize_promotion_artifact(artifact)
+                    # Add apply_result to JSON output
+                    result["apply_result"] = dataclasses.asdict(apply_result)
+                    # Convert findings severity enums
+                    if "findings" in result["apply_result"]:
+                        for finding in result["apply_result"]["findings"]:
+                            if isinstance(finding, dict) and "severity" in finding:
+                                finding["severity"] = finding["severity"].value if hasattr(finding["severity"], "value") else finding["severity"]
+                    _emit(result)
+                    # Return 0 if applied or dry_run with no errors, 1 otherwise
+                    if not apply_result.applied and not dry_run and not apply_result.findings:
+                        return 1
+                    if apply_result.findings and any(f.severity.value == "error" for f in apply_result.findings):
+                        return 1
+                    return 0
+                else:
+                    # Human-readable output for apply
+                    _emit_human_apply_result(apply_result, plan)
+                    # Return 0 if applied successfully, 1 otherwise
+                    if apply_result.applied:
+                        return 0
+                    elif dry_run and not apply_result.findings:
+                        return 0
+                    elif apply_result.findings and any(f.severity.value == "error" for f in apply_result.findings):
+                        return 1
+                    return 0
+            except Exception as e:
+                if json_output:
+                    _emit({"status": "error", "error": str(e)})
+                else:
+                    print(f"Error during apply: {e}", file=sys.stderr)
+                return 1
+        else:
+            if json_output:
+                _emit({"status": "error", "error": "No artifact available for apply"})
+            else:
+                print("Error: No artifact available for apply", file=sys.stderr)
+            return 1
+    
+    # Non-apply mode: Build artifact if requested (Mission 6)
     artifact: PromotionArtifact | None = None
     if plan.draft is not None:
         try:
@@ -488,6 +640,91 @@ def _promote_handler(
     return 0 if plan.ready else 1
 
 
+def _serialize_apply_result(apply_result: GitHubPromotionApplyResult) -> dict[str, Any]:
+    """Serialize GitHubPromotionApplyResult to JSON-compatible dict.
+
+    Mission 7: GitHub Draft PR Apply
+    """
+    result: dict[str, Any] = {
+        "provider": apply_result.provider,
+        "promotion_branch": apply_result.promotion_branch,
+        "target_ref": apply_result.target_ref,
+        "head_ref": apply_result.head_ref,
+        "artifact_id": apply_result.artifact_id,
+        "body_path": apply_result.body_path,
+        "pr_url": apply_result.pr_url,
+        "commands": list(apply_result.commands),
+        "ready_before_apply": apply_result.ready_before_apply,
+        "applied": apply_result.applied,
+        "skipped_existing_pr": apply_result.skipped_existing_pr,
+        "evidence_path": apply_result.evidence_path,
+        "findings": [dataclasses.asdict(f) for f in apply_result.findings],
+    }
+    # Convert findings severity enums
+    for finding in result["findings"]:
+        finding["severity"] = finding["severity"].value  # type: ignore[typeddict-unknown-key]
+    return result
+
+
+def _emit_human_apply_result(
+    apply_result: GitHubPromotionApplyResult,
+    plan: PromotionPlan,
+) -> None:
+    """Emit human-readable apply result to stdout.
+
+    Mission 7: GitHub Draft PR Apply
+    """
+    print("Promotion Apply Result")
+    print("+" * 40)
+    print(f"  Provider: {apply_result.provider}")
+    print(f"  Applied: {'Yes' if apply_result.applied else 'No'}")
+    print(f"  Dry-run: {'Yes' if not apply_result.applied else 'No'}")
+    print(f"  Ready before apply: {'Yes' if apply_result.ready_before_apply else 'No'}")
+    print()
+    print(f"  Promotion Branch: {apply_result.promotion_branch}")
+    print(f"  Target: {apply_result.target_ref}")
+    print(f"  Head: {apply_result.head_ref}")
+    print(f"  Artifact ID: {apply_result.artifact_id}")
+    print()
+    print(f"  Body Path: {apply_result.body_path}")
+    if apply_result.evidence_path:
+        print(f"  Evidence Path: {apply_result.evidence_path}")
+    print()
+    
+    # PR URL
+    if apply_result.pr_url:
+        print(f"  PR URL: {apply_result.pr_url}")
+    elif apply_result.skipped_existing_pr:
+        print(f"  PR: Skipped existing PR")
+    else:
+        print(f"  PR: Not created")
+    print()
+    
+    # Commands
+    if apply_result.commands:
+        print(f"  Commands:")
+        for cmd in apply_result.commands:
+            print(f"    - {cmd}")
+    print()
+    
+    # Safety confirmation
+    print(f"  SAFETY: No direct mutation of preproduction was performed.")
+    print(f"  SAFETY: No PR merge was attempted.")
+    print(f"  SAFETY: No auto-merge was enabled.")
+    print()
+    
+    # Findings
+    if apply_result.findings:
+        print(f"  Findings ({len(apply_result.findings)}):")
+        for f in apply_result.findings:
+            severity = f.severity.value.upper()
+            print(f"    [{severity}] {f.code}: {f.message}")
+            if f.remediation:
+                print(f"         -> {f.remediation}")
+    else:
+        print(f"  No findings.")
+
+
 def register(subparsers, helpers):
     """Register forge command with CLI.
     
@@ -550,13 +787,13 @@ def register(subparsers, helpers):
     promote_parser = sub.add_parser(
         "promote",
         help="Plan promotion to target branch",
-        description="Plan and validate promotion. Currently dry-run only (--dry-run is the default). No Git mutation is performed.",
+        description="Plan and validate promotion, or apply promotion with --apply. Default is dry-run only. No Git mutation is performed without --apply.",
     )
     promote_parser.add_argument(
         "--dry-run",
         action="store_true",
         default=True,
-        help="Dry-run only, do not mutate state (default: True, only mode implemented)",
+        help="Dry-run only, do not mutate state (default: True). Note: --apply with --dry-run will plan apply without executing.",
     )
     promote_parser.add_argument(
         "--target-ref",
@@ -591,6 +828,23 @@ def register(subparsers, helpers):
         default=".rig/work/promotions",
         help="Base directory for promotion artifacts (default: .rig/work/promotions)",
     )
+    # Mission 7: Apply flags
+    promote_parser.add_argument(
+        "--apply",
+        action="store_true",
+        default=False,
+        help="Apply the promotion (creates draft PR). Requires --provider. Fails closed if not ready.",
+    )
+    promote_parser.add_argument(
+        "--provider",
+        default=None,
+        help="Provider for --apply: 'github' (default: None, only 'github' is currently implemented)",
+    )
+    promote_parser.add_argument(
+        "--remote",
+        default="origin",
+        help="Git remote name for --apply (default: origin)",
+    )
     promote_parser.set_defaults(
         handler=lambda args: _promote_handler(
             helpers.repo_root,
@@ -601,6 +855,9 @@ def register(subparsers, helpers):
             json_output=args.json,
             write_artifact=args.write_artifact,
             artifact_dir=args.artifact_dir,
+            apply=args.apply,
+            provider=args.provider,
+            remote=args.remote,
         )
     )
     

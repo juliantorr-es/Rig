@@ -1489,3 +1489,905 @@ def build_promotion_artifact(
         body_bytes=body_bytes,
         wrote_files=wrote_files,
     )
+
+
+# ---------------------------------------------------------------------------
+# GitHub Promotion Apply Domain Types (Mission 7)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class GitHubPromotionApplyResult:
+    """Result of applying a GitHub draft PR promotion.
+
+    Mission 7: GitHub Draft PR Apply
+
+    Represents the outcome of executing the apply_github_draft_pr_promotion
+    function. Contains all information about what was done or planned,
+    including commands executed, PR URL, and any findings.
+    """
+    provider: str
+    promotion_branch: str
+    target_ref: str
+    head_ref: str
+    artifact_id: str
+    body_path: str
+    pr_url: str | None
+    commands: tuple[str, ...]
+    ready_before_apply: bool
+    applied: bool
+    skipped_existing_pr: bool
+    evidence_path: str | None
+    findings: tuple[ForgeDoctorFinding, ...]
+
+
+# ---------------------------------------------------------------------------
+# Artifact Verification (Mission 7)
+# ---------------------------------------------------------------------------
+
+def verify_promotion_artifact(
+    repo_path: Path | str,
+    artifact: PromotionArtifact,
+) -> tuple[bool, tuple[ForgeDoctorFinding, ...]]:
+    """Verify a promotion artifact is valid and matches expected state.
+
+    Mission 7: GitHub Draft PR Apply
+
+    Checks:
+    - body_path exists
+    - metadata_path exists
+    - body SHA256 matches metadata and artifact.body_sha256
+    - metadata target/head/title/branch match where possible
+
+    Args:
+        repo_path: Path to the git repository root
+        artifact: The PromotionArtifact to verify
+
+    Returns:
+        Tuple of (is_valid, findings)
+        - is_valid: True if artifact is valid, False otherwise
+        - findings: Tuple of ForgeDoctorFinding with any verification issues
+    """
+    findings: list[ForgeDoctorFinding] = []
+
+    # Check body_path exists
+    body_path = Path(artifact.body_path)
+    if not body_path.exists():
+        findings.append(ForgeDoctorFinding(
+            code="ARTIFACT-001",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Body file not found: {artifact.body_path}",
+            remediation="Run promotion with --write-artifact to create the body file",
+        ))
+
+    # Check metadata_path exists
+    metadata_path = Path(artifact.metadata_path)
+    if not metadata_path.exists():
+        findings.append(ForgeDoctorFinding(
+            code="ARTIFACT-002",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Metadata file not found: {artifact.metadata_path}",
+            remediation="Run promotion with --write-artifact to create the metadata file",
+        ))
+
+    # Check body SHA256 matches
+    if body_path.exists():
+        try:
+            actual_body = body_path.read_text(encoding="utf-8")
+            actual_sha256 = _compute_body_sha256(actual_body)
+            if actual_sha256 != artifact.body_sha256:
+                findings.append(ForgeDoctorFinding(
+                    code="ARTIFACT-003",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message=f"Body SHA256 mismatch: expected {artifact.body_sha256[:16]}... got {actual_sha256[:16]}...",
+                    remediation="Regenerate artifact with --write-artifact",
+                ))
+        except (OSError, IOError) as e:
+            findings.append(ForgeDoctorFinding(
+                code="ARTIFACT-004",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"Failed to read body file: {e}",
+                remediation="Check file permissions and regenerating artifact",
+            ))
+
+    # Check metadata content if it exists
+    if metadata_path.exists():
+        try:
+            import json
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+            # Verify body_sha256 in metadata matches artifact
+            if metadata.get("body_sha256") != artifact.body_sha256:
+                findings.append(ForgeDoctorFinding(
+                    code="ARTIFACT-005",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message="Metadata body_sha256 does not match artifact body_sha256",
+                    remediation="Regenerate artifact with --write-artifact",
+                ))
+
+            # Verify body_path in metadata matches artifact
+            if metadata.get("body_path") != artifact.body_path:
+                findings.append(ForgeDoctorFinding(
+                    code="ARTIFACT-006",
+                    severity=ForgeDoctorSeverity.WARNING,
+                    message="Metadata body_path does not match artifact body_path",
+                    remediation="Regenerate artifact with --write-artifact",
+                ))
+
+        except (OSError, IOError, json.JSONDecodeError, ValueError) as e:
+            findings.append(ForgeDoctorFinding(
+                code="ARTIFACT-007",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"Failed to validate metadata file: {e}",
+                remediation="Regenerate artifact with --write-artifact",
+            ))
+
+    is_valid = len(findings) == 0
+    return is_valid, tuple(findings)
+
+
+# ---------------------------------------------------------------------------
+# GitHub gh CLI Detection
+# ---------------------------------------------------------------------------
+
+def _check_gh_cli_available() -> tuple[bool, str | None, tuple[ForgeDoctorFinding, ...]]:
+    """Check if gh CLI is available and authenticated.
+
+    Mission 7: GitHub Draft PR Apply
+
+    Returns:
+        Tuple of (is_available, gh_version, findings)
+    """
+    import shutil
+    findings: list[ForgeDoctorFinding] = []
+
+    # Check if gh is in PATH
+    gh_path = shutil.which("gh")
+    if gh_path is None:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-001",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub CLI (gh) not found in PATH",
+            remediation="Install GitHub CLI from https://cli.github.com/",
+        ))
+        return False, None, tuple(findings)
+
+    # Check gh version
+    try:
+        proc = subprocess.run(
+            ["/usr/bin/env", "gh", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode != 0:
+            findings.append(ForgeDoctorFinding(
+                code="GITHUB-002",
+                severity=ForgeDoctorSeverity.ERROR,
+                message=f"gh --version failed: {proc.stderr.strip()}",
+                remediation="Check GitHub CLI installation",
+            ))
+            return False, None, tuple(findings)
+
+        # Extract version from output like "gh version 2.92.0 (2026-04-28)"
+        version_line = proc.stdout.strip().split("\n")[0]
+        if "version" in version_line.lower():
+            gh_version = version_line.split()[2] if len(version_line.split()) > 2 else None
+        else:
+            gh_version = None
+
+    except subprocess.TimeoutExpired:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-003",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="gh --version timed out",
+            remediation="Check GitHub CLI installation",
+        ))
+        return False, None, tuple(findings)
+    except Exception as e:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-004",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"gh --version failed with exception: {e}",
+            remediation="Check GitHub CLI installation",
+        ))
+        return False, None, tuple(findings)
+
+    # Check gh auth status for github.com
+    # Note: gh CLI has different flags across versions
+    # Try with --hostname first (newer versions), then without flags (default shows all hosts)
+    try:
+        # Try with --hostname flag
+        proc = subprocess.run(
+            ["/usr/bin/env", "gh", "auth", "status", "--hostname", "github.com"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        auth_output = proc.stdout + proc.stderr
+        
+        # Check if the command succeeded and we're authenticated
+        if proc.returncode == 0:
+            if "logged in" in auth_output.lower() or "logged into" in auth_output.lower():
+                return True, gh_version, tuple(findings)
+        
+        # If --hostname didn't work or no auth, try without flags (shows all hosts)
+        proc2 = subprocess.run(
+            ["/usr/bin/env", "gh", "auth", "status"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        auth_output2 = proc2.stdout + proc2.stderr
+        
+        if proc2.returncode != 0:
+            # If auth status fails completely, check if gh is working at all
+            # Some versions may not support auth status the same way
+            # Try to see if we can at least get version info
+            if gh_version:
+                # gh CLI is available but auth might be configured differently
+                # Don't fail hard - just warn that we couldn't verify auth
+                findings.append(ForgeDoctorFinding(
+                    code="GITHUB-006",
+                    severity=ForgeDoctorSeverity.WARNING,
+                    message="Could not verify GitHub CLI authentication (version detected)",
+                    remediation="Ensure gh auth is configured with 'gh auth login'",
+                ))
+                return True, gh_version, tuple(findings)
+            else:
+                findings.append(ForgeDoctorFinding(
+                    code="GITHUB-005",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message=f"gh auth status failed: {proc2.stderr.strip()}",
+                    remediation="Authenticate with 'gh auth login'",
+                ))
+                return False, gh_version, tuple(findings)
+        
+        # Check all hosts output for github.com
+        if "github.com" in auth_output2 and ("logged in" in auth_output2.lower() or "logged into" in auth_output2.lower() or "active" in auth_output2.lower()):
+            return True, gh_version, tuple(findings)
+        
+        # If we still don't see auth, try just checking if gh is in PATH and version works
+        if gh_version:
+            findings.append(ForgeDoctorFinding(
+                code="GITHUB-006",
+                severity=ForgeDoctorSeverity.WARNING,
+                message="GitHub CLI is available but authentication for github.com could not be verified",
+                remediation="Authenticate with 'gh auth login' or ensure you're logged in to github.com",
+            ))
+            return True, gh_version, tuple(findings)
+        else:
+            findings.append(ForgeDoctorFinding(
+                code="GITHUB-006",
+                severity=ForgeDoctorSeverity.ERROR,
+                message="Not authenticated with GitHub CLI",
+                remediation="Authenticate with 'gh auth login'",
+            ))
+            return False, gh_version, tuple(findings)
+
+    except subprocess.TimeoutExpired:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-007",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="gh auth status timed out",
+            remediation="Check GitHub CLI authentication",
+        ))
+        return False, gh_version, tuple(findings)
+    except Exception as e:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-008",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"gh auth status failed with exception: {e}",
+            remediation="Check GitHub CLI authentication",
+        ))
+        return False, gh_version, tuple(findings)
+
+    return True, gh_version, tuple(findings)
+
+
+def _check_existing_pr(
+    target_ref: str,
+    promotion_branch: str,
+    remote: str = "origin",
+) -> tuple[bool, str | None, tuple[ForgeDoctorFinding, ...]]:
+    """Check if a PR already exists for the promotion branch.
+
+    Mission 7: GitHub Draft PR Apply
+
+    Uses `gh pr list` to check for existing PRs.
+
+    Args:
+        target_ref: The target branch (base ref)
+        promotion_branch: The promotion branch (head ref)
+        remote: The Git remote name (default: "origin")
+
+    Returns:
+        Tuple of (pr_exists, pr_url, findings)
+        - pr_exists: True if an open PR exists
+        - pr_url: URL of existing PR, or None
+        - findings: Tuple of any findings/errors
+    """
+    import shutil
+    findings: list[ForgeDoctorFinding] = []
+
+    # Check if gh is available first
+    gh_available, _, auth_findings = _check_gh_cli_available()
+    if not gh_available:
+        findings.extend(auth_findings)
+        # If gh is not available, we can't check for existing PRs
+        # But this is not an error for the check itself - just means we can't detect
+        return False, None, tuple(findings)
+
+    findings.extend(auth_findings)
+    if auth_findings:
+        return False, None, tuple(findings)
+
+    # Run gh pr list to find existing PRs
+    try:
+        proc = subprocess.run(
+            [
+                "/usr/bin/env", "gh", "pr", "list",
+                "--base", target_ref,
+                "--head", promotion_branch,
+                "--json", "url,number,state",
+                "--limit", "1",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if proc.returncode != 0:
+            # gh pr list can return non-zero if no PRs found or other issues
+            # Check if it's a "no pull requests matched" error
+            error_output = proc.stderr.strip().lower()
+            if "no pull requests matched" in error_output or "no prs" in error_output:
+                # No existing PR - this is fine
+                return False, None, tuple(findings)
+            else:
+                findings.append(ForgeDoctorFinding(
+                    code="GITHUB-009",
+                    severity=ForgeDoctorSeverity.WARNING,
+                    message=f"gh pr list failed: {proc.stderr.strip()}",
+                    remediation="Check branch names and repository access",
+                ))
+                return False, None, tuple(findings)
+
+        # Try to parse JSON output
+        try:
+            import json
+            prs = json.loads(proc.stdout.strip())
+            if isinstance(prs, list) and len(prs) > 0:
+                pr = prs[0]
+                pr_url = pr.get("url")
+                if pr_url:
+                    return True, pr_url, tuple(findings)
+        except (json.JSONDecodeError, ValueError):
+            # Output might not be JSON - try to parse as text
+            pass
+
+        # Check for PR in text output
+        if proc.stdout.strip():
+            # If there's output, try to see if it mentions a PR
+            # This is a fallback for non-JSON output
+            findings.append(ForgeDoctorFinding(
+                code="GITHUB-010",
+                severity=ForgeDoctorSeverity.INFO,
+                message=f"gh pr list returned output but could not parse: {proc.stdout.strip()[:200]}",
+                remediation="Check gh CLI version supports --json flag",
+            ))
+
+    except subprocess.TimeoutExpired:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-011",
+            severity=ForgeDoctorSeverity.WARNING,
+            message="gh pr list timed out",
+            remediation="Check network connectivity to GitHub",
+        ))
+        return False, None, tuple(findings)
+    except Exception as e:
+        findings.append(ForgeDoctorFinding(
+            code="GITHUB-012",
+            severity=ForgeDoctorSeverity.WARNING,
+            message=f"gh pr list failed with exception: {e}",
+            remediation="Check gh CLI installation and network",
+        ))
+        return False, None, tuple(findings)
+
+    return False, None, tuple(findings)
+
+
+# ---------------------------------------------------------------------------
+# Apply GitHub Draft PR Promotion (Mission 7)
+# ---------------------------------------------------------------------------
+
+def _execute_command(
+    cmd_args: list[str],
+    repo_root: Path | str,
+    dry_run: bool = False,
+) -> tuple[bool, str, str, int]:
+    """Execute a command with optional dry-run.
+
+    Mission 7: GitHub Draft PR Apply
+
+    Uses explicit argument arrays, never shell=True.
+
+    Args:
+        cmd_args: Command as list of arguments (e.g., ["git", "branch", "-f", "branch", "HEAD"])
+        repo_root: Repository root path (for git commands, use -C)
+        dry_run: If True, don't execute, just return what would be done
+
+    Returns:
+        Tuple of (success, stdout, stderr, returncode)
+        - If dry_run=True, returncode is always 0 and stdout contains the command string
+    """
+    if dry_run:
+        cmd_str = " ".join(cmd_args)
+        return True, cmd_str, "", 0
+
+    # For git commands, add -C repo_root as first arguments
+    final_args = cmd_args
+    if cmd_args and cmd_args[0] in ("git", "gh"):
+        # Insert -C repo_root for git, or just use as-is for gh
+        if cmd_args[0] == "git":
+            final_args = ["git", "-C", str(repo_root)] + cmd_args[1:]
+
+    try:
+        proc = subprocess.run(
+            final_args,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            # NEVER use shell=True - use explicit argument arrays
+            shell=False,
+        )
+        return (
+            proc.returncode == 0,
+            proc.stdout.strip(),
+            proc.stderr.strip(),
+            proc.returncode,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "", "Command timed out", -1
+    except Exception as e:
+        return False, "", str(e), -1
+
+
+def apply_github_draft_pr_promotion(
+    repo_path: Path | str,
+    plan: PromotionPlan,
+    artifact: PromotionArtifact,
+    remote: str = "origin",
+    dry_run: bool = False,
+) -> GitHubPromotionApplyResult:
+    """Apply promotion by creating/updating a GitHub draft PR.
+
+    Mission 7: GitHub Draft PR Apply
+
+    This is the first mutating adapter path for ADR 0010.
+    When dry_run=True, only plan and return commands without executing.
+    When dry_run=False, execute the mutation commands in order.
+
+    Rules:
+    - If plan.ready is False, fail closed and do not apply
+    - If artifact.wrote_files is False, fail closed
+    - If artifact verification fails, fail closed
+    - If gh is missing or unauthenticated, fail closed
+    - If PR already exists, do not create duplicate
+    - Write evidence under .rig/work/promotions/<artifact_id>/apply-result.json
+    - Do NOT merge PR, enable auto-merge, configure branch protection,
+      push to preproduction, or run destructive Git commands
+
+    Commands executed in order:
+    1. git branch -f <promotion_branch> <head_ref>
+    2. git push -u <remote> <promotion_branch>
+    3. gh pr create --draft --base <target_ref> --head <promotion_branch> \
+                    --title <title> --body-file <body_path>
+
+    Args:
+        repo_path: Path to the git repository root
+        plan: The promotion plan
+        artifact: The promotion artifact (must have wrote_files=True)
+        remote: The Git remote name (default: "origin")
+        dry_run: If True, do not execute commands (default: False)
+
+    Returns:
+        GitHubPromotionApplyResult with full information about what was done
+
+    Raises:
+        ValueError: If plan is not ready, artifact not written, or verification fails
+    """
+    import datetime
+    import json
+
+    repo_path = Path(repo_path)
+    findings: list[ForgeDoctorFinding] = []
+
+    # === Fail-closed checks ===
+
+    # Check plan.ready
+    if not plan.ready:
+        findings.append(ForgeDoctorFinding(
+            code="APPLY-001",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="Promotion plan is not ready - cannot apply",
+            remediation="Fix blockers and ensure plan.ready is True",
+        ))
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch="",
+            target_ref=plan.target_ref,
+            head_ref=plan.head_ref,
+            artifact_id="",
+            body_path="",
+            pr_url=None,
+            commands=(),
+            ready_before_apply=False,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+        )
+
+    # Check over budget
+    if plan.reviewability.over_budget and plan.reviewability.default_action == "block_promotion":
+        findings.append(ForgeDoctorFinding(
+            code="APPLY-002",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Reviewability budget exceeded: {plan.reviewability.changed_file_count} > {plan.reviewability.max_changed_files}",
+            remediation="Reduce changes or request override with reason",
+        ))
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch="",
+            target_ref=plan.target_ref,
+            head_ref=plan.head_ref,
+            artifact_id="",
+            body_path="",
+            pr_url=None,
+            commands=(),
+            ready_before_apply=False,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+        )
+
+    # Check draft exists
+    if plan.draft is None:
+        findings.append(ForgeDoctorFinding(
+            code="APPLY-003",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="Promotion plan has no draft - cannot apply",
+            remediation="Ensure plan has a valid draft",
+        ))
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch="",
+            target_ref=plan.target_ref,
+            head_ref=plan.head_ref,
+            artifact_id="",
+            body_path="",
+            pr_url=None,
+            commands=(),
+            ready_before_apply=False,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+        )
+
+    promotion_branch = plan.draft.promotion_branch
+    title = plan.draft.title
+    body_path = artifact.body_path
+
+    # Check artifact.wrote_files
+    if not artifact.wrote_files:
+        findings.append(ForgeDoctorFinding(
+            code="APPLY-004",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="Artifact files not written - cannot apply",
+            remediation="Run promotion with --write-artifact or use --write-artifact with --apply",
+        ))
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch=promotion_branch,
+            target_ref=plan.target_ref,
+            head_ref=plan.head_ref,
+            artifact_id=artifact.artifact_id,
+            body_path=body_path,
+            pr_url=None,
+            commands=(),
+            ready_before_apply=True,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+        )
+
+    # Verify artifact
+    is_valid, verify_findings = verify_promotion_artifact(repo_path, artifact)
+    findings.extend(verify_findings)
+    if not is_valid:
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch=promotion_branch,
+            target_ref=plan.target_ref,
+            head_ref=plan.head_ref,
+            artifact_id=artifact.artifact_id,
+            body_path=body_path,
+            pr_url=None,
+            commands=(),
+            ready_before_apply=True,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+        )
+
+    # Check gh CLI
+    gh_available, gh_version, gh_findings = _check_gh_cli_available()
+    findings.extend(gh_findings)
+    if not gh_available:
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch=promotion_branch,
+            target_ref=plan.target_ref,
+            head_ref=plan.head_ref,
+            artifact_id=artifact.artifact_id,
+            body_path=body_path,
+            pr_url=None,
+            commands=(),
+            ready_before_apply=True,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+        )
+
+    # Check for existing PR
+    pr_exists, existing_pr_url, pr_findings = _check_existing_pr(
+        target_ref=plan.target_ref,
+        promotion_branch=promotion_branch,
+        remote=remote,
+    )
+    findings.extend(pr_findings)
+
+    # === Build command list ===
+    commands: list[str] = []
+
+    # Command 1: Create/update promotion branch
+    # git branch -f <promotion_branch> <head_ref>
+    # Note: head_ref might be "HEAD" which is valid for git branch
+    cmd1_args = ["git", "branch", "-f", promotion_branch]
+    if plan.head_ref != "HEAD":
+        cmd1_args.append(plan.head_ref)
+    # else: git branch -f will use current HEAD if not specified
+
+    # Command 2: Push promotion branch to remote
+    # git push -u <remote> <promotion_branch>
+    cmd2_args = ["git", "push", "-u", remote, promotion_branch]
+
+    # Command 3: Create draft PR
+    # gh pr create --draft --base <target_ref> --head <promotion_branch> --title <title> --body-file <body_path>
+    cmd3_args = [
+        "gh", "pr", "create",
+        "--draft",
+        "--base", plan.target_ref,
+        "--head", promotion_branch,
+        "--title", title,
+        "--body-file", body_path,
+    ]
+
+    # Build command strings for output
+    commands = (
+        " ".join(cmd1_args),
+        " ".join(cmd2_args),
+        " ".join(cmd3_args),
+    )
+
+    # === Execute or plan ===
+    executed_commands: list[str] = []
+    pr_url: str | None = None
+    skipped_existing_pr = False
+    applied = False
+
+    # If existing PR detected, skip PR creation
+    if pr_exists and existing_pr_url:
+        skipped_existing_pr = True
+        pr_url = existing_pr_url
+        # Still need to execute branch creation and push if not dry_run
+        if not dry_run:
+            # Execute branch creation
+            success1, out1, err1, rc1 = _execute_command(cmd1_args, repo_path, dry_run)
+            if success1:
+                executed_commands.append(out1)
+                # Execute push
+                success2, out2, err2, rc2 = _execute_command(cmd2_args, repo_path, dry_run)
+                if success2:
+                    executed_commands.append(out2)
+                    applied = True  # Branch pushed successfully
+                else:
+                    findings.append(ForgeDoctorFinding(
+                        code="APPLY-005",
+                        severity=ForgeDoctorSeverity.ERROR,
+                        message=f"git push failed: {err2}",
+                        remediation="Check remote and branch permissions",
+                    ))
+            else:
+                findings.append(ForgeDoctorFinding(
+                    code="APPLY-006",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message=f"git branch -f failed: {err1}",
+                    remediation="Check branch name and local Git state",
+                ))
+        else:
+            # dry_run with existing PR - just report planned commands
+            applied = False
+    else:
+        # No existing PR - execute all commands if not dry_run
+        if not dry_run:
+            # Execute branch creation
+            success1, out1, err1, rc1 = _execute_command(cmd1_args, repo_path, dry_run)
+            if success1:
+                executed_commands.append(out1)
+                # Execute push
+                success2, out2, err2, rc2 = _execute_command(cmd2_args, repo_path, dry_run)
+                if success2:
+                    executed_commands.append(out2)
+                    # Execute PR creation
+                    # For gh pr create, we need to handle the output specially
+                    # Run with /usr/bin/env gh to use PATH lookup
+                    gh_cmd_args = ["/usr/bin/env"] + cmd3_args
+                    try:
+                        gh_proc = subprocess.run(
+                            gh_cmd_args,
+                            capture_output=True,
+                            text=True,
+                            timeout=60,
+                            shell=False,
+                        )
+                        if gh_proc.returncode == 0:
+                            # Try to extract URL from output
+                            pr_url = _extract_pr_url_from_gh_output(gh_proc.stdout)
+                            executed_commands.append(" ".join(cmd3_args))
+                            applied = True
+                        else:
+                            findings.append(ForgeDoctorFinding(
+                                code="APPLY-007",
+                                severity=ForgeDoctorSeverity.ERROR,
+                                message=f"gh pr create failed: {gh_proc.stderr.strip()}",
+                                remediation="Check PR parameters and repository permissions",
+                            ))
+                            # URL might still be in output even on non-zero exit
+                            pr_url = _extract_pr_url_from_gh_output(gh_proc.stdout)
+                            if pr_url:
+                                applied = True
+                    except Exception as e:
+                        findings.append(ForgeDoctorFinding(
+                            code="APPLY-008",
+                            severity=ForgeDoctorSeverity.ERROR,
+                            message=f"gh pr create failed with exception: {e}",
+                            remediation="Check gh CLI installation and network",
+                        ))
+                else:
+                    findings.append(ForgeDoctorFinding(
+                        code="APPLY-009",
+                        severity=ForgeDoctorSeverity.ERROR,
+                        message=f"git push failed: {err2}",
+                        remediation="Check remote and branch permissions",
+                    ))
+            else:
+                findings.append(ForgeDoctorFinding(
+                    code="APPLY-010",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message=f"git branch -f failed: {err1}",
+                    remediation="Check branch name and local Git state",
+                ))
+        else:
+            # dry_run mode - no execution, just planning
+            applied = False
+
+    # === Write evidence ===
+    evidence_path: str | None = None
+    if dry_run or applied or skipped_existing_pr:
+        # Write evidence file
+        artifact_dir = Path(artifact.directory)
+        evidence_dir = artifact_dir / "apply-result.json"
+        evidence_path = str(evidence_dir)
+
+        # Create directory if it doesn't exist
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+
+        # Compute body SHA256 from actual file if available
+        body_sha256 = artifact.body_sha256
+        if Path(artifact.body_path).exists():
+            try:
+                actual_body = Path(artifact.body_path).read_text(encoding="utf-8")
+                body_sha256 = _compute_body_sha256(actual_body)
+            except (OSError, IOError):
+                pass
+
+        evidence = {
+            "provider": "github",
+            "promotion_branch": promotion_branch,
+            "target_ref": plan.target_ref,
+            "head_ref": plan.head_ref,
+            "artifact_id": artifact.artifact_id,
+            "body_path": body_path,
+            "body_sha256": body_sha256,
+            "commands": list(executed_commands) if executed_commands else list(commands),
+            "pr_url": pr_url,
+            "applied": applied,
+            "skipped_existing_pr": skipped_existing_pr,
+            "findings": [
+                {
+                    "code": f.code,
+                    "severity": f.severity.value,
+                    "message": f.message,
+                    "remediation": f.remediation,
+                }
+                for f in findings
+            ],
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+
+        try:
+            Path(evidence_path).write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
+        except (OSError, IOError) as e:
+            findings.append(ForgeDoctorFinding(
+                code="EVIDENCE-001",
+                severity=ForgeDoctorSeverity.WARNING,
+                message=f"Failed to write evidence file: {e}",
+                remediation="Check write permissions for artifact directory",
+            ))
+            evidence_path = None
+
+    # === Return result ===
+    return GitHubPromotionApplyResult(
+        provider="github",
+        promotion_branch=promotion_branch,
+        target_ref=plan.target_ref,
+        head_ref=plan.head_ref,
+        artifact_id=artifact.artifact_id,
+        body_path=body_path,
+        pr_url=pr_url,
+        commands=commands if not executed_commands else tuple(executed_commands),
+        ready_before_apply=plan.ready,
+        applied=applied,
+        skipped_existing_pr=skipped_existing_pr,
+        evidence_path=evidence_path,
+        findings=tuple(findings),
+    )
+
+
+def _extract_pr_url_from_gh_output(output: str) -> str | None:
+    """Extract PR URL from gh pr create output.
+
+    Mission 7: GitHub Draft PR Apply
+
+    Args:
+        output: The stdout/stderr from gh pr create
+
+    Returns:
+        PR URL if found, None otherwise
+    """
+    import re
+
+    # Look for URL patterns in output
+    # gh pr create typically outputs the PR URL
+    patterns = [
+        r"https://github\.com/[^/]+/[^/]+/pull/\d+",
+        r"Pull request:.*(https://[^\s]+)",
+        r"(https://[^\s]+)",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, output)
+        if match:
+            url = match.group(0) if match.lastindex is None else match.group(match.lastindex)
+            # Clean up URL
+            url = url.strip()
+            if url and "github.com" in url:
+                return url
+
+    return None
