@@ -121,23 +121,82 @@ def test_proposal_lifecycle_console_handles_missing_partial_data_safely():
     assert "||" in content or "?" in content or "if (" in content
 
 
-def test_progressive_disclosure_doctrine_docs_exist():
-    root = Path(__file__).parent.parent / "docs" / "architecture"
-    progressive = (root / "progressive-disclosure-doctrine.md").read_text(encoding="utf-8")
-    motion = (root / "governed-motion.md").read_text(encoding="utf-8")
-    spatial = (root / "spatial-stability.md").read_text(encoding="utf-8")
-    density = (root / "density-collapse.md").read_text(encoding="utf-8")
-    hierarchy = (root / "visual-priority-hierarchy.md").read_text(encoding="utf-8")
-    rehearsal = (root / "governance-routing-rehearsal.md").read_text(encoding="utf-8")
+def test_progressive_disclosure_contract_schema():
+    """Progressive disclosure doctrine is defined by machine-readable contract."""
+    import json
+    from jsonschema import validate
 
-    assert "Layer 1" in progressive
-    assert "Layer 4" in progressive
-    assert "Motion MUST become calmer under overload" in motion
-    assert "persistent topology" in spatial.lower()
-    assert "Higher complexity must collapse into clearer summary structures" in density
-    assert "High" in hierarchy and "integrity divergence" in hierarchy
-    assert "CODEOWNER review routing" in rehearsal
+    contract_path = (
+        Path(__file__).resolve().parents[1]
+        / "docs"
+        / "architecture"
+        / "progressive-disclosure-contract.json"
+    )
 
+    with open(contract_path, encoding="utf-8") as handle:
+        contract = json.load(handle)
+
+    schema = {
+        "type": "object",
+        "required": [
+            "$schema",
+            "$id",
+            "schema_version",
+            "visual_priority_hierarchy",
+            "disclosure_contracts",
+            "widget_requirements",
+            "non_authority",
+        ],
+        "properties": {
+            "$schema": {"type": "string"},
+            "$id": {"const": "rig.progressive-disclosure-contract.v1"},
+            "schema_version": {"type": "string"},
+            "visual_priority_hierarchy": {
+                "type": "object",
+                "required": ["authority", "primary_goal", "levels"],
+                "properties": {
+                    "authority": {"const": "projection_state"},
+                    "primary_goal": {"type": "string"},
+                    "levels": {
+                        "type": "array",
+                        "minItems": 4,
+                        "items": {"type": "string"},
+                        "contains": {"const": "next safe action"},
+                    },
+                },
+                "additionalProperties": False,
+            },
+            "disclosure_contracts": {
+                "type": "array",
+                "minItems": 6,
+                "items": {"type": "string"},
+                "contains": {"const": "visual priority hierarchy"},
+            },
+            "widget_requirements": {
+                "type": "array",
+                "minItems": 5,
+                "items": {"type": "string"},
+                "contains": {"const": "declare collapsed representation"},
+            },
+            "non_authority": {
+                "type": "object",
+                "required": [
+                    "workflow_authority",
+                    "runtime_truth_authority",
+                    "receipt_authority",
+                ],
+                "properties": {
+                    "workflow_authority": {"const": False},
+                    "runtime_truth_authority": {"const": False},
+                    "receipt_authority": {"const": False},
+                },
+                "additionalProperties": False,
+            },
+        },
+        "additionalProperties": False,
+    }
+
+    validate(instance=contract, schema=schema)
 
 def test_runtime_instrumentation_contains_low_stimulation_helpers():
     path = Path(__file__).parent.parent / "src" / "rig_tools" / "static" / "js" / "runtime-instrumentation.js"

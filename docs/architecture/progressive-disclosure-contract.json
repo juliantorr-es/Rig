@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rig.progressive-disclosure-contract.v1",
+  "schema_version": "1.0.0",
+  "visual_priority_hierarchy": {
+    "authority": "projection_state",
+    "primary_goal": "reduce cognitive load while preserving operational clarity",
+    "levels": [
+      "critical state",
+      "current action",
+      "next safe action",
+      "supporting evidence",
+      "historical detail"
+    ]
+  },
+  "disclosure_contracts": [
+    "progressive disclosure",
+    "visual priority hierarchy",
+    "semantic hierarchy",
+    "density-aware simplification",
+    "reduced-motion compatibility",
+    "low-stimulation compatibility",
+    "bounded visual state",
+    "projection-derived rendering",
+    "stable widget identity"
+  ],
+  "widget_requirements": [
+    "declare priority level",
+    "declare minimum useful scale",
+    "declare collapsed representation",
+    "declare expanded representation",
+    "preserve deterministic ordering",
+    "preserve accessibility labels"
+  ],
+  "non_authority": {
+    "workflow_authority": false,
+    "runtime_truth_authority": false,
+    "receipt_authority": false
+  }
+}
