@@ -13,6 +13,21 @@
 - Do not make model output authoritative.
 - Rig is the final authority on what changes are applied.
 
+### 1.1. The Canonical Workflow Interface
+
+Agents must **never** interact with the project state using raw `git` commands for mutations, commits, or promotions. The only authorized interface for modifying the project is the **Rig Governed Workflow** via `scripts/work_*.py`.
+
+**Authorized Workflow Sequence:**
+1.  **ADR Creation**: Document the architectural intent.
+2.  **Sprint Research**: `work_research.py` (Mandatory read-only phase).
+3.  **Mission Claim**: `work_claim.py` (Define scope).
+4.  **Implementation**: `work_patch_batch.py` (Small, validated patches).
+5.  **Validation**: `work_doctor.py` (Workspace health check).
+6.  **Handoff**: `work_handoff.py` (Close mission and record evidence).
+7.  **Promotion**: `work_promote.py` (The only path to `preproduction`).
+
+Any deviation from this sequence or direct use of `git commit`, `git merge`, or `git push` is a **governance violation** and must be reported immediately.
+
 ---
 
 ## 2. Python/Runtime Setup
@@ -215,12 +230,11 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 
 ### Git Guard for Agent Sessions
 
-- Agent shells should place the Rig Git guard first in `PATH` so destructive commands are blocked before they reach the real Git binary.
-- Use `scripts/rig_vibe` to launch Vibe with the guard active.
-- Use `scripts/rig_gemini` to launch Gemini with the guard active.
+- Agents **must** operate with the Rig Git guard active in their environment.
+- The guard blocks destructive and ungoverned commands (e.g., `git reset --hard`, `git push`, `git merge`) before they reach the native Git binary.
 - If the guard blocks a command, stop immediately and report the blocked command and reason.
-- Do not bypass the guard by calling absolute Git paths directly.
-- The guard enforces the patch-forward policy for dirty files.
+- **NEVER** bypass the guard by calling absolute Git paths (e.g., `/usr/bin/git`) or using shell aliases to circumvent governance.
+- The guard enforces the patch-forward policy for dirty files and the "Only Rig Workflow" mandate.
 
 ---
 
