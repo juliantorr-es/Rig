@@ -496,7 +496,26 @@ git worktree list --porcelain
 
 ---
 
-## 11. Final Report Format
+## 11. Visual Evidence Protocol
+
+For any task affecting the User Interface or Visualization substrate:
+- **Mandatory Screenshot/Video**: Agents MUST capture a screenshot or video recording of the UI using the `browser_subagent` to verify the change.
+- **Evidence Persistence**: Media artifacts must be saved to the artifacts directory and linked in the `work_handoff.py` event.
+- **RDL v1 Compliance**: Visual work must be audited against the Rig Design Language (RDL v1) tokens in `tokens.css`.
+
+---
+
+## 12. Cognitive Proficiencies
+
+Agents are expected to operate with a **Product Design Mindset**:
+- **Clarity over Volume**: Prioritize a single, polished "Golden Path" over numerous experimental features.
+- **Intentional Pacing**: Ensure animations and state transitions follow the Meaningful Motion doctrine (calm, semantic, purposeful).
+- **Tool Soup Reduction**: Proactively identify and hide high-density telemetry behind cognitive disclosure layers.
+- **Truthful Visualization**: Ensure every visual change is a deterministic projection of governed state, not an imperative UI hack.
+
+---
+
+## 13. Final Report Format
 
 **Every coding task final report must include:**
 

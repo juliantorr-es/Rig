@@ -2,7 +2,17 @@
 
 **Read and follow AGENTS.md. It is the canonical project agent policy for Rig.**
 
-This file exists only as a pointer. All agent instructions are in `AGENTS.md`.
+## 1. Context Precision Protocol
+Gemini agents must optimize for context window efficiency to maintain high reasoning quality.
+
+- **Prefer Discovery over Reading**: Use `rg`, `fd`, and `anigma-mcp` to find specific code hunks. Do not read entire directories or large files (>1000 lines) unless architectural context is required.
+- **Granular Retrieval**: When using `anigma-mcp`, prefer `read_file` with specific line ranges over broad searches.
+- **Context Search**: Use the `context_search` tool to query the local Anigma SQLite database (`~/Library/Application Support/Anigma/contextum.sqlite`) for historical project context.
+
+## 2. Multimodal Evidence
+For UI-R* sprints and any visual work:
+- **Visual Verification**: Use the `browser_subagent` to verify that UI changes (styles, layout, animations) match the Rig Design Language (RDL v1).
+- **Evidence Collection**: Capture and record browser sessions for UI-related missions. Attach these recordings to the mission handoff.
 
 ## Most Critical Safety Rules
 
