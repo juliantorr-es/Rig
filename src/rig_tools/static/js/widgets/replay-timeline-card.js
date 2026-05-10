@@ -1,412 +1,318 @@
+import { RenderNode, createHtmlElement, setHtmlAttr } from '../core/render-graph.js';
+
 /**
- * ReplayTimelineCard widget - Dumb rendering for governance replay timeline.
+ * ReplayTimelineCardNode - Retained RenderNode for replay timeline visualization.
  * 
  * DOCTRINE:
- * - Dumb rendering only (no fetching, no mutation, no timers)
- * - Projection-only data inputs (from build_replay_projection or build_replay_projection_summary)
- * - No authority decisions
- * - No side effects
- * - Deterministic: same input -> same DOM output
- * - textContent only (no innerHTML)
- * - Safe fallbacks for missing data
- * - Preserves advisory vs authoritative distinctions
- * 
- * Data contract from backend projection:
- * - replay_id: string
- * - workspace_id: string
- * - frame_index: number (current frame)
- * - total_frames: number
- * - workspace_status: string
- * - status_history: array of {status, at} objects
- * - receipt_chain: array of receipt IDs
- * - audit_chain: array of audit event IDs
- * - authoritative_evidence_available: boolean
- * - advisory_only_evidence_present: boolean
- * - is_terminal: boolean
- * - terminal_reason: string
- * - has_conflicts: boolean
- * - conflict_count: number
- * - conflict_types: object (type -> count)
- * - finding_count: number
- * - findings_by_severity: object (severity -> count)
- * - state: string (replay state)
- * - schema_version: string
- * - source_schema_version: string
- * - source_event_id: string
+ * - Retained rendering (patching only)
+ * - Projection-only data
+ * - Dumb rendering (no authority)
+ * - Deterministic output
  */
+export class ReplayTimelineCardNode extends RenderNode {
+  constructor(id, data, sequence = null) {
+    super(id, sequence);
+    this.data = data;
+  }
 
-function createElement(tag, className, text) {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text !== null && text !== undefined) el.textContent = String(text);
-  return el;
-}
+  render(parent) {
+    const container = createHtmlElement('div', { class: 'rig-card replay-timeline-card' });
 
-function getValue(data, key, defaultValue) {
-  if (!data) return defaultValue;
-  const value = data[key];
-  return value !== null && value !== undefined ? value : defaultValue;
-}
+    // Title section
+    container.appendChild(createHtmlElement('div', { class: 'card-title' }, 'Replay Timeline'));
 
-function formatTimestamp(ts) {
-  if (!ts) return '';
-  try {
-    // Clean up the timestamp string for display
-    let cleaned = String(ts);
-    // Remove trailing Z and replace T with space for readability
-    cleaned = cleaned.replace('T', ' ').replace('Z', '');
-    // Truncate to seconds (remove milliseconds)
-    const dotIndex = cleaned.indexOf('.');
-    if (dotIndex > 0) {
-      cleaned = cleaned.substring(0, dotIndex);
+    // Header: Replay ID and Workspace ID
+    const headerRow = createHtmlElement('div', { class: 'replay-header-row' });
+    headerRow.appendChild(createHtmlElement('span', { class: 'replay-header-label' }, 'Replay:'));
+    headerRow.appendChild(createHtmlElement('span', { class: 'replay-header-value replay-mono', id: 'replay-id' }));
+    headerRow.appendChild(createHtmlElement('span', { id: 'workspace-id-section' }));
+    container.appendChild(headerRow);
+
+    // Lineage section
+    const lineageSection = createHtmlElement('div', { class: 'card-section replay-lineage-section' });
+    lineageSection.appendChild(this._createMetaRow('Replay Schema:', 'schema-version'));
+    lineageSection.appendChild(this._createMetaRow('Source Schema:', 'source-schema-version'));
+    lineageSection.appendChild(this._createMetaRow('Source Event:', 'source-event-id'));
+    lineageSection.appendChild(this._createMetaRow('Source Kind:', 'source-event-kind'));
+    container.appendChild(lineageSection);
+
+    // Frame info
+    const frameInfoRow = createHtmlElement('div', { class: 'replay-frame-info' });
+    frameInfoRow.appendChild(createHtmlElement('span', { class: 'replay-frame-label' }, 'Frame:'));
+    frameInfoRow.appendChild(createHtmlElement('span', { class: 'replay-frame-value', id: 'frame-info' }));
+    container.appendChild(frameInfoRow);
+
+    // Status section
+    const statusSection = createHtmlElement('div', { class: 'card-section replay-status-section' });
+    const statusRow = createHtmlElement('div', { class: 'replay-status-row' });
+    statusRow.appendChild(createHtmlElement('span', { class: 'replay-status-label' }, 'Current Status:'));
+    statusRow.appendChild(createHtmlElement('span', { id: 'current-status-badge' }));
+    statusSection.appendChild(statusRow);
+    container.appendChild(statusSection);
+
+    // Terminal/State sections
+    container.appendChild(createHtmlElement('div', { id: 'terminal-section', class: 'card-section replay-terminal-section' }));
+    
+    const stateSection = createHtmlElement('div', { class: 'card-section replay-state-section' });
+    const stateRow = createHtmlElement('div', { class: 'replay-state-row' });
+    stateRow.appendChild(createHtmlElement('span', { class: 'replay-state-label' }, 'Replay State:'));
+    stateRow.appendChild(createHtmlElement('span', { id: 'replay-state-badge' }));
+    stateSection.appendChild(stateRow);
+    container.appendChild(stateSection);
+
+    // Continuity
+    const continuitySection = createHtmlElement('div', { class: 'card-section replay-continuity-section' });
+    continuitySection.appendChild(this._createMetaRow('Frame Hash:', 'frame-hash'));
+    continuitySection.appendChild(this._createMetaRow('Previous Hash:', 'prev-hash'));
+    continuitySection.appendChild(this._createMetaRow('Evidence Mode:', 'evidence-mode'));
+    container.appendChild(continuitySection);
+
+    // Dynamic sections (patched)
+    container.appendChild(createHtmlElement('div', { id: 'chain-section', class: 'card-section replay-chain-section' }));
+    container.appendChild(createHtmlElement('div', { id: 'history-section', class: 'card-section replay-history-section' }));
+    container.appendChild(createHtmlElement('div', { id: 'evidence-section', class: 'card-section replay-evidence-section' }));
+    container.appendChild(createHtmlElement('div', { id: 'conflicts-section', class: 'card-section replay-conflicts-section' }));
+    container.appendChild(createHtmlElement('div', { id: 'findings-section', class: 'card-section replay-findings-section' }));
+    container.appendChild(createHtmlElement('div', { id: 'flags-section', class: 'card-section replay-flags-section' }));
+    container.appendChild(createHtmlElement('div', { id: 'completeness-section', class: 'card-section replay-completeness-section' }));
+
+    // Advisory note
+    container.appendChild(createHtmlElement('div', { class: 'replay-advisory-note' }, 'Replay findings are advisory. Rig remains the final authority.'));
+
+    parent.appendChild(container);
+    this.patch(container);
+    return container;
+  }
+
+  patch(element) {
+    const data = this.data;
+
+    // Header
+    setHtmlAttr(element.querySelector('#replay-id'), 'text', data.replay_id || 'unknown');
+    const wsSection = element.querySelector('#workspace-id-section');
+    if (data.workspace_id) {
+      wsSection.innerHTML = '';
+      wsSection.appendChild(createHtmlElement('span', { class: 'replay-separator' }, '|'));
+      wsSection.appendChild(createHtmlElement('span', { class: 'replay-header-label' }, ' Workspace:'));
+      wsSection.appendChild(createHtmlElement('span', { class: 'replay-header-value replay-mono' }, data.workspace_id));
+    } else {
+      wsSection.innerHTML = '';
     }
-    return cleaned;
-  } catch {
-    return String(ts);
-  }
-}
 
-function renderStatusBadge(status, className) {
-  const badge = createElement('span', 'replay-status-badge', status || 'unknown');
-  if (className) {
-    badge.className += ' ' + className;
-  }
-  return badge;
-}
+    // Lineage
+    setHtmlAttr(element.querySelector('#schema-version'), 'text', data.schema_version || 'rig.replay.v1');
+    setHtmlAttr(element.querySelector('#source-schema-version'), 'text', data.source_schema_version || 'unknown');
+    setHtmlAttr(element.querySelector('#source-event-id'), 'text', data.source_event_id || 'unknown');
+    setHtmlAttr(element.querySelector('#source-event-kind'), 'text', data.source_event_kind || 'unknown');
 
-function renderKeyValue(labelText, valueText, valueClassName = 'replay-meta-value') {
-  const row = createElement('div', 'replay-meta-row');
-  const label = createElement('span', 'replay-meta-label', labelText);
-  const value = createElement('span', valueClassName, valueText || 'unknown');
-  row.appendChild(label);
-  row.appendChild(value);
-  return row;
-}
+    // Frame
+    const frameIndex = data.frame_index ?? -1;
+    const totalFrames = data.total_frames || 0;
+    setHtmlAttr(element.querySelector('#frame-info'), 'text', totalFrames > 0 ? `${frameIndex + 1}/${totalFrames}` : '0/0');
 
-function renderConflictTypeCount(type, count) {
-  const item = createElement('div', 'replay-conflict-item');
-  const label = createElement('span', 'replay-conflict-label', type.replace(/_/g, ' '));
-  const value = createElement('span', 'replay-conflict-value', String(count));
-  item.appendChild(label);
-  item.appendChild(createElement('span', 'replay-separator', ':'));
-  item.appendChild(value);
-  return item;
-}
+    // Status
+    const currentStatus = data.workspace_status || 'unknown';
+    const statusBadge = element.querySelector('#current-status-badge');
+    setHtmlAttr(statusBadge, 'text', currentStatus);
+    setHtmlAttr(statusBadge, 'class', 'replay-status-badge replay-status-current');
 
-function renderFindingSeverityCount(severity, count) {
-  const item = createElement('div', 'replay-finding-item');
-  const label = createElement('span', 'replay-finding-label', severity);
-  const value = createElement('span', 'replay-finding-value', String(count));
-  item.appendChild(label);
-  item.appendChild(createElement('span', 'replay-separator', ':'));
-  item.appendChild(value);
-  return item;
-}
-
-function renderStatusTransition(fromStatus, toStatus, at) {
-  const item = createElement('div', 'replay-transition-item');
-  const arrow = createElement('span', 'replay-transition-arrow', '→');
-  const from = createElement('span', 'replay-transition-from', fromStatus || 'unknown');
-  const to = createElement('span', 'replay-transition-to', toStatus || 'unknown');
-  const timestamp = createElement('span', 'replay-transition-time', formatTimestamp(at));
-  
-  item.appendChild(from);
-  item.appendChild(arrow);
-  item.appendChild(to);
-  item.appendChild(timestamp);
-  return item;
-}
-
-function renderReplayTimelineCard(element, data) {
-  const container = createElement('div', 'rig-card replay-timeline-card');
-
-  // Title section
-  const titleSection = createElement('div', 'card-title');
-  const title = createElement('span', 'replay-title', 'Replay Timeline');
-  titleSection.appendChild(title);
-  container.appendChild(titleSection);
-
-  // Header: Replay ID and Workspace ID
-  const headerRow = createElement('div', 'replay-header-row');
-  const replayIdLabel = createElement('span', 'replay-header-label', 'Replay:');
-  const replayIdValue = createElement('span', 'replay-header-value replay-mono', 
-    getValue(data, 'replay_id', 'unknown'));
-  headerRow.appendChild(replayIdLabel);
-  headerRow.appendChild(replayIdValue);
-  
-  if (getValue(data, 'workspace_id', null)) {
-    const separator = createElement('span', 'replay-separator', '|');
-    const workspaceLabel = createElement('span', 'replay-header-label', ' Workspace:');
-    const workspaceValue = createElement('span', 'replay-header-value replay-mono', 
-      getValue(data, 'workspace_id', 'unknown'));
-    headerRow.appendChild(separator);
-    headerRow.appendChild(workspaceLabel);
-    headerRow.appendChild(workspaceValue);
-  }
-  container.appendChild(headerRow);
-
-  // Replay lineage section
-  const lineageSection = createElement('div', 'card-section replay-lineage-section');
-  lineageSection.appendChild(renderKeyValue('Replay Schema:', getValue(data, 'schema_version', 'rig.replay.v1'), 'replay-mono'));
-  lineageSection.appendChild(renderKeyValue('Source Schema:', getValue(data, 'source_schema_version', 'unknown'), 'replay-mono'));
-  lineageSection.appendChild(renderKeyValue('Source Event:', getValue(data, 'source_event_id', 'unknown'), 'replay-mono'));
-  lineageSection.appendChild(renderKeyValue('Source Kind:', getValue(data, 'source_event_kind', 'unknown'), 'replay-mono'));
-  container.appendChild(lineageSection);
-
-  // Frame navigation info
-  const frameInfoRow = createElement('div', 'replay-frame-info');
-  const frameIndex = getValue(data, 'frame_index', -1);
-  const totalFrames = getValue(data, 'total_frames', 0);
-  const frameLabel = createElement('span', 'replay-frame-label', 'Frame:');
-  const frameValue = createElement('span', 'replay-frame-value', 
-    totalFrames > 0 ? `${frameIndex + 1}/${totalFrames}` : '0/0');
-  frameInfoRow.appendChild(frameLabel);
-  frameInfoRow.appendChild(frameValue);
-  container.appendChild(frameInfoRow);
-
-  // Current Status section
-  const statusSection = createElement('div', 'card-section replay-status-section');
-  const statusRow = createElement('div', 'replay-status-row');
-  const statusLabel = createElement('span', 'replay-status-label', 'Current Status:');
-  const currentStatus = getValue(data, 'workspace_status', 'unknown');
-  const statusValue = renderStatusBadge(currentStatus, 'replay-status-current');
-  statusRow.appendChild(statusLabel);
-  statusRow.appendChild(statusValue);
-  statusSection.appendChild(statusRow);
-  container.appendChild(statusSection);
-
-  // Terminal state indicator
-  const isTerminal = getValue(data, 'is_terminal', false);
-  const terminalReason = getValue(data, 'terminal_reason', '');
-  if (isTerminal && terminalReason) {
-    const terminalSection = createElement('div', 'card-section replay-terminal-section');
-    const terminalLabel = createElement('span', 'replay-terminal-label', 'Terminal:');
-    const terminalValue = createElement('span', 'replay-terminal-value', terminalReason);
-    terminalSection.appendChild(terminalLabel);
-    terminalSection.appendChild(terminalValue);
-    container.appendChild(terminalSection);
-  }
-
-  // Replay State
-  const replayState = getValue(data, 'state', 'unknown');
-  const stateSection = createElement('div', 'card-section replay-state-section');
-  const stateRow = createElement('div', 'replay-state-row');
-  const stateLabel = createElement('span', 'replay-state-label', 'Replay State:');
-  const stateBadge = renderStatusBadge(replayState, 'replay-state-badge');
-  stateRow.appendChild(stateLabel);
-  stateRow.appendChild(stateBadge);
-  stateSection.appendChild(stateRow);
-  container.appendChild(stateSection);
-
-  const continuitySection = createElement('div', 'card-section replay-continuity-section');
-  continuitySection.appendChild(renderKeyValue('Frame Hash:', getValue(data, 'frame_hash', 'unknown'), 'replay-mono'));
-  continuitySection.appendChild(renderKeyValue('Previous Hash:', getValue(data, 'previous_frame_hash', 'unknown'), 'replay-mono'));
-  continuitySection.appendChild(renderKeyValue(
-    'Evidence Mode:',
-    getValue(data, 'authoritative_evidence_available', false) ? 'authoritative' : 'advisory',
-    'replay-mono'
-  ));
-  container.appendChild(continuitySection);
-
-  // Chain continuity section
-  const chainSection = createElement('div', 'card-section replay-chain-section');
-  
-  // Receipt chain
-  const receiptChain = getValue(data, 'receipt_chain', []);
-  const auditChain = getValue(data, 'audit_chain', []);
-  
-  if (receiptChain.length > 0 || auditChain.length > 0) {
-    const chainTitle = createElement('div', 'replay-chain-title', 'Chain Continuity');
-    chainSection.appendChild(chainTitle);
-    
-    const receiptRow = createElement('div', 'replay-chain-row');
-    const receiptLabel = createElement('span', 'replay-chain-label', 'Receipt Chain:');
-    const receiptCount = createElement('span', 'replay-chain-count', String(receiptChain.length));
-    receiptRow.appendChild(receiptLabel);
-    receiptRow.appendChild(receiptCount);
-    chainSection.appendChild(receiptRow);
-    
-    const auditRow = createElement('div', 'replay-chain-row');
-    const auditLabel = createElement('span', 'replay-chain-label', 'Audit Chain:');
-    const auditCount = createElement('span', 'replay-chain-count', String(auditChain.length));
-    auditRow.appendChild(auditLabel);
-    auditRow.appendChild(auditCount);
-    chainSection.appendChild(auditRow);
-    
-    container.appendChild(chainSection);
-  }
-
-  const lineageChainSection = createElement('div', 'card-section replay-lineage-chain-section');
-  const lineageLinks = getValue(data, 'lineage_links', []);
-  if (lineageLinks && lineageLinks.length > 0) {
-    const lineageTitle = createElement('div', 'replay-lineage-title', 'Lineage Links');
-    lineageChainSection.appendChild(lineageTitle);
-    const lineageCount = createElement('div', 'replay-lineage-count', `Links: ${lineageLinks.length}`);
-    lineageChainSection.appendChild(lineageCount);
-    container.appendChild(lineageChainSection);
-  }
-
-  // Status History / Timeline section
-  const history = getValue(data, 'status_history', []);
-  if (history && history.length > 0) {
-    const historySection = createElement('div', 'card-section replay-history-section');
-    const historyTitle = createElement('div', 'replay-history-title', 'Status Transitions');
-    historySection.appendChild(historyTitle);
-    
-    for (let i = 1; i < history.length; i++) {
-      const prev = history[i - 1];
-      const curr = history[i];
-      const transition = renderStatusTransition(
-        prev && prev.status ? prev.status : 'unknown',
-        curr && curr.status ? curr.status : 'unknown',
-        curr && curr.at ? curr.at : ''
-      );
-      historySection.appendChild(transition);
+    // Terminal
+    const terminalSection = element.querySelector('#terminal-section');
+    if (data.is_terminal && data.terminal_reason) {
+      setHtmlAttr(terminalSection, 'style', { display: 'block' });
+      terminalSection.innerHTML = '';
+      terminalSection.appendChild(createHtmlElement('span', { class: 'replay-terminal-label' }, 'Terminal:'));
+      terminalSection.appendChild(createHtmlElement('span', { class: 'replay-terminal-value' }, data.terminal_reason));
+    } else {
+      setHtmlAttr(terminalSection, 'style', { display: 'none' });
     }
-    
-    container.appendChild(historySection);
-  }
 
-  // Evidence availability
-  const authAvailable = getValue(data, 'authoritative_evidence_available', false);
-  const advisoryPresent = getValue(data, 'advisory_only_evidence_present', false);
-  
-  const evidenceSection = createElement('div', 'card-section replay-evidence-section');
-  const evidenceTitle = createElement('div', 'replay-evidence-title', 'Evidence Available');
-  evidenceSection.appendChild(evidenceTitle);
-  
-  const authRow = createElement('div', 'replay-evidence-row');
-  const authLabel = createElement('span', 'replay-evidence-label', 'Authoritative:');
-  const authValue = createElement('span', 'replay-evidence-value', 
-    authAvailable ? 'Yes' : 'No');
-  authRow.appendChild(authLabel);
-  authRow.appendChild(authValue);
-  evidenceSection.appendChild(authRow);
-  
-  const advisoryRow = createElement('div', 'replay-evidence-row');
-  const advisoryLabel = createElement('span', 'replay-evidence-label', 'Advisory Only:');
-  const advisoryValue = createElement('span', 'replay-evidence-value', 
-    advisoryPresent ? 'Yes' : 'No');
-  advisoryRow.appendChild(advisoryLabel);
-  advisoryRow.appendChild(advisoryValue);
-  evidenceSection.appendChild(advisoryRow);
-  
-  container.appendChild(evidenceSection);
+    // Replay State
+    const replayState = data.state || 'unknown';
+    const stateBadge = element.querySelector('#replay-state-badge');
+    setHtmlAttr(stateBadge, 'text', replayState);
+    setHtmlAttr(stateBadge, 'class', 'replay-status-badge replay-state-badge');
 
-  // Conflicts section
-  const conflictCount = getValue(data, 'conflict_count', 0);
-  const conflictTypes = getValue(data, 'conflict_types', {});
-  const hasConflicts = getValue(data, 'has_conflicts', false);
-  
-  if (hasConflicts || conflictCount > 0 || Object.keys(conflictTypes).length > 0) {
-    const conflictsSection = createElement('div', 'card-section replay-conflicts-section');
-    const conflictsTitle = createElement('div', 'replay-conflicts-title', 
-      `Conflicts (${conflictCount})`);
-    conflictsSection.appendChild(conflictsTitle);
+    // Continuity
+    setHtmlAttr(element.querySelector('#frame-hash'), 'text', data.frame_hash || 'unknown');
+    setHtmlAttr(element.querySelector('#prev-hash'), 'text', data.previous_frame_hash || 'unknown');
+    setHtmlAttr(element.querySelector('#evidence-mode'), 'text', data.authoritative_evidence_available ? 'authoritative' : 'advisory');
+
+    // Chain section
+    this._patchChainSection(element.querySelector('#chain-section'), data);
     
-    for (const [type, count] of Object.entries(conflictTypes)) {
-      conflictsSection.appendChild(renderConflictTypeCount(type, count));
+    // History
+    this._patchHistorySection(element.querySelector('#history-section'), data);
+
+    // Evidence
+    this._patchEvidenceSection(element.querySelector('#evidence-section'), data);
+
+    // Conflicts
+    this._patchConflictsSection(element.querySelector('#conflicts-section'), data);
+
+    // Findings
+    this._patchFindingsSection(element.querySelector('#findings-section'), data);
+
+    // Flags
+    this._patchFlagsSection(element.querySelector('#flags-section'), data);
+
+    // Completeness
+    const compSection = element.querySelector('#completeness-section');
+    if (totalFrames > 0) {
+      setHtmlAttr(compSection, 'style', { display: 'block' });
+      compSection.innerHTML = '';
+      compSection.appendChild(createHtmlElement('span', { class: 'replay-completeness-label' }, 'Timeline:'));
+      compSection.appendChild(createHtmlElement('span', { class: 'replay-completeness-value' }, frameIndex >= totalFrames - 1 ? 'Complete' : 'Partial'));
+    } else {
+      setHtmlAttr(compSection, 'style', { display: 'none' });
     }
-    
-    container.appendChild(conflictsSection);
   }
 
-  // Findings section
-  const findingCount = getValue(data, 'finding_count', 0);
-  const findingsBySeverity = getValue(data, 'findings_by_severity', {});
-  
-  if (findingCount > 0 || Object.keys(findingsBySeverity).length > 0) {
-    const findingsSection = createElement('div', 'card-section replay-findings-section');
-    const findingsTitle = createElement('div', 'replay-findings-title', 
-      `Findings (${findingCount})`);
-    findingsSection.appendChild(findingsTitle);
-    
-    const severityOrder = ['critical', 'error', 'warning', 'info'];
-    for (const severity of severityOrder) {
-      const count = findingsBySeverity[severity] || 0;
-      if (count > 0) {
-        const item = renderFindingSeverityCount(severity, count);
-        item.className += ' replay-finding-severity-' + severity;
-        findingsSection.appendChild(item);
+  _createMetaRow(label, id) {
+    const row = createHtmlElement('div', { class: 'replay-meta-row' });
+    row.appendChild(createHtmlElement('span', { class: 'replay-meta-label' }, label));
+    row.appendChild(createHtmlElement('span', { class: 'replay-meta-value', id: id }));
+    return row;
+  }
+
+  _patchChainSection(el, data) {
+    const receipts = data.receipt_chain || [];
+    const audits = data.audit_chain || [];
+    if (receipts.length > 0 || audits.length > 0) {
+      setHtmlAttr(el, 'style', { display: 'block' });
+      el.innerHTML = '';
+      el.appendChild(createHtmlElement('div', { class: 'replay-chain-title' }, 'Chain Continuity'));
+      el.appendChild(this._createCountRow('Receipt Chain:', receipts.length));
+      el.appendChild(this._createCountRow('Audit Chain:', audits.length));
+    } else {
+      setHtmlAttr(el, 'style', { display: 'none' });
+    }
+  }
+
+  _createCountRow(label, count) {
+    const row = createHtmlElement('div', { class: 'replay-chain-row' });
+    row.appendChild(createHtmlElement('span', { class: 'replay-chain-label' }, label));
+    row.appendChild(createHtmlElement('span', { class: 'replay-chain-count' }, String(count)));
+    return row;
+  }
+
+  _patchHistorySection(el, data) {
+    const history = data.status_history || [];
+    if (history.length > 1) {
+      setHtmlAttr(el, 'style', { display: 'block' });
+      el.innerHTML = '';
+      el.appendChild(createHtmlElement('div', { class: 'replay-history-title' }, 'Status Transitions'));
+      for (let i = 1; i < history.length; i++) {
+        el.appendChild(this._renderTransition(history[i-1].status, history[i].status, history[i].at));
       }
+    } else {
+      setHtmlAttr(el, 'style', { display: 'none' });
     }
-    
-    // Also show zero counts for completeness in summary view
-    const showAllSeverities = getValue(data, 'type', '') === 'ReplaySummary';
-    if (showAllSeverities) {
-      for (const severity of severityOrder) {
-        const count = findingsBySeverity[severity] || 0;
-        if (count === 0) {
-          const item = renderFindingSeverityCount(severity, 0);
-          item.className += ' replay-finding-severity-' + severity;
-          findingsSection.appendChild(item);
+  }
+
+  _renderTransition(from, to, at) {
+    const item = createHtmlElement('div', { class: 'replay-transition-item' });
+    item.appendChild(createHtmlElement('span', { class: 'replay-transition-from' }, from || 'unknown'));
+    item.appendChild(createHtmlElement('span', { class: 'replay-transition-arrow' }, '→'));
+    item.appendChild(createHtmlElement('span', { class: 'replay-transition-to' }, to || 'unknown'));
+    item.appendChild(createHtmlElement('span', { class: 'replay-transition-time' }, this._formatTs(at)));
+    return item;
+  }
+
+  _patchEvidenceSection(el, data) {
+    setHtmlAttr(el, 'style', { display: 'block' });
+    el.innerHTML = '';
+    el.appendChild(createHtmlElement('div', { class: 'replay-evidence-title' }, 'Evidence Available'));
+    el.appendChild(this._createEvidenceRow('Authoritative:', data.authoritative_evidence_available));
+    el.appendChild(this._createEvidenceRow('Advisory Only:', data.advisory_only_evidence_present));
+  }
+
+  _createEvidenceRow(label, available) {
+    const row = createHtmlElement('div', { class: 'replay-evidence-row' });
+    row.appendChild(createHtmlElement('span', { class: 'replay-evidence-label' }, label));
+    row.appendChild(createHtmlElement('span', { class: 'replay-evidence-value' }, available ? 'Yes' : 'No'));
+    return row;
+  }
+
+  _patchConflictsSection(el, data) {
+    const count = data.conflict_count || 0;
+    const types = data.conflict_types || {};
+    if (count > 0 || Object.keys(types).length > 0) {
+      setHtmlAttr(el, 'style', { display: 'block' });
+      el.innerHTML = '';
+      el.appendChild(createHtmlElement('div', { class: 'replay-conflicts-title' }, `Conflicts (${count})`));
+      for (const [type, c] of Object.entries(types)) {
+        const item = createHtmlElement('div', { class: 'replay-conflict-item' });
+        item.appendChild(createHtmlElement('span', { class: 'replay-conflict-label' }, type.replace(/_/g, ' ')));
+        item.appendChild(createHtmlElement('span', { class: 'replay-separator' }, ':'));
+        item.appendChild(createHtmlElement('span', { class: 'replay-conflict-value' }, String(c)));
+        el.appendChild(item);
+      }
+    } else {
+      setHtmlAttr(el, 'style', { display: 'none' });
+    }
+  }
+
+  _patchFindingsSection(el, data) {
+    const count = data.finding_count || 0;
+    const severityMap = data.findings_by_severity || {};
+    if (count > 0 || Object.keys(severityMap).length > 0) {
+      setHtmlAttr(el, 'style', { display: 'block' });
+      el.innerHTML = '';
+      el.appendChild(createHtmlElement('div', { class: 'replay-findings-title' }, `Findings (${count})`));
+      ['critical', 'error', 'warning', 'info'].forEach(sev => {
+        const c = severityMap[sev] || 0;
+        if (c > 0 || data.type === 'ReplaySummary') {
+          const item = createHtmlElement('div', { class: 'replay-finding-item replay-finding-severity-' + sev });
+          item.appendChild(createHtmlElement('span', { class: 'replay-finding-label' }, sev));
+          item.appendChild(createHtmlElement('span', { class: 'replay-separator' }, ':'));
+          item.appendChild(createHtmlElement('span', { class: 'replay-finding-value' }, String(c)));
+          el.appendChild(item);
         }
-      }
-    }
-    
-    container.appendChild(findingsSection);
-  }
-
-  // Boolean flags (from summary projection)
-  const flagsSection = createElement('div', 'card-section replay-flags-section');
-  const flags = [
-    { key: 'has_impossible_transitions', label: 'Impossible Transitions' },
-    { key: 'has_missing_receipts', label: 'Missing Receipts' },
-    { key: 'has_missing_audit_events', label: 'Missing Audit Events' },
-    { key: 'has_stale_references', label: 'Stale References' },
-    { key: 'has_orphaned_events', label: 'Orphaned Events' },
-    { key: 'has_contradictions', label: 'Contradictions' },
-  ];
-  
-  let hasAnyFlag = false;
-  for (const flag of flags) {
-    const flagValue = getValue(data, flag.key, false);
-    if (flagValue) {
-      hasAnyFlag = true;
-      const flagElement = createElement('div', 'replay-flag-item replay-flag-active', flag.label);
-      flagsSection.appendChild(flagElement);
+      });
+    } else {
+      setHtmlAttr(el, 'style', { display: 'none' });
     }
   }
-  
-  // Show inactive flags in summary view for completeness
-  const showAllFlags = getValue(data, 'type', '') === 'ReplaySummary';
-  if (showAllFlags && !hasAnyFlag) {
-    for (const flag of flags) {
-      const flagValue = getValue(data, flag.key, false);
-      const flagElement = createElement('div', 'replay-flag-item replay-flag-inactive', flag.label);
-      flagsSection.appendChild(flagElement);
+
+  _patchFlagsSection(el, data) {
+    const flags = [
+      { key: 'has_impossible_transitions', label: 'Impossible Transitions' },
+      { key: 'has_missing_receipts', label: 'Missing Receipts' },
+      { key: 'has_missing_audit_events', label: 'Missing Audit Events' },
+      { key: 'has_stale_references', label: 'Stale References' },
+      { key: 'has_orphaned_events', label: 'Orphaned Events' },
+      { key: 'has_contradictions', label: 'Contradictions' },
+    ];
+    const active = flags.filter(f => data[f.key]);
+    if (active.length > 0 || data.type === 'ReplaySummary') {
+      setHtmlAttr(el, 'style', { display: 'block' });
+      el.innerHTML = '';
+      el.appendChild(createHtmlElement('div', { class: 'replay-flags-title' }, 'Integrity Flags'));
+      flags.forEach(f => {
+        if (data[f.key] || data.type === 'ReplaySummary') {
+          el.appendChild(createHtmlElement('div', { 
+            class: 'replay-flag-item ' + (data[f.key] ? 'replay-flag-active' : 'replay-flag-inactive') 
+          }, f.label));
+        }
+      });
+    } else {
+      setHtmlAttr(el, 'style', { display: 'none' });
     }
-    hasAnyFlag = true;
-  }
-  
-  if (hasAnyFlag) {
-    const flagsTitle = createElement('div', 'replay-flags-title', 'Integrity Flags');
-    flagsSection.insertBefore(flagsTitle, flagsSection.firstChild);
-    container.appendChild(flagsSection);
   }
 
-  // Timeline completeness indicator
-  if (totalFrames > 0) {
-    const timelineComplete = frameIndex >= totalFrames - 1;
-    const completenessSection = createElement('div', 'card-section replay-completeness-section');
-    const completenessLabel = createElement('span', 'replay-completeness-label', 'Timeline:');
-    const completenessValue = createElement('span', 'replay-completeness-value',
-      timelineComplete ? 'Complete' : 'Partial');
-    completenessSection.appendChild(completenessLabel);
-    completenessSection.appendChild(completenessValue);
-    container.appendChild(completenessSection);
+  _formatTs(ts) {
+    if (!ts) return '';
+    return String(ts).replace('T', ' ').replace('Z', '').split('.')[0];
   }
 
-  // Authoritative vs Advisory note
-  const authNote = createElement('div', 'replay-advisory-note');
-  authNote.textContent = 'Replay findings are advisory. Rig remains the final authority.';
-  container.appendChild(authNote);
-
-  // Clear existing content and append
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
+  getStateHash() {
+    return JSON.stringify(this.data);
   }
-  element.appendChild(container);
+}
+
+export function renderReplayTimelineCard(id, data, actions) {
+  return new ReplayTimelineCardNode(id, data, actions?.sequence);
 }
 
 // Register widget
@@ -415,9 +321,4 @@ if (typeof window !== 'undefined' && window.rigWidgets) {
   window.rigWidgets.ReplayTimelineCard = {
     render: renderReplayTimelineCard
   };
-}
-
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { renderReplayTimelineCard };
 }
