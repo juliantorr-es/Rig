@@ -320,12 +320,47 @@ def main(argv: list[str] | None = None) -> int:
     for ev in events:
         if ev.get("type") == "handoff":
             key = f"{ev.get('worker')}:{ev.get('mission_id') or '_task_'}"
-            last_handoff[key] = ev
+            last_handooff[key] = ev
 
     for key, hv in last_handoff.items():
         for field in REQUIRED_HANDOFF_FIELDS:
             if field not in hv:
                 warnings.append(f"Handoff by {key} missing field: '{field}'")
+        
+        # --- Forge Gate Evidence Check ---
+        # If handoff status is ready_for_review, verify forge gates were checked.
+        status = hv.get("status", "")
+        if status == "ready_for_review":
+            forge_gates_checked = hv.get("forge_gates_checked", False)
+            forge_evidence = hv.get("forge_evidence", {})
+            forge_skip_explicit = hv.get("forge_gate_skip_explicit", False)
+            
+            if not forge_gates_checked and not forge_skip_explicit:
+                errors.append(
+                    f"Handoff by {key} has status 'ready_for_review' but forge gates were not checked. "
+                    f"Use work_handoff.py (which runs forge gates automatically) or include --skip-forge-gates with explicit documentation."
+                )
+            elif forge_gates_checked and not forge_evidence.get("forge_promotion_ready", False):
+                # Forge gates were checked but promotion is not ready
+                blockers = forge_evidence.get("forge_promotion_blockers", [])
+                blocker_codes = [b.get("code", "") for b in blockers]
+                if blocker_codes:
+                    errors.append(
+                        f"Handoff by {key} has status 'ready_for_review' but forge promotion gates FAILED. "
+                        f"Blockers: {', '.join(blocker_codes)}. "
+                        f"Forge gates must pass for ready_for_review status."
+                    )
+                else:
+                    errors.append(
+                        f"Handoff by {key} has status 'ready_for_review' but forge promotion is not ready. "
+                        f"Forge gates must pass for ready_for_review status."
+                    )
+            elif forge_skip_explicit:
+                # User explicitly skipped - this is allowed but noted
+                warnings.append(
+                    f"Handoff by {key} has status 'ready_for_review' with --skip-forge-gates. "
+                    f"Forge promotion gates were NOT checked. This bypasses important safety checks."
+                )
 
     # --- Active claim heartbeat staleness ---
     for ckey, claim in active_claims.items():

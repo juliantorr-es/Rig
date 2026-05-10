@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import re
 import subprocess
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +22,227 @@ from typing import Any
 ADR_WORK_ROOT = Path(".rig/work/adr")
 HEARTBEAT_WARN_SECONDS = 30 * 60    # 30 minutes
 HEARTBEAT_STALE_SECONDS = 4 * 3600  # 4 hours
+
+# Reserved worktree names that must not be used for ADR implementation
+RESERVED_WORKTREE_NAMES = {"preproduction", "main"}
+
+# Canonical worktree base directory
+WORKTREES_ROOT = Path(".rig/worktrees")
+
+
+# ---------------------------------------------------------------------------
+# Worktree naming helpers
+# ---------------------------------------------------------------------------
+
+def canonical_slug(text: str) -> str:
+    """Derive canonical slug from text for use in worktree and branch names.
+    
+    Rules:
+    - Lowercase
+    - Trim leading/trailing whitespace
+    - Replace non-alphanumeric runs with single hyphen
+    - Remove leading/trailing hyphens
+    - Preserve adrNNNN prefix format (e.g., adr0009)
+    - Deterministic: same input always produces same output
+    
+    Examples:
+    - "Agentic Workflow Refinement" -> "agentic-workflow-refinement"
+    - "ADR 0009: Agentic Workflow Refinement" -> "adr-0009-agentic-workflow-refinement"
+    - "adr0009-agentic-workflow-refinement" -> "adr0009-agentic-workflow-refinement"
+    - "Workspace Domain Authority" -> "workspace-domain-authority"
+    - "Receipt/Evidence Unification" -> "receipt-evidence-unification"
+    """
+    if not text:
+        return ""
+    # Step 1: Lowercase
+    text = text.lower()
+    # Step 2: Trim
+    text = text.strip()
+    # Step 3: Replace non-alphanumeric runs with hyphen
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    # Step 4: Remove leading/trailing hyphens
+    text = text.strip('-')
+    return text
+
+
+def extract_adr_id_from_path(adr_path: str | Path) -> str:
+    """Extract ADR ID from an ADR file path.
+    
+    Examples:
+    - "docs/adr/0009-agentic-workflow-refinement.md" -> "adr0009"
+    - "docs/adr/0007-workspace-domain-authority.md" -> "adr0007"
+    - "adr/0008-something.md" -> "adr0008"
+    - "0009-foo.md" -> "adr0009"
+    """
+    adr_path = str(adr_path)
+    # Extract filename and remove extension
+    filename = Path(adr_path).name
+    if filename.endswith('.md'):
+        filename = filename[:-3]
+    # Extract leading number
+    match = re.match(r'^(\d{4})', filename)
+    if match:
+        return f"adr{match.group(1)}"
+    return ""
+
+
+def extract_adr_title_from_path(adr_path: str | Path) -> str:
+    """Extract ADR title from an ADR file path.
+    
+    Examples:
+    - "docs/adr/0009-agentic-workflow-refinement.md" -> "agentic-workflow-refinement"
+    - "docs/adr/0007-workspace-domain-authority.md" -> "workspace-domain-authority"
+    """
+    adr_path = str(adr_path)
+    filename = Path(adr_path).name
+    if filename.endswith('.md'):
+        filename = filename[:-3]
+    # Remove leading ADR number and separator
+    # Pattern: NNNN-title-slug or adrNNNN-title-slug
+    match = re.match(r'^(?:adr)?(\d{4})[-_](.*)', filename)
+    if match:
+        return match.group(2)
+    # If no ADR number, just strip any leading number
+    match = re.match(r'^(\d{4})[-_](.*)', filename)
+    if match:
+        return match.group(2)
+    return filename
+
+
+def derive_adr_directory_slug(adr_path: str | Path | None = None, 
+                              adr_id: str | None = None,
+                              adr_title: str | None = None) -> str:
+    """Derive ADR directory slug from ADR path, ID, or title.
+    
+    Priority: adr_path > (adr_id + adr_title) > raise error
+    
+    The slug format is: <adr_id>-<title_slug>
+    
+    Examples:
+    - adr_path="docs/adr/0009-agentic-workflow-refinement.md" -> "adr0009-agentic-workflow-refinement"
+    - adr_id="adr0009", adr_title="Agentic Workflow Refinement" -> "adr0009-agentic-workflow-refinement"
+    - adr_id="adr0009", adr_title=" ADR 0009: Agentic Workflow Refinement " -> "adr0009-agentic-workflow-refinement"
+    """
+    if adr_path:
+        path_adr_id = extract_adr_id_from_path(adr_path)
+        path_title = extract_adr_title_from_path(adr_path)
+        if path_adr_id and path_title:
+            return f"{path_adr_id}-{path_title}"
+        elif path_adr_id:
+            return path_adr_id
+    
+    if adr_id and adr_title:
+        title_slug = canonical_slug(adr_title)
+        return f"{adr_id}-{title_slug}"
+    
+    if adr_path:
+        # Fallback: use filename as-is
+        filename = Path(str(adr_path)).name
+        if filename.endswith('.md'):
+            filename = filename[:-3]
+        return filename
+    
+    raise ValueError("Cannot derive ADR directory slug: need adr_path or both adr_id and adr_title")
+
+
+# Derived name getters for worktrees and branches
+
+def get_adr_worktree_path(adr_path: str | Path | None = None,
+                          adr_id: str | None = None,
+                          adr_title: str | None = None) -> Path:
+    """Get the canonical ADR implementation worktree path.
+    
+    Returns: .rig/worktrees/<adr-id>-<adr-title-slug>/
+    
+    Examples:
+    - adr_id="adr0009", adr_title="Agentic Workflow Refinement" 
+      -> Path(".rig/worktrees/adr0009-agentic-workflow-refinement")
+    """
+    slug = derive_adr_directory_slug(adr_path=adr_path, adr_id=adr_id, adr_title=adr_title)
+    return WORKTREES_ROOT / slug
+
+
+def get_mission_worktree_path(adr_path: str | Path | None = None,
+                               adr_id: str | None = None,
+                               adr_title: str | None = None,
+                               mission_slug: str | None = None) -> Path:
+    """Get the canonical mission-specific worktree path.
+    
+    Returns: .rig/worktrees/<adr-id>-<adr-title-slug>--<mission-slug>/
+    
+    Examples:
+    - adr_id="adr0009", adr_title="Agentic Workflow Refinement", mission_slug="worktree-naming"
+      -> Path(".rig/worktrees/adr0009-agentic-workflow-refinement--worktree-naming")
+    """
+    if not mission_slug:
+        raise ValueError("mission_slug is required for mission worktree path")
+    base_slug = derive_adr_directory_slug(adr_path=adr_path, adr_id=adr_id, adr_title=adr_title)
+    mission_slug_clean = canonical_slug(mission_slug)
+    return WORKTREES_ROOT / f"{base_slug}--{mission_slug_clean}"
+
+
+def get_sprint_branch_name(adr_path: str | Path | None = None,
+                           adr_id: str | None = None,
+                           adr_title: str | None = None) -> str:
+    """Get the canonical sprint branch name.
+    
+    Returns: sprint/<adr-id>-<adr-title-slug>
+    
+    Examples:
+    - adr_id="adr0009", adr_title="Agentic Workflow Refinement"
+      -> "sprint/adr0009-agentic-workflow-refinement"
+    """
+    slug = derive_adr_directory_slug(adr_path=adr_path, adr_id=adr_id, adr_title=adr_title)
+    return f"sprint/{slug}"
+
+
+def get_mission_branch_name(adr_id: str, mission_slug: str) -> str:
+    """Get the canonical mission (agent) branch name.
+    
+    Returns: agent/<adr-id>-<mission-slug>
+    
+    Examples:
+    - adr_id="adr0009", mission_slug="worktree-naming"
+      -> "agent/adr0009-worktree-naming"
+    """
+    adr_id_clean = canonical_slug(adr_id) if not adr_id.startswith('adr') else adr_id.lower()
+    mission_slug_clean = canonical_slug(mission_slug)
+    return f"agent/{adr_id_clean}-{mission_slug_clean}"
+
+
+def get_promotion_branch_name(adr_path: str | Path | None = None,
+                              adr_id: str | None = None,
+                              adr_title: str | None = None) -> str:
+    """Get the canonical promotion branch name.
+    
+    Returns: promotion/<adr-id>-<adr-title-slug>
+    
+    Examples:
+    - adr_id="adr0009", adr_title="Agentic Workflow Refinement"
+      -> "promotion/adr0009-agentic-workflow-refinement"
+    """
+    slug = derive_adr_directory_slug(adr_path=adr_path, adr_id=adr_id, adr_title=adr_title)
+    return f"promotion/{slug}"
+
+
+def is_reserved_worktree_name(name: str) -> bool:
+    """Check if a worktree name is reserved."""
+    return canonical_slug(name) in RESERVED_WORKTREE_NAMES
+
+
+def validate_worktree_name(name: str) -> tuple[bool, str]:
+    """Validate a worktree name against canonical naming policy.
+    
+    Returns: (is_valid, reason_or_empty)
+    """
+    slug = canonical_slug(name)
+    if not slug:
+        return False, "Name produces empty slug"
+    if is_reserved_worktree_name(name):
+        return False, f"'{name}' is a reserved worktree name"
+    if '..' in name or name.startswith('.') or name.startswith('/'):
+        return False, f"'{name}' contains invalid path characters"
+    return True, ""
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +475,11 @@ def compute_projection(task_id: str) -> dict[str, Any]:
     promotion_events: list[dict] = []
     last_promotion_attempt: dict | None = None
     last_promotion_success: bool = False
-
+    
+    # Track handoff forge evidence for current mission/sprint
+    latest_handoff_forge_evidence: dict | None = None
+    handoff_forge_gates_checked: bool = False
+    
     for ev in events:
         etype = ev.get("type", "")
         worker = ev.get("worker", "")
@@ -303,6 +530,11 @@ def compute_projection(task_id: str) -> dict[str, Any]:
             }
         elif etype in ("claim_released", "handoff"):
             active_claims_map.pop(claim_key, None)
+            # Track forge evidence from handoff events
+            if etype == "handoff":
+                if ev.get("forge_evidence"):
+                    latest_handoff_forge_evidence = ev.get("forge_evidence")
+                handoff_forge_gates_checked = ev.get("forge_gates_checked", handoff_forge_gates_checked)
         elif etype == "heartbeat":
             last_heartbeat_by_worker[worker] = ev.get("ts", "")
         elif etype == "out_of_scope_finding":
@@ -601,8 +833,154 @@ def compute_projection(task_id: str) -> dict[str, Any]:
             "promotion_gate_failures": last_promotion_attempt.get("blocking_gates_failures", 0) if last_promotion_attempt else 0,
             "preproduction_exists": branch_exists_locally("preproduction"),
         },
+        "forge_readiness": {
+            "forge_gates_checked": handoff_forge_gates_checked,
+            "forge_promotion_ready": latest_handoff_forge_evidence.get("forge_promotion_ready", False) if latest_handoff_forge_evidence else False,
+            "reviewability_changed_file_count": latest_handoff_forge_evidence.get("reviewability_changed_file_count", 0) if latest_handoff_forge_evidence else 0,
+            "reviewability_max_changed_files": latest_handoff_forge_evidence.get("reviewability_max_changed_files", 300) if latest_handoff_forge_evidence else 300,
+            "reviewability_over_budget": latest_handoff_forge_evidence.get("reviewability_over_budget", False) if latest_handoff_forge_evidence else False,
+            "reviewability_default_action": latest_handoff_forge_evidence.get("reviewability_default_action", "block_promotion") if latest_handoff_forge_evidence else "block_promotion",
+            "forge_target_ref": latest_handoff_forge_evidence.get("forge_target_ref", "preproduction") if latest_handoff_forge_evidence else "preproduction",
+            "forge_mode": latest_handoff_forge_evidence.get("forge_mode", "unknown") if latest_handoff_forge_evidence else "unknown",
+            "promotion_mode": latest_handoff_forge_evidence.get("promotion_mode", "unknown") if latest_handoff_forge_evidence else "unknown",
+        },
         "_out_of_scope_findings": out_of_scope_findings,  # internal, used for notes generation
     }
+
+
+# ---------------------------------------------------------------------------
+# Forge Gate Helpers
+# ---------------------------------------------------------------------------
+
+def run_forge_doctor_json(repo_path: str | Path | None = None) -> dict[str, Any]:
+    """Run `rig forge doctor --json` and return parsed output.
+    
+    Args:
+        repo_path: Repository path for -C flag. If None, runs in current directory.
+        
+    Returns:
+        Parsed JSON output as dict. On error, returns dict with 'error' key.
+    """
+    import subprocess
+    import json
+    from pathlib import Path
+    
+    cmd = [sys.executable, "-m", "rig", "forge", "doctor", "--json"]
+    if repo_path:
+        cmd = ["git", "-C", str(repo_path), "-c", 
+               f"core.sshCommand=ssh -i {(Path(repo_path) / '.ssh' / 'id_ed25519').resolve() if (Path(repo_path) / '.ssh' / 'id_ed25519').exists() else ''}",
+               sys.executable, "-m", "rig", "forge", "doctor", "--json"]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            return {"error": result.stderr.strip() or "Unknown error", "exit_code": result.returncode}
+        return json.loads(result.stdout)
+    except (json.JSONDecodeError, subprocess.TimeoutExpired) as e:
+        return {"error": str(e)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def run_forge_promote_dry_run_json(
+    repo_path: str | Path | None = None,
+    target_ref: str = "preproduction",
+    head_ref: str = "HEAD",
+    max_changed_files: int | None = None,
+) -> dict[str, Any]:
+    """Run `rig forge promote --dry-run --json` and return parsed output.
+    
+    Args:
+        repo_path: Repository path for -C flag. If None, runs in current directory.
+        target_ref: Target reference for promotion (default: "preproduction")
+        head_ref: Head reference for promotion (default: "HEAD")
+        max_changed_files: Override max changed files budget
+        
+    Returns:
+        Parsed JSON output as dict. On error, returns dict with 'error' key.
+    """
+    import subprocess
+    import json
+    from pathlib import Path
+    
+    cmd = [sys.executable, "-m", "rig", "forge", "promote", "--dry-run", "--json"]
+    if target_ref != "preproduction":
+        cmd.extend(["--target-ref", target_ref])
+    if head_ref != "HEAD":
+        cmd.extend(["--head-ref", head_ref])
+    if max_changed_files is not None:
+        cmd.extend(["--max-changed-files", str(max_changed_files)])
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            return {"error": result.stderr.strip() or "Unknown error", "exit_code": result.returncode}
+        return json.loads(result.stdout)
+    except (json.JSONDecodeError, subprocess.TimeoutExpired) as e:
+        return {"error": str(e)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def check_forge_readiness(
+    repo_path: str | Path | None = None,
+    target_ref: str = "preproduction",
+    head_ref: str = "HEAD",
+) -> tuple[bool, dict[str, Any]]:
+    """Check forge readiness by running doctor and promote --dry-run.
+    
+    Args:
+        repo_path: Repository path
+        target_ref: Target reference for promotion
+        head_ref: Head reference for promotion
+        
+    Returns:
+        Tuple of (is_ready, evidence_dict).
+        evidence_dict contains all forge gate evidence for recording in events.
+    """
+    doctor_result = run_forge_doctor_json(repo_path)
+    promote_result = run_forge_promote_dry_run_json(repo_path, target_ref, head_ref)
+    
+    # Determine readiness
+    has_doctor_error = "error" in doctor_result
+    has_promote_error = "error" in promote_result
+    # doctor is clean if: no error AND (overall_status is "clean" OR missing/unknown)
+    doctor_clean = not has_doctor_error and doctor_result.get("overall_status", "clean") == "clean"
+    promote_ready = promote_result.get("ready") is True
+    
+    is_ready = (
+        not has_doctor_error and 
+        not has_promote_error and 
+        doctor_clean and 
+        promote_ready
+    )
+    
+    # Build evidence dict
+    evidence: dict[str, Any] = {
+        "forge_doctor_status": doctor_result.get("overall_status", "unknown") if not has_doctor_error else "error",
+        "forge_doctor_error": doctor_result.get("error") if has_doctor_error else None,
+        "forge_promotion_ready": promote_ready,
+        "forge_promotion_blockers": promote_result.get("blockers", []),
+        "reviewability_changed_file_count": promote_result.get("reviewability", {}).get("changed_file_count", 0),
+        "reviewability_max_changed_files": promote_result.get("reviewability", {}).get("max_changed_files", 300),
+        "reviewability_over_budget": promote_result.get("reviewability", {}).get("over_budget", False),
+        "reviewability_default_action": promote_result.get("reviewability", {}).get("default_action", "block_promotion"),
+        "forge_target_ref": target_ref,
+        "forge_head_ref": head_ref,
+        "forge_mode": promote_result.get("forge_mode", "unknown"),
+        "promotion_mode": promote_result.get("mode", "unknown"),
+    }
+    
+    # Add identity info if available
+    identity = promote_result.get("identity", {})
+    if identity:
+        evidence["forge_identity"] = {
+            "mode": identity.get("mode"),
+            "remote_url": identity.get("remote_url"),
+            "host": identity.get("host"),
+        }
+    
+    return is_ready, evidence
 
 
 # ---------------------------------------------------------------------------

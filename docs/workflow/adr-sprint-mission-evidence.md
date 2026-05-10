@@ -318,6 +318,40 @@ python3 scripts/work_doctor.py <task_id>
 12. **Do not use git reset/restore/stash/checkout/clean for rollback** — Report and await direction
 13. **Do not merge directly** — Agents must NOT run `git merge`. Use `scripts/work_promote.py` for preproduction promotion only
 14. **Do not promote to main/production** — Only preproduction target is supported via `work_promote.py`. main/production remain human-governed
+15. **Do not mark ready_for_review without forge gate success** — Agents must run `rig forge doctor` and `rig forge promote --dry-run` before marking handoff as `ready_for_review`. Reviewability budget is enforced by Rig, not human memory
+
+---
+
+### ADR 0010: Forge Promotion Gates
+
+**Agents must run forge readiness checks before handoff.**
+
+The `rig forge` command provides forge-neutral readiness validation:
+- `rig forge doctor --json` — Validates forge configuration and reports reviewability
+- `rig forge promote --dry-run --json` — Plans promotion and reports blockers
+
+**Requirements:**
+- Agents **must** run forge gates before marking a mission as `ready_for_review`
+- Agents **must** record forge evidence in handoff events via `scripts/work_handoff.py`
+- `work_handoff.py` automatically runs `rig forge doctor` and `rig forge promote --dry-run` for `ready_for_review` status
+- If forge gates fail, `work_handoff.py` **blocks** the handoff and reports blockers
+- Reviewability budget (default: 300 files) is enforced — over-budget missions must split or provide explicit override evidence
+- No direct push/merge to protected integration branches (`preproduction`, `main`)
+
+**Forge Gate Evidence Fields in Handoff Events:**
+- `forge_gates_checked` — Whether forge gates were run
+- `forge_evidence` — Full evidence dict with: doctor status, promotion ready, blockers, reviewability info
+- `forge_gate_skip_explicit` — Whether `--skip-forge-gates` was used (NOT RECOMMENDED)
+
+**Bypass Policy:**
+- Use `--skip-forge-gates` **only for testing** — explicit bypass is recorded and reported
+- `work_doctor.py` flags bypassed handoffs as warnings
+- No silent bypasses allowed
+
+**Validation:**
+- `work_doctor.py` validates that `ready_for_review` handoffs have forge gate evidence
+- `work_status.py` displays forge readiness from projection
+- Forge gate failures block commit readiness
 
 ---
 
@@ -328,6 +362,125 @@ python3 scripts/work_doctor.py <task_id>
 - Use `git worktree add .rig/worktrees/<name> <branch>` for new tracked work
 - If sibling worktrees already exist, normalize them with `scripts/worktree_normalize.py`
 - **Never** raw-move worktrees with `mv`. Use `git worktree move` or the normalization script
+
+### Worktree Naming Policy
+
+**Canonical worktree names are based on ADR titles, not arbitrary branch names.**
+This ensures consistent, human-readable operating spaces that map directly to architectural decisions.
+
+#### Distinction: Worktree Names vs Branch Names vs ADR Ledger Paths
+
+| Concept | Purpose | Location | Example |
+|---------|---------|----------|---------|
+| **Worktree directory name** | Human-readable operating space | Filesystem under `.rig/worktrees/` | `.rig/worktrees/adr0009-agentic-workflow-refinement/` |
+| **Branch name** | Git ref | Git namespace | `sprint/adr0009-agentic-workflow-refinement` |
+| **ADR ledger path** | Machine-readable evidence store | `.rig/work/adr/` | `.rig/work/adr/adr0009-agentic-workflow-refinement/` |
+
+**Critical rule**: Worktree directory names and branch names are **independent**.
+A worktree can be on any branch. A branch can be checked out in any worktree.
+The naming conventions are separate but complementary.
+
+#### Canonical Worktree Naming Conventions
+
+##### ADR Implementation Worktree
+
+```
+.rig/worktrees/<adr-id>-<adr-title-slug>/
+```
+
+Derived from the ADR's canonical ID and title. Use the `canonical_slug()` function from `scripts/_work_lib.py` to derive the slug.
+
+**Examples:**
+- `.rig/worktrees/adr0007-workspace-domain-authority/`
+- `.rig/worktrees/adr0008-receipt-evidence-unification/`
+- `.rig/worktrees/adr0009-agentic-workflow-refinement/`
+
+##### Mission-Specific Worktree (Optional)
+
+For missions that need isolated worktrees within an ADR implementation:
+
+```
+.rig/worktrees/<adr-id>-<adr-title-slug>--<mission-slug>/
+```
+
+**Examples:**
+- `.rig/worktrees/adr0009-agentic-workflow-refinement--worktree-naming/`
+- `.rig/worktrees/adr0009-agentic-workflow-refinement--slug-functions/`
+
+##### Reserved Integration Worktrees
+
+These names are **reserved** and must not be used for ADR implementation worktrees:
+
+```
+.rig/worktrees/preproduction/
+.rig/worktrees/main/
+```
+
+These worktrees are for integration purposes only.
+
+##### Legacy Worktree Names
+
+The following worktree names are **legacy/ambiguous** and should be migrated:
+- `Rig-consolidation` — should be `preproduction` (reserved)
+- `Rig-main-merge` — should map to appropriate ADR
+- `ui-cockpit` — should map to appropriate ADR
+
+Use `scripts/worktree_normalize.py` to detect and propose canonical names.
+
+#### Canonical Slug Derivation
+
+The `canonical_slug()` function enforces these rules:
+1. Lowercase all characters
+2. Trim leading/trailing whitespace
+3. Replace non-alphanumeric runs with single hyphen
+4. Remove leading/trailing hyphens
+5. Deterministic: same input always produces same output
+
+**Examples:**
+| Input | Output |
+|-------|--------|
+| `Agentic Workflow Refinement` | `agentic-workflow-refinement` |
+| `ADR 0009: Agentic Workflow Refinement` | `adr-0009-agentic-workflow-refinement` |
+| `Receipt/Evidence Unification` | `receipt-evidence-unification` |
+| `Workspace Domain Authority` | `workspace-domain-authority` |
+| `ui_cockpit` | `ui-cockpit` |
+
+#### Branch Naming Conventions
+
+Branches remain Git refs, separate from worktree paths:
+
+| Branch Type | Pattern | Example |
+|-------------|---------|---------|
+| Sprint branch | `sprint/<adr-id>-<adr-title-slug>` | `sprint/adr0009-agentic-workflow-refinement` |
+| Agent/mission branch | `agent/<adr-id>-<mission-slug>` | `agent/adr0009-worktree-naming` |
+| Promotion branch | `promotion/<adr-id>-<adr-title-slug>` | `promotion/adr0009-agentic-workflow-refinement` |
+
+#### Helper Functions
+
+The following functions are available in `scripts/_work_lib.py`:
+
+- `canonical_slug(text: str) -> str` — Convert text to canonical slug
+- `derive_adr_directory_slug(adr_path | adr_id + adr_title) -> str` — Derive ADR directory slug
+- `get_adr_worktree_path(...)` — Get ADR implementation worktree path
+- `get_mission_worktree_path(...)` — Get mission-specific worktree path
+- `get_sprint_branch_name(...)` — Get sprint branch name
+- `get_mission_branch_name(adr_id, mission_slug)` — Get mission branch name
+- `get_promotion_branch_name(...)` — Get promotion branch name
+- `is_reserved_worktree_name(name)` — Check if name is reserved
+- `validate_worktree_name(name)` — Validate against naming policy
+
+#### Implementation Guidance
+
+**DO:**
+- Always pass the branch explicitly to `git worktree add <path> <branch>`. Do **not** rely on implicit branch creation from the final path component.
+- Use canonical naming for new worktrees.
+- Use the helper functions for derivation to ensure consistency.
+
+**DO NOT:**
+- Create worktrees with arbitrary names like `test`, `temp`, `my-work`.
+- Use reserved names (`preproduction`, `main`) for ADR implementation worktrees.
+- Rely on implicit branch creation from worktree path names.
+- Use sibling worktrees (outside `.rig/worktrees/`).
 
 ### ADR-Local State Rules
 

@@ -131,6 +131,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {m['id']:<45} {m['status']:<18}{claim_info}{hb_info}{pb_info}")
     print()
 
+    # Forge Readiness (from latest handoff with forge evidence)
+    forge_readiness = projection.get("forge_readiness", {})
+    if forge_readiness.get("forge_gates_checked") or forge_readiness.get("forge_promotion_ready") is not None:
+        print("Forge Readiness:")
+        gates_checked = forge_readiness.get("forge_gates_checked", False)
+        print(f"  Gates checked:     {'Yes' if gates_checked else 'No'}")
+        if gates_checked or forge_readiness.get("forge_promotion_ready") is not None:
+            print(f"  Promotion ready:   {'Yes' if forge_readiness.get('forge_promotion_ready') else 'No'}")
+            print(f"  Mode:              {forge_readiness.get('forge_mode', 'unknown')}")
+            print(f"  Promotion mode:    {forge_readiness.get('promotion_mode', 'unknown')}")
+            files_count = forge_readiness.get("reviewability_changed_file_count", 0)
+            max_files = forge_readiness.get("reviewability_max_changed_files", 300)
+            print(f"  Files changed:     {files_count} / {max_files}")
+            over_budget = forge_readiness.get("reviewability_over_budget", False)
+            print(f"  Over budget:       {'Yes' if over_budget else 'No'}")
+        print()
+
     if projection["active_claims"]:
         print("Active claims:")
         for c in projection["active_claims"]:
