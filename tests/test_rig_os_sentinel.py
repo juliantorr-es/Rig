@@ -8,6 +8,12 @@ import tempfile
 import hashlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+# Ensure repo root is on sys.path so `import rig_os_sentinel` resolves
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 import rig_os_sentinel as sentinel
 
 def test_sentinel_hash_detection() -> None:
