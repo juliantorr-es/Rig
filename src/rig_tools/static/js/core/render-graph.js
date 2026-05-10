@@ -72,6 +72,69 @@ export class LegacyWidgetNode extends RenderNode {
   }
 }
 
+/**
+ * ExplainerNode
+ * A specialized RenderNode for educational callouts and annotations.
+ * Anchors to an existing RenderNode ID in the scene graph.
+ */
+export class ExplainerNode extends RenderNode {
+  constructor(id, anchorId, content, position = 'top') {
+    super(id);
+    this.anchorId = anchorId;
+    this.content = content;
+    this.position = position;
+  }
+
+  render(parent) {
+    const el = createHtmlElement('div', { 
+      id: this.id, 
+      class: 'rig-explainer animate-entry' 
+    });
+    
+    const bubble = createHtmlElement('div', { class: 'rig-explainer-bubble' });
+    bubble.textContent = this.content;
+    el.appendChild(bubble);
+
+    const arrow = createHtmlElement('div', { class: 'rig-explainer-arrow' });
+    el.appendChild(arrow);
+
+    parent.appendChild(el);
+    this.updatePosition(el);
+    return el;
+  }
+
+  patch(element) {
+    const bubble = element.querySelector('.rig-explainer-bubble');
+    if (bubble && bubble.textContent !== this.content) {
+      bubble.textContent = this.content;
+    }
+    this.updatePosition(element);
+  }
+
+  updatePosition(element) {
+    const anchor = document.getElementById(this.anchorId);
+    if (!anchor) {
+      element.style.display = 'none';
+      return;
+    }
+
+    element.style.display = 'block';
+    const anchorRect = anchor.getBoundingClientRect();
+    const parentRect = element.offsetParent ? element.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+
+    // Basic top-centered positioning
+    const left = (anchorRect.left - parentRect.left) + (anchorRect.width / 2);
+    const top = (anchorRect.top - parentRect.top);
+
+    element.style.left = `${left}px`;
+    element.style.top = `${top}px`;
+  }
+
+  getStateHash() {
+    return JSON.stringify({ anchorId: this.anchorId, content: this.content, position: this.position });
+  }
+}
+
 // Global registry of active managers for observability
 const activeManagers = new Set();
 

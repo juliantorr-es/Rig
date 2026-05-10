@@ -79,4 +79,24 @@ export function renderRoot({ projection, widgetRegistry, pendingIntents, renderC
 
   renderChat();
   if (renderProgress) renderProgress(getProgressEvents());
+
+  // Render active educational explainers
+  if (projection().explainers) {
+    const activeExplainerIds = new Set();
+    const overlayRegion = document.getElementById('app'); // Floating over app
+    
+    let manager = regionManagers.get('explainers-overlay');
+    if (!manager) {
+      manager = new SceneGraphManager(overlayRegion);
+      regionManagers.set('explainers-overlay', manager);
+    }
+
+    projection().explainers.forEach(explainer => {
+      const node = new ExplainerNode(explainer.id, explainer.anchorId, explainer.content, explainer.position);
+      manager.patchPrimitive(node);
+      activeExplainerIds.add(node.id);
+    });
+
+    manager.garbageCollect(activeExplainerIds);
+  }
 }

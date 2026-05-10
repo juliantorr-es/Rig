@@ -6,6 +6,52 @@ import { appendProgressEvent, clearProgress, getProgressOperations } from './pro
 import { buildWidgetRegistry } from '../widgets/registry.js';
 import { renderRoot } from './render-root.js';
 
+export const BootState = {
+  IDLE: 'IDLE',
+  CONNECTING: 'CONNECTING',
+  LOADING: 'LOADING',
+  READY: 'READY',
+  RECONNECTING: 'RECONNECTING',
+  ERROR: 'ERROR'
+};
+
+let currentState = BootState.IDLE;
+
+export function getBootState() {
+  return currentState;
+}
+
+function setBootState(newState) {
+  console.log(`[BOOT] Transition: ${currentState} -> ${newState}`);
+  currentState = newState;
+  
+  const statusEl = document.getElementById('boot-status');
+  if (statusEl) {
+    statusEl.textContent = `Status: ${newState.toLowerCase().replace('_', ' ')}...`;
+  }
+
+  // Handle Overlay visibility
+  let overlay = document.getElementById('rig-reconnect-overlay');
+  if (newState === BootState.RECONNECTING || newState === BootState.CONNECTING) {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'rig-reconnect-overlay';
+      overlay.className = 'rig-overlay';
+      overlay.innerHTML = `
+        <div class="rig-overlay-content">
+          <div class="rig-spinner"></div>
+          <div class="rig-overlay-text">Establishing runtime connection...</div>
+          <div class="rig-overlay-subtext">Rig is stabilizing the environment.</div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+  } else if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
 export function bootRigUI() {
   let socket = null;
   const socketRef = { current: null };
@@ -16,6 +62,8 @@ export function bootRigUI() {
   const sessionToken = new URLSearchParams(window.location.search).get('rig_session');
   const globalLogs = [];
   const lastSequenceNumbers = {};
+
+  setBootState(BootState.CONNECTING);
 
   function showError(message) {
     const errEl = document.createElement('div');
@@ -185,6 +233,10 @@ export function bootRigUI() {
   }
 
   function render() {
+    if (currentState !== BootState.READY && currentState !== BootState.LOADING) {
+        console.warn(`[BOOT] Skipping render in state: ${currentState}`);
+        return;
+    }
     renderRoot({ projection: getProjection, widgetRegistry, pendingIntents, renderChat, renderProgress });
   }
 
@@ -214,9 +266,11 @@ export function bootRigUI() {
   }
 
   function onMessage(msg) {
-    console.log('[DEBUG-boot] Received message:', msg.kind);
     if (msg.kind === 'projection') {
-      console.log('[DEBUG-boot] Processing projection revision:', msg.data?.revision);
+      if (currentState === BootState.CONNECTING || currentState === BootState.RECONNECTING) {
+        setBootState(BootState.LOADING);
+      }
+      
       setProjection(msg.data);
       pendingIntents.clear();
       
@@ -224,21 +278,21 @@ export function bootRigUI() {
       const fallback = document.getElementById('boot-fallback');
       const status = document.getElementById('boot-status');
       const app = document.getElementById('app');
-      console.log('[DEBUG-boot] Transitioning UI elements:', { fallback: !!fallback, status: !!status, app: !!app });
+      
       if (fallback) fallback.hidden = true;
       if (status) status.hidden = true;
-      if (app) {
-        app.hidden = false;
-        console.log('[DEBUG-boot] App element unhidden');
+      if (app) app.hidden = false;
+
+      if (currentState === BootState.LOADING) {
+        setBootState(BootState.READY);
       }
 
-      console.log('[DEBUG-boot] Calling initial render()');
       try {
         render();
-        console.log('[DEBUG-boot] Initial render() complete');
       } catch (e) {
-        console.error('[DEBUG-boot] Render failed:', e);
+        console.error('[BOOT] Render failed:', e);
         showError('Render failed: ' + e.message);
+        setBootState(BootState.ERROR);
       }
     } else if (msg.kind === 'intent_result') {
       dispatcher.handleIntentResult(msg.data);
@@ -265,6 +319,7 @@ export function bootRigUI() {
       render();
     },
     onClose: () => {
+      setBootState(BootState.RECONNECTING);
       console.log('WebSocket closed, reconnecting in 2s...');
       setTimeout(connect, 2000);
       },
@@ -275,6 +330,5 @@ export function bootRigUI() {
   window.sendRigIntent = dispatcher.sendIntent;
   window.sendManualRepoIntent = dispatcher.sendManualRepoIntent;
   connect();
-  render();
   return { connect, render, showError, clearProjection };
 }

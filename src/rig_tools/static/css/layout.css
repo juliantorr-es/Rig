@@ -35,4 +35,72 @@ footer#footer {
   display: flex;
   justify-content: space-between;
 }
+
+/* --- Spatial Geography (Cognitive Zones) --- */
+.zone-north { /* Orchestration / Intent */
+  grid-column: 1 / -1;
+}
+
+.zone-west { /* Streaming / Live Execution */
+  grid-column: 1;
+}
+
+.zone-center { /* Topology / Causality */
+  grid-column: 2;
+}
+
+.zone-east { /* Governance / Validation */
+  grid-column: 3;
+}
+
+.zone-south { /* Replay / History */
+  grid-column: 1 / -1;
+}
+}
+/* --- Rig Overlay (Reliability System) --- */
+.rig-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(13, 13, 13, 0.85);
+  backdrop-filter: var(--blur-md);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.rig-overlay-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.rig-overlay-text {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.rig-overlay-subtext {
+  font-size: var(--fs-sm);
+  color: var(--color-text-dim);
+}
+
+.rig-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-info);
+  border-radius: 50%;
+  animation: rig-spin 1s linear infinite;
+}
+
+@keyframes rig-spin {
+  to { transform: rotate(360deg); }
 }

@@ -115,8 +115,24 @@ Motion in Rig is not decorative; it is **causal**. Animations must explain syste
 - **Governance Shakes**: Visually resisting invalid or blocked proposals.
 - **Stable Transitions**: Maintaining persistent identity across state changes.
 
-### 6.3. Spatial Architecture
-The UI maintains a persistent visual geography ("Spatial Cognition") allowing users to learn where concepts live (e.g., "Execution West", "Governance East").
+### 5. Spatial Cognition & Geography
+The runtime environment is organized into five semantic zones to build user muscle memory and persistent spatial orientation:
+*   **North (Intent)**: Workspace status and intent dispatch.
+*   **West (Execution)**: Live streaming telemetry and execution logs.
+*   **Center (Causality)**: The primary topology and render graph.
+*   **East (Governance)**: Validation receipts, audit trails, and gate status.
+*   **South (History)**: Replay timelines and temporal navigation.
+
+### 6. Educational Narration Layer
+Visualization is subordinate to **Causality**. The `ExplainerNode` substrate allows the system to narrate its own behavior through contextual callouts:
+*   **Anchored Annotations**: Explanations are anchored to specific visual primitives (nodes, lanes, gates).
+*   **Semantic Timing**: Explainers trigger during state transitions (e.g., propagation pulses) to reinforce causal links.
+*   **Graduated Disclosure**: Narrative density scales with the active Cognitive Layer (1-4).
+
+## Consequences
+*   **Product Differentiation**: Rig is an educational runtime environment, not just an observability tool.
+*   **Muscle Memory**: Users develop geographic intuition for where "Truth" (East) vs "Execution" (West) lives.
+*   **Reduced Cognitive Load**: Contextual annotations eliminate the need for modal tutorials.
 
 ---
 

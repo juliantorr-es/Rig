@@ -126,4 +126,75 @@
   font-size: var(--fs-xs);
   border-left: 2px solid var(--color-danger);
 }
+
+/* --- Explainer Layer (Educational System) --- */
+.rig-explainer {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translate(-50%, -100%) translateY(-12px);
+  filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6));
+}
+
+.rig-explainer-bubble {
+  background: var(--color-surface-overlay);
+  color: var(--color-text);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--s-2);
+  border: 1px solid var(--color-info);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  max-width: 240px;
+  line-height: var(--lh-tight);
+  text-align: center;
+}
+
+.rig-explainer-arrow {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--color-info);
+}
+
+/* --- Log Stream Specialized Styles --- */
+.log-stream-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.log-entry {
+  display: flex;
+  gap: var(--s-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.log-badge {
+  flex-shrink: 0;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.log-badge.badge-intent { color: var(--color-info); }
+.log-badge.badge-execution { color: var(--color-success); }
+.log-badge.badge-governance { color: var(--color-warning); }
+
+.log-text {
+  color: var(--color-text);
+  word-break: break-all;
+}
 }
