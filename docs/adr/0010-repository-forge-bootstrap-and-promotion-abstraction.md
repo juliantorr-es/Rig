@@ -1587,3 +1587,175 @@ The API backend must fail closed (exit with error, no mutations) when:
 The `gh` CLI remains the recommended and default backend for most users.
 
 ---
+
+## Mission 11: Comprehensive GitHub Support Wiring
+
+**Mission 11 wires comprehensive GitHub support behind Rig's GitHub adapter boundary.**
+
+This mission implements the API backend that was stubbed in Mission 9, completing the GitHub adapter abstraction with two fully-functional backends:
+
+1. **CLI backend (existing, default):** Uses `gh` CLI (`gh pr create`, `gh pr list`, etc.)
+2. **API backend (new):** Uses PyGithub library (default) or direct REST API calls
+
+### Key Design Decisions
+
+**Git is the canonical substrate:** The CLI backend remains the default and recommended approach. Git operations (branch creation, pushing) are still performed using local `git` commands regardless of backend. The API backend only handles GitHub-specific operations (PR creation, check status) via GitHub's API.
+
+**User-vs-Agent Safety Boundary:** The API backend requires explicit user consent via `--allow-mutation` flag. This ensures agents cannot accidentally mutate remote state without explicit user approval. CLI backend continues to work as before since `gh` CLI has its own authentication and the user must already have configured it.
+
+**PyGithub as core dependency:** PyGithub is now a core dependency of Rig (added to pyproject.toml). This ensures the API backend works out of the box when needed. Direct REST is available as a fallback for specific endpoints not covered by PyGithub.
+
+**No token storage:** Rig never stores GitHub tokens. Tokens are only read from allowed sources at runtime and immediately used then discarded. The only implemented token source is environment variables (`RIG_GITHUB_TOKEN`).
+
+**Token redaction everywhere:** All functions that might produce output containing tokens use the `redact_token()` helper to ensure tokens are never visible in:
+- Error messages
+- Logging
+- Evidence files
+- Return values
+- Console output
+
+**Direct REST for specific endpoints:** Some GitHub API endpoints (like checks/commits/status) don't have first-class PyGithub support. Direct REST calls provide access to these endpoints using only stdlib (`urllib.request`).
+
+### Backend Selection
+
+The backend selection follows this hierarchy:
+
+```
+AUTO mode (default):
+  1. If gh CLI is available and authenticated → use CLI backend
+  2. Else if RIG_GITHUB_TOKEN is set → use API backend (PyGithub)
+  3. Else → fail closed with error
+
+CLI mode:
+  - Use gh CLI only
+  - Requires gh CLI installed and authenticated
+  
+API mode:
+  - Use GitHub API backend
+  - Requires RIG_GITHUB_TOKEN environment variable
+  - Requires --allow-mutation for --apply
+  - Supports --github-api-library pygithub or direct_rest
+```
+
+### New CLI Flags
+
+**`--github-backend {auto,cli,api}`** (Mission 9, updated in Mission 11):
+- `auto`: Select best available backend (default)
+- `cli`: Use GitHub CLI backend
+- `api`: Use GitHub API backend
+
+**`--github-api-library {pygithub,direct_rest}`** (Mission 11):
+- `pygithub`: Use PyGithub library (default when using API backend)
+- `direct_rest`: Use direct REST API calls
+
+**`--allow-mutation`** (Mission 11):
+- Required when using `--github-backend api` with `--apply`
+- User must explicitly consent to API backend mutation
+- Ensures agents cannot mutate without explicit user approval
+
+### New Domain Types
+
+**GitHubApiPullRequest:** Represents a GitHub PR from the API. Frozen dataclass with slots. Fields: number, url, state, draft, title, base_ref, head_ref.
+
+**GitHubApiCheckRun:** Represents a single GitHub check run. Frozen dataclass with slots. Fields: id, name, status, conclusion, html_url.
+
+**GitHubApiCheckSummary:** Represents combined check status for a ref. Frozen dataclass with slots. Fields: head_sha, state, total_count, success_count, failure_count, pending_count, check_runs.
+
+**GitHubApiOperationResult:** Represents the result of an API operation. Includes provider, backend, api_library, operation, success, pr, checks, findings, token_source, token_present. Note: NEVER includes token_value.
+
+### Updated Types
+
+**GitHubPromotionApplyResult** (updated with API backend fields):
+- `backend`: "cli" or "api"
+- `api_library`: "pygithub" or "direct_rest" (when backend="api")
+- `token_source`: Description of token source (NOT the token itself)
+- `token_present`: Whether a token was available
+
+### Credential Helper Functions
+
+**`read_github_api_token_from_env()`:** Reads `RIG_GITHUB_TOKEN` from environment. Returns `None` if not set.
+
+**`redact_token(value)`:** Replaces GitHub token patterns with `[REDACTED]`. Handles all GitHub token prefixes: ghp_, gho_, ghu_, ghs_, ghr_.
+
+**`assert_no_token_leak(value)`:** Test helper. Raises `AssertionError` if token pattern detected. Used to verify no token literals in test data.
+
+**`classify_github_token_source()`:** Returns "environment_variable" if `RIG_GITHUB_TOKEN` is set, else `None`.
+
+### API Backend Functions
+
+**PyGithub functions:**
+- `create_github_draft_pr_pygithub()`: Creates a draft PR using PyGithub. Returns (success, pr_info, findings).
+- `get_github_pr_status_pygithub()`: Gets PR status using PyGithub. Returns (success, pr_info, findings).
+
+**Direct REST functions:**
+- `create_github_draft_pr_direct_rest()`: Creates a draft PR via direct REST API. Returns (success, pr_info, findings).
+- `get_github_pr_status_direct_rest()`: Gets PR status via direct REST API. Returns (success, pr_info, findings).
+- `get_github_checks_summary_direct_rest()`: Gets check summary for a ref via direct REST API. Returns (success, summary, findings).
+
+**Internal helper:**
+- `_github_api_check_existing_pr_direct()`: Checks for existing PR via API. Used by apply function for API backend.
+
+### Integration with apply_github_draft_pr_promotion()
+
+The main apply function now accepts additional parameters:
+- `backend_mode`: GitHubBackendMode (default: CLI)
+- `api_library`: GitHubApiLibraryChoice | None (default: None = PyGithub)
+- `allow_mutation`: bool (default: False)
+
+When using API backend:
+1. Backend resolution determines actual backend to use
+2. Token is read from `RIG_GITHUB_TOKEN`
+3. If `allow_mutation=False`, fails closed with error
+4. If no token, fails closed with error
+5. PR is created via selected API library
+6. Branch creation and pushing still uses `git` commands
+
+### Security Concept
+
+1. **No mutation without consent:** `--allow-mutation` required for API backend with `--apply`
+2. **No token storage:** Tokens only read at runtime, never stored
+3. **No token logging:** All output sanitized via `redact_token()`
+4. **No PR merge:** API backend only creates PRs, never merges or enables auto-merge
+5. **No direct preproduction push:** Git operations are local-only; pushing is user's responsibility
+6. **Fail-closed on errors:** Any error in token, permissions, or API calls results in no mutation
+7. **User must explicitly select API backend:** Default is AUTO which prefers CLI
+
+### Tokens and Secrets Conventions
+
+**Real tokens must NEVER appear in:**
+- Source code
+- Test fixtures
+- Documentation examples
+- Log files
+- Evidence files
+- CLI output
+- Error messages (except redacted form)
+
+**Use fake test strings for all token examples:**
+- `ghp_fake_token_example_1234567890` (40 chars like classic PATs)
+- `ghp_fake fine grained token example 1234567890abcdef` (62 chars like fine-grained PATs)
+- Or use the pattern: `ghp_` + 36+ alphanumeric/underscore characters
+
+**Token prefixes to redact:**
+- `ghp_` - Personal access tokens (classic and fine-grained)
+- `gho_` - OAuth access tokens
+- `ghu_` - User-to-server tokens
+- `ghs_` - Server-to-server tokens
+- `ghr_` - Refresh tokens
+
+### Not Implemented
+
+Mission 11 explicitly does NOT implement:
+- OS credential store integration (future)
+- GitHub App installation token workflow (future)
+- Explicit untracked token file path (future)
+- PR merge, auto-merge, or branch protection configuration
+- Direct push to preproduction via API
+- Token scope validation (warns but doesn't reject)
+- Automatic selection between PyGithub and direct REST (explicit flag required)
+
+The existing CLI backend continues to work as before for users without API tokens.
+
+The `gh` CLI remains the recommended and default backend for most users.
+
+---

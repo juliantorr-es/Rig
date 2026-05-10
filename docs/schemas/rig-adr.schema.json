@@ -23,7 +23,7 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["planned", "alpha", "beta", "stable", "deprecated"],
+          "enum": ["planned", "implemented", "alpha", "beta", "stable", "deprecated"],
           "description": "Current status of the GitHub API backend."
         },
         "default_backend": {

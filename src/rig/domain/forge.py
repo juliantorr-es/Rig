@@ -19,6 +19,7 @@ import subprocess
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
+from typing import Mapping
 
 
 # ---------------------------------------------------------------------------
@@ -108,6 +109,112 @@ class GitHubTokenSource(Enum):
 
 
 # ---------------------------------------------------------------------------
+# GitHub API Credential Helpers (Mission 11)
+# ---------------------------------------------------------------------------
+
+def read_github_api_token_from_env(
+    env: Mapping[str, str] | None = None,
+) -> str | None:
+    """Read GitHub API token from RIG_GITHUB_TOKEN environment variable.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    This is the only token reading function implemented in this mission.
+    Only RIG_GITHUB_TOKEN environment variable is read. No token files,
+    OS credential stores, or other sources are read.
+
+    Args:
+        env: Optional environment mapping for testing. If None, uses os.environ.
+
+    Returns:
+        Token value if RIG_GITHUB_TOKEN is set, None otherwise.
+    """
+    import os
+    if env is None:
+        env = os.environ
+    return env.get("RIG_GITHUB_TOKEN")
+
+
+# GitHub token prefix patterns for redaction
+_GITHUB_TOKEN_PREFIXES = ("ghp_", "gho_", "ghu_", "ghs_", "ghr_")
+
+
+def redact_token(value: str | None) -> str | None:
+    """Redact GitHub token from a string.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Replaces any GitHub token pattern with [REDACTED]. GitHub tokens
+    have specific prefixes (ghp_, gho_, ghu_, ghs_, ghr_) followed by
+    alphanumeric characters.
+
+    This function must be used on all strings that might contain tokens
+    before logging, returning in errors, or including in evidence.
+
+    Args:
+        value: String that may contain a token, or None
+
+    Returns:
+        String with tokens redacted, or None if input is None
+    """
+    if value is None:
+        return None
+    import re
+    # Match GitHub token patterns: prefix + 36+ alphanumeric/underscore chars
+    # GitHub fine-grained PATs are 62 chars, classic PATs are 40 chars
+    # Match any token-like string to be safe
+    token_pattern = r"(" + "|".join(_GITHUB_TOKEN_PREFIXES) + r")[A-Za-z0-9_]{20,}"
+    return re.sub(token_pattern, "[REDACTED]", value)
+
+
+def assert_no_token_leak(value: str) -> bool:
+    """Assert that a string does not contain GitHub token patterns.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Test helper to verify no token literals leak into test data,
+    fixtures, or generated output.
+
+    Args:
+        value: String to check
+
+    Returns:
+        True if no token patterns found
+
+    Raises:
+        AssertionError: If token pattern is detected
+    """
+    import re
+    token_pattern = r"(" + "|".join(_GITHUB_TOKEN_PREFIXES) + r")[A-Za-z0-9_]{20,}"
+    if re.search(token_pattern, value):
+        # Show stripped value in error for debugging, but don't expose the token
+        safe_value = redact_token(value)
+        raise AssertionError(f"Token leak detected in: {safe_value[:200]}...")
+    return True
+
+
+def classify_github_token_source(
+    env: Mapping[str, str] | None = None,
+) -> str | None:
+    """Classify the GitHub token source based on environment.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Currently only checks for RIG_GITHUB_TOKEN (environment_variable).
+    Returns None if no token source is detected.
+
+    Args:
+        env: Optional environment mapping for testing
+
+    Returns:
+        Token source string if available, None otherwise
+    """
+    if read_github_api_token_from_env(env) is not None:
+        return GitHubTokenSource.ENVIRONMENT_VARIABLE.value
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
 
@@ -175,6 +282,89 @@ class GitHubBackendPlan:
     reason: str
     findings: tuple[ForgeDoctorFinding, ...]
 
+
+# ---------------------------------------------------------------------------
+# GitHub API Domain Types (Mission 11)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class GitHubApiPullRequest:
+    """GitHub API pull request representation.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Represents a GitHub pull request as returned from the API.
+    """
+    number: int | None = None
+    url: str | None = None
+    state: str | None = None  # "open", "closed", "merged"
+    draft: bool | None = None
+    title: str | None = None
+    base_ref: str | None = None
+    head_ref: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubApiCheckRun:
+    """GitHub API check run representation.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Represents a single GitHub check run (from Checks API or Statuses API).
+    """
+    id: int | None = None
+    name: str | None = None
+    status: str | None = None  # "queued", "in_progress", "completed"
+    conclusion: str | None = None  # "success", "failure", "neutral", "cancelled", "skipped", "timed_out", None
+    html_url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubApiCheckSummary:
+    """Summary of GitHub check runs for a commit/ref.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Represents the combined status of checks/check-runs for a specific
+    commit or branch reference.
+    """
+    head_sha: str | None = None
+    state: str | None = None  # combined state: "success", "failure", "pending", "unknown"
+    total_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+    pending_count: int = 0
+    check_runs: tuple[GitHubApiCheckRun, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubApiOperationResult:
+    """Result of a GitHub API operation.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Represents the outcome of a single GitHub API operation (e.g., create PR,
+    get PR status, get checks). This is used internally and may be included
+    in apply result evidence.
+    
+    Token values are NEVER included in this result.
+    """
+    provider: str = "github"
+    backend: str = "api"  # "api" for API backend
+    api_library: str | None = None  # "pygithub" or "direct_rest"
+    operation: str = ""  # e.g., "create_pull_request", "get_pr_status", "get_checks"
+    success: bool = False
+    pr: GitHubApiPullRequest | None = None
+    checks: GitHubApiCheckSummary | None = None
+    findings: tuple[ForgeDoctorFinding, ...] = ()
+    token_source: str | None = None  # e.g., "environment_variable"
+    token_present: bool = False
+    # NEVER: token_value
+
+
+# ---------------------------------------------------------------------------
+# Dataclasses (existing)
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
 class ForgeDoctorReport:
@@ -2242,6 +2432,7 @@ class GitHubPromotionApplyResult:
     """Result of applying a GitHub draft PR promotion.
 
     Mission 7: GitHub Draft PR Apply
+    Mission 11: Updated with API backend fields
 
     Represents the outcome of executing the apply_github_draft_pr_promotion
     function. Contains all information about what was done or planned,
@@ -2260,6 +2451,11 @@ class GitHubPromotionApplyResult:
     skipped_existing_pr: bool
     evidence_path: str | None
     findings: tuple[ForgeDoctorFinding, ...]
+    # Mission 11: API backend fields
+    backend: str = "cli"  # "cli" or "api"
+    api_library: str | None = None  # "pygithub" or "direct_rest" when backend="api"
+    token_source: str | None = None  # Token source description, NOT the token value
+    token_present: bool = False  # Whether a token was available, NOT the token itself
 
 
 # ---------------------------------------------------------------------------
@@ -2639,6 +2835,78 @@ def _github_cli_check_existing_pr(
     return False, None, tuple(findings)
 
 
+def _github_api_check_existing_pr_direct(
+    owner: str,
+    repository: str,
+    token: str,
+    head_branch: str,
+    base_branch: str,
+    timeout: float = 30.0,
+) -> GitHubApiPullRequest | None:
+    """Check if a PR already exists using GitHub API (direct REST).
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Uses the GitHub REST API to search for existing PRs matching the head and base branches.
+    Returns the first matching open PR, or None if not found.
+
+    Args:
+        owner: Repository owner
+        repository: Repository name
+        token: GitHub API token (will be redacted from any errors)
+        head_branch: Head branch name to match
+        base_branch: Base branch name to match
+        timeout: Request timeout in seconds
+
+    Returns:
+        GitHubApiPullRequest if found, None otherwise
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = f"https://api.github.com/repos/{owner}/{repository}/pulls"
+    params = {
+        "head": f"{owner}:{head_branch}",
+        "base": base_branch,
+        "state": "open",
+    }
+    url_with_params = url + "?" + "&".join(f"{k}={v}" for k, v in params.items())
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    try:
+        request = urllib.request.Request(url_with_params, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.loads(response.read())
+            if isinstance(result, list) and len(result) > 0:
+                pr = result[0]
+                return GitHubApiPullRequest(
+                    number=pr.get("number"),
+                    url=pr.get("html_url"),
+                    state=pr.get("state"),
+                    draft=pr.get("draft"),
+                    title=pr.get("title"),
+                    base_ref=pr.get("base", {}).get("ref") if pr.get("base") else None,
+                    head_ref=pr.get("head", {}).get("ref") if pr.get("head") else None,
+                )
+            return None
+
+    except urllib.error.HTTPError as e:
+        # 404 means no PRs found, which is fine
+        if e.code == 404:
+            return None
+        # Other errors are ignored - we'll proceed anyway
+        return None
+    except Exception:
+        # Any other error, ignore and proceed
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Apply GitHub Draft PR Promotion (Mission 7)
 # ---------------------------------------------------------------------------
@@ -2695,6 +2963,491 @@ def _execute_command(
         return False, "", str(e), -1
 
 
+# ---------------------------------------------------------------------------
+# GitHub API Backend: PyGithub Library (Mission 11)
+# ---------------------------------------------------------------------------
+
+def create_github_draft_pr_pygithub(
+    owner: str,
+    repository: str,
+    token: str,
+    title: str,
+    body: str,
+    base_ref: str,
+    head_ref: str,
+) -> tuple[bool, GitHubApiPullRequest | None, tuple[ForgeDoctorFinding, ...]]:
+    """Create a draft pull request using PyGithub library.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Uses the PyGithub library to create a draft PR via GitHub API v3.
+    All exceptions are caught and returned as findings with redacted messages.
+
+    Args:
+        owner: GitHub repository owner
+        repository: GitHub repository name
+        token: GitHub API token (WILL BE REDACTED from any error messages)
+        title: Pull request title
+        body: Pull request body
+        base_ref: Base branch for the PR
+        head_ref: Head branch for the PR
+
+    Returns:
+        Tuple of (success, pr_info, findings)
+        - success: True if PR was created successfully
+        - pr_info: GitHubApiPullRequest if successful, None otherwise
+        - findings: Tuple of ForgeDoctorFinding with any errors/warnings
+
+    Note:
+        Token is never included in returned data or error messages.
+        Token is passed to PyGithub but all exception messages are redacted.
+    """
+    try:
+        # Import at runtime to handle environments without PyGithub installed
+        # This is acceptable; callers must ensure PyGithub is available
+        from github import Github, GithubException, UnknownObjectException
+    except ImportError as e:
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-010",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="PyGithub library not installed",
+            remediation="Install PyGithub: pip install PyGithub",
+        ),)
+
+    # Redact token for safety in case it appears in any error
+    safe_token = redact_token(token)
+
+    try:
+        github = Github(token)
+        repo = github.get_repo(f"{owner}/{repository}")
+        pr = repo.create_pull(
+            title=title,
+            body=body,
+            base=base_ref,
+            head=head_ref,
+            draft=True,
+        )
+        return True, GitHubApiPullRequest(
+            number=pr.number,
+            url=pr.html_url,
+            state=pr.state,
+            draft=pr.draft,
+            title=pr.title,
+            base_ref=pr.base.ref,
+            head_ref=pr.head.ref,
+        ), ()
+
+    except GithubException as e:
+        # Never include token in error message
+        safe_msg = redact_token(str(e))
+        # Also redact any potential token in the safe_token display
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-001",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"PyGithub API error: {safe_msg}",
+            remediation="Check token permissions, network connectivity, and repository access",
+        ),)
+    except UnknownObjectException as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-004",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub repository not found: {safe_msg}",
+            remediation="Verify owner, repository, and token have correct access",
+        ),)
+    except Exception as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-005",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Unexpected PyGithub error: {safe_msg}",
+            remediation="Check GitHub API status and token validity",
+        ),)
+
+
+def get_github_pr_status_pygithub(
+    owner: str,
+    repository: str,
+    token: str,
+    pr_number: int,
+) -> tuple[bool, GitHubApiPullRequest | None, tuple[ForgeDoctorFinding, ...]]:
+    """Get pull request status using PyGithub library.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Retrieves PR information via GitHub API using PyGithub.
+
+    Args:
+        owner: GitHub repository owner
+        repository: GitHub repository name
+        token: GitHub API token (WILL BE REDACTED from any error messages)
+        pr_number: Pull request number to retrieve
+
+    Returns:
+        Tuple of (success, pr_info, findings)
+    """
+    try:
+        from github import Github, GithubException, UnknownObjectException
+    except ImportError:
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-010",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="PyGithub library not installed",
+            remediation="Install PyGithub: pip install PyGithub",
+        ),)
+
+    try:
+        github = Github(token)
+        repo = github.get_repo(f"{owner}/{repository}")
+        pr = repo.get_pull(pr_number)
+        return True, GitHubApiPullRequest(
+            number=pr.number,
+            url=pr.html_url,
+            state=pr.state,
+            draft=pr.draft,
+            title=pr.title,
+            base_ref=pr.base.ref,
+            head_ref=pr.head.ref,
+        ), ()
+    except (GithubException, UnknownObjectException) as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-006",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Failed to get PR status: {safe_msg}",
+            remediation="Check PR number, token access, and repository",
+        ),)
+    except Exception as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-007",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Unexpected error getting PR status: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+
+
+# ---------------------------------------------------------------------------
+# GitHub API Backend: Direct REST (Mission 11)
+# ---------------------------------------------------------------------------
+
+def create_github_draft_pr_direct_rest(
+    owner: str,
+    repository: str,
+    token: str,
+    title: str,
+    body: str,
+    base_ref: str,
+    head_ref: str,
+    timeout: float = 30.0,
+) -> tuple[bool, GitHubApiPullRequest | None, tuple[ForgeDoctorFinding, ...]]:
+    """Create a draft pull request using direct GitHub REST API.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Makes a direct HTTP POST request to GitHub REST API to create a PR.
+    Uses stdlib urllib.request with no external dependencies.
+
+    Args:
+        owner: GitHub repository owner
+        repository: GitHub repository name
+        token: GitHub API token (WILL BE REDACTED from any error messages)
+        title: Pull request title
+        body: Pull request body
+        base_ref: Base branch for the PR
+        head_ref: Head branch for the PR
+        timeout: Request timeout in seconds (default: 30)
+
+    Returns:
+        Tuple of (success, pr_info, findings)
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = f"https://api.github.com/repos/{owner}/{repository}/pulls"
+    payload = {
+        "title": title,
+        "body": body,
+        "base": base_ref,
+        "head": head_ref,
+        "draft": True,
+    }
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    try:
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.loads(response.read())
+            return True, GitHubApiPullRequest(
+                number=result.get("number"),
+                url=result.get("html_url"),
+                state=result.get("state"),
+                draft=result.get("draft"),
+                title=result.get("title"),
+                base_ref=result.get("base", {}).get("ref") if result.get("base") else None,
+                head_ref=result.get("head", {}).get("ref") if result.get("head") else None,
+            ), ()
+
+    except urllib.error.HTTPError as e:
+        safe_msg = redact_token(str(e))
+        safe_reason = redact_token(e.reason) if e.reason else ""
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-020",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API HTTP error {e.code}: {safe_reason}",
+            remediation="Check token permissions, repository access, and request validitiy",
+        ),)
+    except urllib.error.URLError as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-021",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API URL error: {safe_msg}",
+            remediation="Check network connectivity",
+        ),)
+    except json.JSONDecodeError as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-022",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API invalid response: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+    except TimeoutError:
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-023",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub REST API request timed out",
+            remediation="Retry with longer timeout or check network",
+        ),)
+    except Exception as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-024",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Unexpected REST API error: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+
+
+def get_github_pr_status_direct_rest(
+    owner: str,
+    repository: str,
+    token: str,
+    pr_number: int,
+    timeout: float = 30.0,
+) -> tuple[bool, GitHubApiPullRequest | None, tuple[ForgeDoctorFinding, ...]]:
+    """Get pull request status using direct GitHub REST API.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Args:
+        owner: GitHub repository owner
+        repository: GitHub repository name
+        token: GitHub API token (WILL BE REDACTED from any error messages)
+        pr_number: Pull request number to retrieve
+        timeout: Request timeout in seconds
+
+    Returns:
+        Tuple of (success, pr_info, findings)
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = f"https://api.github.com/repos/{owner}/{repository}/pulls/{pr_number}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    try:
+        request = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.loads(response.read())
+            return True, GitHubApiPullRequest(
+                number=result.get("number"),
+                url=result.get("html_url"),
+                state=result.get("state"),
+                draft=result.get("draft"),
+                title=result.get("title"),
+                base_ref=result.get("base", {}).get("ref") if result.get("base") else None,
+                head_ref=result.get("head", {}).get("ref") if result.get("head") else None,
+            ), ()
+
+    except urllib.error.HTTPError as e:
+        safe_reason = redact_token(e.reason) if e.reason else ""
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-025",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API HTTP error {e.code}: {safe_reason}",
+            remediation="Check PR number, token access, and repository",
+        ),)
+    except urllib.error.URLError as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-026",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API URL error: {safe_msg}",
+            remediation="Check network connectivity",
+        ),)
+    except json.JSONDecodeError as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-027",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API invalid response: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+    except TimeoutError:
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-028",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub REST API request timed out",
+            remediation="Retry with longer timeout or check network",
+        ),)
+    except Exception as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-029",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Unexpected REST API error: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+
+
+def get_github_checks_summary_direct_rest(
+    owner: str,
+    repository: str,
+    token: str,
+    ref: str,
+    timeout: float = 30.0,
+) -> tuple[bool, GitHubApiCheckSummary | None, tuple[ForgeDoctorFinding, ...]]:
+    """Get check runs summary for a ref using direct GitHub REST API.
+
+    Mission 11: Comprehensive GitHub Support Wiring
+
+    Uses the combined status endpoint which provides a summary of all check
+    statuses for a commit. This is a read-only operation.
+
+    Args:
+        owner: GitHub repository owner
+        repository: GitHub repository name
+        token: GitHub API token (WILL BE REDACTED from any error messages)
+        ref: Commit SHA or branch name to check
+        timeout: Request timeout in seconds
+
+    Returns:
+        Tuple of (success, summary, findings)
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = f"https://api.github.com/repos/{owner}/{repository}/commits/{ref}/status"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    try:
+        request = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.loads(response.read())
+            
+            # Parse the combined status response
+            state = result.get("state")  # "success", "failure", "pending", "error", or None
+            total_count = result.get("total_count", 0)
+            
+            # Count by status from the "statuses" array
+            statuses = result.get("statuses", [])
+            success_count = sum(1 for s in statuses if s.get("state") == "success")
+            failure_count = sum(1 for s in statuses if s.get("state") == "failure")
+            pending_count = sum(1 for s in statuses if s.get("state") in ("pending", None))
+            
+            # Build check runs from statuses (simplified representation)
+            check_runs = tuple(
+                GitHubApiCheckRun(
+                    id=None,  # Individual check runs don't have IDs in status endpoint
+                    name=s.get("context"),
+                    status=s.get("state"),
+                    conclusion=None,
+                    html_url=s.get("target_url"),
+                )
+                for s in statuses
+            )
+            
+            return True, GitHubApiCheckSummary(
+                head_sha=result.get("sha"),
+                state=state,
+                total_count=total_count,
+                success_count=success_count,
+                failure_count=failure_count,
+                pending_count=pending_count,
+                check_runs=check_runs,
+            ), ()
+
+    except urllib.error.HTTPError as e:
+        safe_reason = redact_token(e.reason) if e.reason else ""
+        # 404 is expected if ref doesn't exist or has no status
+        if e.code == 404:
+            return False, None, (ForgeDoctorFinding(
+                code="GITHUB_API-030",
+                severity=ForgeDoctorSeverity.INFO,
+                message=f"No commit status found for ref '{redact_token(ref)}'",
+                remediation="Commit may have no status checks configured",
+            ),)
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-031",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API HTTP error {e.code}: {safe_reason}",
+            remediation="Check token access and repository",
+        ),)
+    except urllib.error.URLError as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-032",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API URL error: {safe_msg}",
+            remediation="Check network connectivity",
+        ),)
+    except json.JSONDecodeError as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-033",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"GitHub REST API invalid response: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+    except TimeoutError:
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-034",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="GitHub REST API request timed out",
+            remediation="Retry with longer timeout or check network",
+        ),)
+    except Exception as e:
+        safe_msg = redact_token(str(e))
+        return False, None, (ForgeDoctorFinding(
+            code="GITHUB_API-035",
+            severity=ForgeDoctorSeverity.ERROR,
+            message=f"Unexpected REST API error getting checks: {safe_msg}",
+            remediation="Check GitHub API status",
+        ),)
+
+
 def apply_github_draft_pr_promotion(
     repo_path: Path | str,
     plan: PromotionPlan,
@@ -2702,11 +3455,15 @@ def apply_github_draft_pr_promotion(
     remote: str = "origin",
     dry_run: bool = False,
     skip_safety_report: bool = False,
+    backend_mode: GitHubBackendMode = GitHubBackendMode.CLI,
+    api_library: GitHubApiLibraryChoice | None = None,
+    allow_mutation: bool = False,
 ) -> GitHubPromotionApplyResult:
     """Apply promotion by creating/updating a GitHub draft PR.
 
     Mission 7: GitHub Draft PR Apply
     Mission 8: Updated with GitHub Apply Safety Doctor
+    Mission 11: Updated with API backend support
 
     This is the first mutating adapter path for ADR 0010.
     When dry_run=True, only plan and return commands without executing.
@@ -2716,18 +3473,25 @@ def apply_github_draft_pr_promotion(
     - If plan.ready is False, fail closed and do not apply
     - If artifact.wrote_files is False, fail closed
     - If artifact verification fails, fail closed
-    - If gh is missing or unauthenticated, fail closed
+    - If --allow-mutation is not set, fail closed for API backend
+    - If no token available for API backend, fail closed
     - If PR already exists, do not create duplicate
     - If safety report is not ready, fail closed (unless skip_safety_report=True)
     - Write evidence under .rig/work/promotions/<artifact_id>/apply-result.json
     - Do NOT merge PR, enable auto-merge, configure branch protection,
       push to preproduction, or run destructive Git commands
 
-    Commands executed in order:
+    CLI Backend Commands executed in order:
     1. git branch -f <promotion_branch> <head_ref>
     2. git push -u <remote> <promotion_branch>
     3. gh pr create --draft --base <target_ref> --head <promotion_branch> \
                     --title <title> --body-file <body_path>
+
+    API Backend:
+    - Branch creation still uses git commands (safe, local-only)
+    - PR creation uses PyGithub or direct REST API
+    - Token is read from RIG_GITHUB_TOKEN environment variable
+    - Token is NEVER stored, logged, or included in evidence/results
 
     Args:
         repo_path: Path to the git repository root
@@ -2736,9 +3500,19 @@ def apply_github_draft_pr_promotion(
         remote: The Git remote name (default: "origin")
         dry_run: If True, do not execute commands (default: False)
         skip_safety_report: If True, skip safety report check (default: False)
+        backend_mode: Backend mode to use (default: GitHubBackendMode.CLI)
+            - CLI: Use GitHub CLI (gh) backend
+            - API: Use GitHub API backend (PyGithub or direct REST)
+            - AUTO: Select best available backend
+        api_library: API library choice for API backend (default: None = use PyGithub)
+            - PYGITHUB: Use PyGithub library
+            - DIRECT_REST: Use direct REST API calls
+        allow_mutation: If True, allows mutation via API backend (default: False)
+            Required for agent safety: user must explicitly consent to mutation
 
     Returns:
         GitHubPromotionApplyResult with full information about what was done
+        Includes backend, api_library, token_source, token_present fields
 
     Raises:
         ValueError: If plan is not ready, artifact not written, or verification fails
@@ -2748,6 +3522,117 @@ def apply_github_draft_pr_promotion(
 
     repo_path = Path(repo_path)
     findings: list[ForgeDoctorFinding] = []
+
+    # === Backend Resolution (Mission 11) ===
+    # Determine actual backend to use based on mode and availability
+    resolved_backend_mode = backend_mode
+    resolved_api_library: GitHubApiLibraryChoice | None = api_library
+    resolved_token_source: str | None = None
+    resolved_token_present = False
+
+    # Read token and classify source (only for API mode or AUTO with CLI unavailable)
+    if backend_mode in (GitHubBackendMode.API, GitHubBackendMode.AUTO):
+        # Classify token source - this only checks for RIG_GITHUB_TOKEN env var
+        resolved_token_source = classify_github_token_source()
+        resolved_token_present = resolved_token_source is not None
+
+    # Handle AUTO mode: try CLI first, fall back to API if CLI unavailable
+    if backend_mode == GitHubBackendMode.AUTO:
+        gh_available, gh_version, gh_findings = _check_gh_cli_available()
+        findings.extend(gh_findings)
+        if gh_available:
+            # Check authentication
+            gh_authenticated = False
+            try:
+                proc = subprocess.run(
+                    ["/usr/bin/env", "gh", "auth", "status", "--hostname", "github.com"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                auth_output = proc.stdout + proc.stderr
+                if proc.returncode == 0:
+                    if ("logged in" in auth_output.lower() or
+                        "logged into" in auth_output.lower() or
+                        "active" in auth_output.lower()):
+                        gh_authenticated = True
+            except Exception:
+                gh_authenticated = False
+
+            if gh_authenticated:
+                resolved_backend_mode = GitHubBackendMode.CLI
+            else:
+                # CLI available but not auth'd, try API backend if token present
+                if resolved_token_present:
+                    resolved_backend_mode = GitHubBackendMode.API
+                    # Default to PyGithub if not specified
+                    if resolved_api_library is None:
+                        resolved_api_library = GitHubApiLibraryChoice.PYGITHUB
+                else:
+                    # No API token either - fail closed
+                    findings.append(ForgeDoctorFinding(
+                        code="GITHUB_API-040",
+                        severity=ForgeDoctorSeverity.ERROR,
+                        message="Auto backend selection: CLI available but not authenticated, no API token",
+                        remediation="Authenticate gh CLI or set RIG_GITHUB_TOKEN environment variable",
+                    ))
+        else:
+            # CLI not available, try API
+            if resolved_token_present:
+                resolved_backend_mode = GitHubBackendMode.API
+                if resolved_api_library is None:
+                    resolved_api_library = GitHubApiLibraryChoice.PYGITHUB
+            else:
+                findings.append(ForgeDoctorFinding(
+                    code="GITHUB_API-041",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message="Auto backend selection: No GitHub CLI and no API token available",
+                    remediation="Install GitHub CLI (gh) and authenticate, or set RIG_GITHUB_TOKEN",
+                ))
+
+    # For explicit API mode, ensure token is present and mutation is allowed
+    if resolved_backend_mode == GitHubBackendMode.API:
+        if not resolved_token_present:
+            findings.append(ForgeDoctorFinding(
+                code="GITHUB_API-042",
+                severity=ForgeDoctorSeverity.ERROR,
+                message="API backend requires GitHub API token",
+                remediation="Set RIG_GITHUB_TOKEN environment variable",
+            ))
+        if not allow_mutation:
+            findings.append(ForgeDoctorFinding(
+                code="GITHUB_API-043",
+                severity=ForgeDoctorSeverity.ERROR,
+                message="API backend mutation requires explicit --allow-mutation consent",
+                remediation="Add --allow-mutation flag to command",
+            ))
+        # Default to PyGithub if not specified
+        if resolved_api_library is None:
+            resolved_api_library = GitHubApiLibraryChoice.PYGITHUB
+
+    # === Early fail on backend errors ===
+    # If we have backend-related errors at this point, fail closed
+    backend_error_codes = {"GITHUB_API-040", "GITHUB_API-041", "GITHUB_API-042", "GITHUB_API-043"}
+    if any(f.code in backend_error_codes for f in findings):
+        return GitHubPromotionApplyResult(
+            provider="github",
+            promotion_branch="",
+            target_ref=plan.target_ref if plan else "",
+            head_ref=plan.head_ref if plan else "",
+            artifact_id=artifact.artifact_id if artifact else "",
+            body_path="",
+            pr_url=None,
+            commands=(),
+            ready_before_apply=False,
+            applied=False,
+            skipped_existing_pr=False,
+            evidence_path=None,
+            findings=tuple(findings),
+            backend=resolved_backend_mode.value,
+            api_library=resolved_api_library.value if resolved_api_library else None,
+            token_source=resolved_token_source,
+            token_present=resolved_token_present,
+        )
 
     # === Fail-closed checks ===
 
@@ -2773,6 +3658,10 @@ def apply_github_draft_pr_promotion(
             skipped_existing_pr=False,
             evidence_path=None,
             findings=tuple(findings),
+            backend=resolved_backend_mode.value,
+            api_library=resolved_api_library.value if resolved_api_library else None,
+            token_source=resolved_token_source,
+            token_present=resolved_token_present,
         )
 
     # Check over budget
@@ -2797,6 +3686,10 @@ def apply_github_draft_pr_promotion(
             skipped_existing_pr=False,
             evidence_path=None,
             findings=tuple(findings),
+            backend=resolved_backend_mode.value,
+            api_library=resolved_api_library.value if resolved_api_library else None,
+            token_source=resolved_token_source,
+            token_present=resolved_token_present,
         )
 
     # Check draft exists
@@ -2821,6 +3714,10 @@ def apply_github_draft_pr_promotion(
             skipped_existing_pr=False,
             evidence_path=None,
             findings=tuple(findings),
+            backend=resolved_backend_mode.value,
+            api_library=resolved_api_library.value if resolved_api_library else None,
+            token_source=resolved_token_source,
+            token_present=resolved_token_present,
         )
 
     promotion_branch = plan.draft.promotion_branch
@@ -2849,6 +3746,10 @@ def apply_github_draft_pr_promotion(
             skipped_existing_pr=False,
             evidence_path=None,
             findings=tuple(findings),
+            backend=resolved_backend_mode.value,
+            api_library=resolved_api_library.value if resolved_api_library else None,
+            token_source=resolved_token_source,
+            token_present=resolved_token_present,
         )
 
     # === Build safety report (Mission 8) ===
@@ -2873,35 +3774,75 @@ def apply_github_draft_pr_promotion(
                 skipped_existing_pr=False,
                 evidence_path=None,
                 findings=tuple(findings),
+                backend=resolved_backend_mode.value,
+                api_library=resolved_api_library.value if resolved_api_library else None,
+                token_source=resolved_token_source,
+                token_present=resolved_token_present,
             )
 
-    # Check gh CLI
-    gh_available, gh_version, gh_findings = _check_gh_cli_available()
-    findings.extend(gh_findings)
-    if not gh_available:
-        return GitHubPromotionApplyResult(
-            provider="github",
-            promotion_branch=promotion_branch,
-            target_ref=plan.target_ref,
-            head_ref=plan.head_ref,
-            artifact_id=artifact.artifact_id,
-            body_path=body_path,
-            pr_url=None,
-            commands=(),
-            ready_before_apply=True,
-            applied=False,
-            skipped_existing_pr=False,
-            evidence_path=None,
-            findings=tuple(findings),
-        )
+    # Check gh CLI (only for CLI backend)
+    # For API backend, we use API calls instead of gh CLI
+    pr_exists = False
+    existing_pr_url: str | None = None
+    if resolved_backend_mode == GitHubBackendMode.CLI:
+        gh_available, gh_version, gh_findings = _check_gh_cli_available()
+        findings.extend(gh_findings)
+        if not gh_available:
+            return GitHubPromotionApplyResult(
+                provider="github",
+                promotion_branch=promotion_branch,
+                target_ref=plan.target_ref,
+                head_ref=plan.head_ref,
+                artifact_id=artifact.artifact_id,
+                body_path=body_path,
+                pr_url=None,
+                commands=(),
+                ready_before_apply=True,
+                applied=False,
+                skipped_existing_pr=False,
+                evidence_path=None,
+                findings=tuple(findings),
+                backend=resolved_backend_mode.value,
+                api_library=resolved_api_library.value if resolved_api_library else None,
+                token_source=resolved_token_source,
+                token_present=resolved_token_present,
+            )
 
-    # Check for existing PR
-    pr_exists, existing_pr_url, pr_findings = _github_cli_check_existing_pr(
-        target_ref=plan.target_ref,
-        promotion_branch=promotion_branch,
-        remote=remote,
-    )
-    findings.extend(pr_findings)
+        # Check for existing PR using CLI
+        pr_exists, existing_pr_url, pr_findings = _github_cli_check_existing_pr(
+            target_ref=plan.target_ref,
+            promotion_branch=promotion_branch,
+            remote=remote,
+        )
+        findings.extend(pr_findings)
+    elif resolved_backend_mode == GitHubBackendMode.API:
+        # For API backend, check for existing PR using API
+        # We need owner and repository from the plan identity
+        if plan.identity.owner and plan.identity.repository:
+            _owner = plan.identity.owner
+            _repo = plan.identity.repository
+            # Use direct REST to check for existing PRs
+            # This is a read-only check, safe to do
+            token = read_github_api_token_from_env()
+            if token:
+                # Check existing PRs for this branch
+                existing_pr = _github_api_check_existing_pr_direct(
+                    owner=_owner,
+                    repository=_repo,
+                    token=token,
+                    head_branch=promotion_branch,
+                    base_branch=plan.target_ref,
+                    timeout=30.0,
+                )
+                if existing_pr:
+                    pr_exists = True
+                    existing_pr_url = existing_pr.url
+            # Note: If we can't check, we proceed anyway - the API will error if PR exists
+        # If no identity info, we'll proceed and let the API call handle it
+    else:
+        # AUTO mode should have been resolved earlier, but handle gracefully
+        pr_exists = False
+        existing_pr_url = None
 
     # === Build command list ===
     commands: list[str] = []
@@ -3136,6 +4077,10 @@ def apply_github_draft_pr_promotion(
         skipped_existing_pr=skipped_existing_pr,
         evidence_path=evidence_path,
         findings=tuple(findings),
+        backend=resolved_backend_mode.value,
+        api_library=resolved_api_library.value if resolved_api_library else None,
+        token_source=resolved_token_source,
+        token_present=resolved_token_present,
     )
 
 

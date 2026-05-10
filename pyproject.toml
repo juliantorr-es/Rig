@@ -42,6 +42,7 @@ dependencies = [
   "rich>=13.7",
   "psutil>=5.9",
   "tomli-w>=1.0.0",
+  "PyGithub>=2.0.0",
 ]
 
 [project.optional-dependencies]

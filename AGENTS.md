@@ -278,6 +278,56 @@ Do not restore the file. Do not overwrite the file. Do not keep editing through 
 
 ---
 
+## 8.5. GitHub Mutation Policy (Mission 11)
+
+**User-vs-Agent Safety Boundary:**
+- Agents must NEVER mutate remote GitHub state without explicit user consent
+- The `--allow-mutation` flag is REQUIRED for any `--apply` operation using the API backend (`--github-backend api`)
+- CLI backend (`--github-backend cli` or `auto` selecting CLI) does not require `--allow-mutation` as the user must already have authenticated `gh` CLI
+- When `--allow-mutation` is not provided with `--github-backend api`, the operation must FAIL CLOSED
+
+**No Token Storage:**
+- Agents must NEVER store GitHub tokens in any form
+- Tokens are only read from `RIG_GITHUB_TOKEN` environment variable at runtime
+- Tokens must NEVER appear in:
+  - Source code
+  - Test fixtures
+  - Committed configuration files
+  - Evidence files
+  - Log files
+  - Error messages (except redacted form `[REDACTED]`)
+- Use fake test strings only: `ghp_fake_...`, `gho_fake_...`, etc.
+
+**Token Redaction:**
+- All functions that produce output must use `redact_token()` from `rig.domain.forge`
+- Token patterns to redact: `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 20+ alphanumeric/underscore characters
+- Test all output paths (success, error, warning, info) for token redaction
+
+**No PR Merge or Auto-merge:**
+- Agents must NEVER merge PRs
+- Agents must NEVER enable auto-merge on PRs
+- Agents must NEVER configure branch protection
+- Agents must NEVER directly push to preproduction
+
+**CLI Backend:**
+- Default when `gh` CLI is available and authenticated
+- Uses `gh pr create`, `gh pr list` commands
+- User must have already authenticated `gh` CLI
+
+**API Backend:**
+- Use `--github-backend api` to select
+- Use `--github-api-library pygithub` (default) or `--google-api-library direct_rest`
+- Requires `RIG_GITHUB_TOKEN` environment variable
+- Requires `--allow-mutation` for `--apply` operations
+- Uses PyGithub library or direct REST API calls
+
+**Validation:**
+- Always run: `python -m compileall -q src/rig/domain/forge.py src/rig/commands_forge.py`
+- Always run: `python3 -m py_compile tests/test_repository_forge.py`
+- Run Mission 11 tests: `pytest tests/test_repository_forge.py -k "GitHubApi or BackendIntegration or CLI or NoToken or PromotionApplyResultBackend"`
+
+---
+
 ## 9. Documentation/TD Discipline
 
 - A **roadmap item is NOT an active task**.

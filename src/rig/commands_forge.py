@@ -53,6 +53,8 @@ from rig.domain.forge import (
     GitHubBackendMode,
     GitHubBackendPlan,
     build_github_backend_plan,
+    # Mission 11: API backend
+    GitHubApiLibraryChoice,
 )
 
 
@@ -392,6 +394,8 @@ def _promote_handler(
     remote: str = "origin",
     safety_report: bool = False,
     github_backend: str = "auto",
+    github_api_library: str | None = None,
+    allow_mutation: bool = False,
 ) -> int:
     """Handler for `rig forge promote` command.
     
@@ -403,6 +407,7 @@ def _promote_handler(
     Mission 7: Added --apply and --provider support for GitHub draft PR apply.
     Mission 8: Added --safety-report for read-only safety verification.
     Mission 9: Added --github-backend for backend selection.
+    Mission 11: Added --github-api-library and --allow-mutation for API backend support.
     
     Args:
         repo_root: Path to the git repository
@@ -419,6 +424,8 @@ def _promote_handler(
         remote: Git remote name for apply (default: "origin")
         safety_report: If True, emit safety report and exit without mutation (default: False)
         github_backend: GitHub backend mode: "auto", "cli", or "api" (default: "auto")
+        github_api_library: GitHub API library: "pygithub" (default) or "direct_rest". Only used with --github-backend api.
+        allow_mutation: If True, allows mutation via API backend. Required for --apply with --github-backend api.
         
     Returns:
         Exit code (0 for success/ready, 1 for errors/not ready)
@@ -594,15 +601,39 @@ def _promote_handler(
                 print("Error: Plan has no draft - cannot apply", file=sys.stderr)
             return 1
         
-        # Execute apply for GitHub
+        # Execute apply for GitHub (Mission 11: with API backend support)
         if artifact is not None:
             try:
+                # Parse backend mode and library
+                try:
+                    backend_mode_enum = GitHubBackendMode(github_backend)
+                except ValueError:
+                    if json_output:
+                        _emit({"status": "error", "error": f"Invalid --github-backend value: {github_backend}. Must be 'auto', 'cli', or 'api'"})
+                    else:
+                        print(f"Error: Invalid --github-backend value: {github_backend}. Must be 'auto', 'cli', or 'api'", file=sys.stderr)
+                    return 1
+
+                api_library_enum = None
+                if github_api_library:
+                    try:
+                        api_library_enum = GitHubApiLibraryChoice(github_api_library)
+                    except ValueError:
+                        if json_output:
+                            _emit({"status": "error", "error": f"Invalid --github-api-library value: {github_api_library}. Must be 'pygithub' or 'direct_rest'"})
+                        else:
+                            print(f"Error: Invalid --github-api-library value: {github_api_library}. Must be 'pygithub' or 'direct_rest'", file=sys.stderr)
+                        return 1
+
                 apply_result = apply_github_draft_pr_promotion(
                     repo_path=repo_root,
                     plan=plan,
                     artifact=artifact,
                     remote=remote,
                     dry_run=dry_run,
+                    backend_mode=backend_mode_enum,
+                    api_library=api_library_enum,
+                    allow_mutation=allow_mutation,
                 )
                 
                 if json_output:
@@ -718,6 +749,7 @@ def _serialize_apply_result(apply_result: GitHubPromotionApplyResult) -> dict[st
     """Serialize GitHubPromotionApplyResult to JSON-compatible dict.
 
     Mission 7: GitHub Draft PR Apply
+    Mission 11: Updated with API backend fields
     """
     result: dict[str, Any] = {
         "provider": apply_result.provider,
@@ -733,6 +765,11 @@ def _serialize_apply_result(apply_result: GitHubPromotionApplyResult) -> dict[st
         "skipped_existing_pr": apply_result.skipped_existing_pr,
         "evidence_path": apply_result.evidence_path,
         "findings": [dataclasses.asdict(f) for f in apply_result.findings],
+        # Mission 11: API backend fields
+        "backend": apply_result.backend,
+        "api_library": apply_result.api_library,
+        "token_source": apply_result.token_source,
+        "token_present": apply_result.token_present,
     }
     # Convert findings severity enums
     for finding in result["findings"]:
@@ -869,6 +906,7 @@ def _emit_human_apply_result(
     """Emit human-readable apply result to stdout.
 
     Mission 7: GitHub Draft PR Apply
+    Mission 11: Updated with backend info
     """
     print("Promotion Apply Result")
     print("+" * 40)
@@ -876,6 +914,14 @@ def _emit_human_apply_result(
     print(f"  Applied: {'Yes' if apply_result.applied else 'No'}")
     print(f"  Dry-run: {'Yes' if not apply_result.applied else 'No'}")
     print(f"  Ready before apply: {'Yes' if apply_result.ready_before_apply else 'No'}")
+    print()
+    # Mission 11: Backend info
+    print(f"  Backend: {apply_result.backend}")
+    if apply_result.api_library:
+        print(f"  API Library: {apply_result.api_library}")
+    print(f"  Token Present: {'Yes' if apply_result.token_present else 'No'}")
+    if apply_result.token_source:
+        print(f"  Token Source: {apply_result.token_source}")
     print()
     print(f"  Promotion Branch: {apply_result.promotion_branch}")
     print(f"  Target: {apply_result.target_ref}")
@@ -1053,7 +1099,20 @@ def register(subparsers, helpers):
         "--github-backend",
         default="auto",
         choices=["auto", "cli", "api"],
-        help="GitHub backend mode: 'auto' (default, tries CLI first), 'cli' (use GitHub CLI), 'api' (use GitHub API - not yet implemented)",
+        help="GitHub backend mode: 'auto' (default, tries CLI first), 'cli' (use GitHub CLI), 'api' (use GitHub API)",
+    )
+    # Mission 11: API backend options
+    promote_parser.add_argument(
+        "--github-api-library",
+        default=None,
+        choices=["pygithub", "direct_rest"],
+        help="GitHub API library choice for --github-backend api: 'pygithub' (default), 'direct_rest' (direct REST API calls)",
+    )
+    promote_parser.add_argument(
+        "--allow-mutation",
+        action="store_true",
+        default=False,
+        help="Explicit consent for API backend mutation. Required when using --github-backend api with --apply. User-vs-agent safety boundary.",
     )
     promote_parser.set_defaults(
         handler=lambda args: _promote_handler(
@@ -1070,6 +1129,8 @@ def register(subparsers, helpers):
             remote=args.remote,
             safety_report=args.safety_report,
             github_backend=args.github_backend,
+            github_api_library=args.github_api_library,
+            allow_mutation=args.allow_mutation,
         )
     )
     

@@ -186,10 +186,15 @@
       "id": "mission-10",
       "research_required": false,
       "title": "GitHub API Credential Model Research"
+    },
+    {
+      "id": "mission-11",
+      "research_required": false,
+      "title": "Comprehensive GitHub Support Wiring"
     }
   ],
   "github_api_backend": {
-    "status": "planned",
+    "status": "implemented",
     "default_backend": "cli",
     "allowed_libraries": ["pygithub", "direct_rest"],
     "token_sources_allowed": [
