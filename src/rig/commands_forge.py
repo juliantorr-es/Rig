@@ -30,6 +30,7 @@ from rig.domain.forge import (
     ReviewabilityReport,
     PromotionPlan,
     PromotionPlanStep,
+    PromotionDraft,
     build_forge_identity,
     capabilities_for_mode,
     derive_promotion_mode,
@@ -231,6 +232,20 @@ def _serialize_promotion_plan_step(step: PromotionPlanStep) -> dict[str, Any]:
     }
 
 
+def _serialize_promotion_draft(draft: PromotionDraft) -> dict[str, Any]:
+    """Serialize PromotionDraft to JSON-compatible dict."""
+    return {
+        "promotion_branch": draft.promotion_branch,
+        "base_ref": draft.base_ref,
+        "head_ref": draft.head_ref,
+        "title": draft.title,
+        "body": draft.body,
+        "provider_command": draft.provider_command,
+        "provider_url_hint": draft.provider_url_hint,
+        "draft_only": draft.draft_only,
+    }
+
+
 def _serialize_promotion_plan(plan: PromotionPlan) -> dict[str, Any]:
     """Serialize PromotionPlan to JSON-compatible dict."""
     result: dict[str, Any] = {
@@ -250,6 +265,9 @@ def _serialize_promotion_plan(plan: PromotionPlan) -> dict[str, Any]:
     # Convert blockers severity enums
     for blocker in result["blockers"]:
         blocker["severity"] = blocker["severity"].value  # type: ignore[typeddict-unknown-key]
+    # Include draft if available (Mission 5)
+    if plan.draft is not None:
+        result["draft"] = _serialize_promotion_draft(plan.draft)
     return result
 
 
@@ -272,6 +290,18 @@ def _emit_human_promotion_plan(plan: PromotionPlan) -> None:
         print(f"    Status: OVER BUDGET ({rev.default_action})")
     else:
         print(f"    Status: Within budget")
+    
+    # Draft information (Mission 5)
+    if plan.draft is not None:
+        draft = plan.draft
+        print(f"\n  Promotion Draft:")
+        print(f"    Promotion Branch: {draft.promotion_branch}")
+        print(f"    PR/MR Title: {draft.title}")
+        if draft.provider_command:
+            print(f"    Provider Command: {draft.provider_command}")
+        if draft.provider_url_hint:
+            print(f"    Provider URL Hint: {draft.provider_url_hint}")
+        print(f"    Draft Only: {'Yes' if draft.draft_only else 'No'}")
     
     # Blockers
     if plan.blockers:

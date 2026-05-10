@@ -171,11 +171,32 @@ class PromotionPlanStep:
 
 
 @dataclass(frozen=True, slots=True)
+class PromotionDraft:
+    """Draft PR/MR information for promotion planning.
+    
+    Contains the proposed promotion branch name, PR/MR title and body,
+    and provider-specific command preview for dry-run promotion planning.
+    No mutation is performed - this is draft information only.
+    
+    Mission 5: Promotion Branch + PR Draft Planner
+    """
+    promotion_branch: str
+    base_ref: str
+    head_ref: str
+    title: str
+    body: str
+    provider_command: str | None
+    provider_url_hint: str | None
+    draft_only: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class PromotionPlan:
     """Complete promotion plan for a repository.
     
     Result of planning a promotion from head_ref to target_ref.
     This is a dry-run only plan for Mission 3 - no state is mutated.
+    For Mission 5, includes draft PR/MR information via the draft field.
     """
     mode: PromotionMode
     forge_mode: ForgeMode
@@ -187,6 +208,7 @@ class PromotionPlan:
     blockers: tuple[ForgeDoctorFinding, ...]
     ready: bool
     dry_run_only: bool = True
+    draft: PromotionDraft | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -407,6 +429,279 @@ def git_inside_repo(repo_root: Path) -> bool:
     """
     proc = _git_run(repo_root, "rev-parse", "--is-inside-work-tree")
     return proc.returncode == 0 and proc.stdout.strip() == "true"
+
+
+# ---------------------------------------------------------------------------
+# Promotion Branch Naming (Mission 5)
+# ---------------------------------------------------------------------------
+
+def _make_git_ref_safe(name: str) -> str:
+    """Make a string safe for use as a Git ref.
+    
+    Args:
+        name: The string to make Git-ref-safe
+        
+    Returns:
+        A string safe for use in Git refs: lowercase, alphanumeric with -_.
+        Leading/trailing dots and dashes are stripped.
+    """
+    # Replace spaces and slashes with dashes
+    safe = name.replace(" ", "-").replace("/", "-")
+    # Keep only alphanumeric, dots, underscores, and dashes
+    safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in safe)
+    # Strip leading/trailing dots and dashes
+    safe = safe.lstrip(".-").rstrip(".-")
+    # Lowercase
+    safe = safe.lower()
+    # If empty after processing, use "unknown"
+    if not safe:
+        safe = "unknown"
+    return safe
+
+
+def derive_promotion_branch_name(
+    head_ref: str = "HEAD",
+    target_ref: str = "preproduction",
+    prefix: str = "promotion",
+) -> str:
+    """Derive a deterministic, Git-ref-safe promotion branch name.
+    
+    Mission 5: Promotion Branch + PR Draft Planner
+    
+    This is a PURE function - no Git calls, no side effects.
+    It uses head_ref directly as the source reference name.
+    
+    Rules:
+    - Deterministic: same inputs produce same output
+    - Git-ref-safe: only characters valid in Git refs
+    - Lowercase
+    - No spaces
+    - Default shape: prefix/target/safe-head-ref
+    
+    Args:
+        head_ref: Head reference (e.g., "sprint/governed-agent-pipeline") (default: "HEAD")
+        target_ref: Target reference for promotion (default: "preproduction")
+        prefix: Prefix for branch name (default: "promotion")
+        
+    Returns:
+        A Git-ref-safe branch name string
+        
+    Example:
+        head_ref: sprint/governed-agent-pipeline
+        target_ref: preproduction
+        -> promotion/preproduction/sprint-governed-agent-pipeline
+    """
+    # If head_ref is "HEAD", we can't derive a branch name from it
+    # Use "head" as a safe fallback for when actual branch is unknown
+    source_name = head_ref if head_ref != "HEAD" else "head"
+    
+    # Make the names safe for Git refs
+    safe_name = _make_git_ref_safe(source_name)
+    safe_target = _make_git_ref_safe(target_ref)
+    safe_prefix = _make_git_ref_safe(prefix)
+    
+    # Build the branch name: prefix/target/safe-name
+    return f"{safe_prefix}/{safe_target}/{safe_name}"
+
+
+# ---------------------------------------------------------------------------
+# Promotion Draft Building (Mission 5)
+# ---------------------------------------------------------------------------
+
+def _build_draft_title(target_ref: str) -> str:
+    """Build a deterministic PR/MR title for promotion.
+    
+    Args:
+        target_ref: Target reference for promotion
+        
+    Returns:
+        Title string for PR/MR
+    """
+    # Use a generic title that doesn't include personal names
+    # target_ref is already sanitized by caller
+    return f"Promotion to {target_ref}"
+
+
+def _build_draft_body(
+    identity: ForgeIdentity,
+    plan: PromotionPlan,
+    promotion_branch: str,
+) -> str:
+    """Build PR/MR body content for promotion draft.
+    
+    Args:
+        identity: Forge identity
+        plan: Promotion plan
+        promotion_branch: The derived promotion branch name
+        
+    Returns:
+        Body string for PR/MR description
+    """
+    rev = plan.reviewability
+    mode_str = identity.mode.name.lower().replace("_", "-")
+    promotion_mode_str = plan.mode.name.lower().replace("_", "-")
+    
+    # Current branch/head info
+    head_info = plan.head_ref
+    if isinstance(plan.head_ref, str):
+        # Try to get more specific info if available
+        pass
+    
+    # No personal names - use project-neutral wording
+    lines = [
+        "## Rig Promotion Draft",
+        "",
+        "This promotion was planned by Rig's forge-neutral promotion planner.",
+        "",
+        "**Promotion Details:**",
+        f"- Target: {plan.target_ref}",
+        f"- Head: {plan.head_ref}",
+        f"- Promotion Branch: {promotion_branch}",
+        "",
+        "**Reviewability:**",
+        f"- Changed files: {rev.changed_file_count} / {rev.max_changed_files}",
+        f"- Status: {'OVER BUDGET' if rev.over_budget else 'Within budget'}",
+        f"- Action: {rev.default_action}",
+        "",
+        f"**Forge Mode:** {mode_str}",
+        f"**Promotion Mode:** {promotion_mode_str}",
+        "",
+        "**Validation Expectations:**",
+        "- [ ] All required checks pass",
+        "- [ ] Reviewability budget within limits",
+        "- [ ] No merge conflicts",
+        "- [ ] All tests pass",
+    ]
+    
+    # Add blockers section if there are blockers
+    if plan.blockers:
+        lines.append("")
+        lines.append("**Blockers:**")
+        for b in plan.blockers:
+            lines.append(f"- [{b.code}] {b.message}")
+    
+    lines.extend([
+        "",
+        "**Note:** No Git or remote state was mutated. This is a dry-run plan only.",
+        "",
+        "Generated by Rig promotion dry-run planner.",
+    ])
+    
+    return "\n".join(lines)
+
+
+def _derive_provider_command(
+    forge_mode: ForgeMode,
+    promotion_branch: str,
+    target_ref: str,
+    title: str,
+) -> tuple[str | None, str | None]:
+    """Derive provider-specific command preview and URL hint.
+    
+    Args:
+        forge_mode: The forge mode
+        promotion_branch: The promotion branch name
+        target_ref: The target reference
+        title: The PR/MR title
+        
+    Returns:
+        Tuple of (provider_command, provider_url_hint)
+        - provider_command: A display string showing the command, or None
+        - provider_url_hint: A hint URL for manual creation, or None
+    """
+    match forge_mode:
+        case ForgeMode.GITHUB:
+            # gh pr create command (display only, not executed)
+            command = (
+                f"gh pr create --base {target_ref} --head {promotion_branch} "
+                f'--title "{title}"'
+            )
+            # For body, we'd use --body or --body-file
+            # Don't include body in command preview to keep it simple
+            return command, None
+        
+        case ForgeMode.GITLAB:
+            # glab mr create command (display only, not executed)
+            command = (
+                f"glab mr create --base {target_ref} --head {promotion_branch} "
+                f'--title "{title}"'
+            )
+            return command, None
+        
+        case ForgeMode.GITEA:
+            # Gitea: no standard CLI, provide conceptual hint
+            command = None
+            url_hint = (
+                f"# Gitea: Create PR with branch '{promotion_branch}' "
+                f"targeting '{target_ref}' via web UI"
+            )
+            return command, url_hint
+        
+        case ForgeMode.LOCAL_ONLY:
+            # Local-only: no PR/MR, just note the merge command
+            command = (
+                f"# Local-only: git merge {promotion_branch} (future: --apply)"
+            )
+            return command, None
+        
+        case ForgeMode.UNKNOWN:
+            # Unknown forge: manual adapter required
+            command = None
+            url_hint = (
+                "# Manual adapter required for unknown forge mode. "
+                "Implement provider-specific adapter to execute promotion."
+            )
+            return command, url_hint
+
+
+def build_promotion_draft(
+    identity: ForgeIdentity,
+    plan: PromotionPlan,
+) -> PromotionDraft:
+    """Build a complete promotion draft with branch name, title, body, and provider command.
+    
+    Mission 5: Promotion Branch + PR Draft Planner
+    
+    This is a PURE function - no side effects, no Git calls.
+    All information is derived from the provided plan and identity.
+    
+    Args:
+        identity: Forge identity from build_forge_identity()
+        plan: Promotion plan from build_promotion_plan()
+        
+    Returns:
+        PromotionDraft with all draft information
+    """
+    # Derive promotion branch name (pure function, no Git calls)
+    promotion_branch = derive_promotion_branch_name(
+        head_ref=plan.head_ref,
+        target_ref=plan.target_ref,
+    )
+    
+    # Build title
+    title = _build_draft_title(plan.target_ref)
+    
+    # Build body
+    body = _build_draft_body(identity, plan, promotion_branch)
+    
+    # Derive provider command and URL hint
+    provider_command, provider_url_hint = _derive_provider_command(
+        forge_mode=identity.mode,
+        promotion_branch=promotion_branch,
+        target_ref=plan.target_ref,
+        title=title,
+    )
+    
+    return PromotionDraft(
+        promotion_branch=promotion_branch,
+        base_ref=plan.target_ref,
+        head_ref=plan.head_ref,
+        title=title,
+        body=body,
+        provider_command=provider_command,
+        provider_url_hint=provider_url_hint,
+        draft_only=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -920,6 +1215,27 @@ def build_promotion_plan(
         ready,
     )
     
+    # Build promotion draft (Mission 5: Promotion Branch + PR Draft Planner)
+    # Even if not ready, we still build a draft showing what would be used
+    # The draft's provider_command may be None for some forge modes
+    # Note: This is a pure function - no Git calls, uses head_ref from plan
+    draft = build_promotion_draft(
+        identity=identity,
+        plan=PromotionPlan(
+            mode=derive_promotion_mode(identity.mode),
+            forge_mode=identity.mode,
+            target_ref=target_ref,
+            head_ref=head_ref,
+            identity=identity,
+            reviewability=reviewability,
+            steps=tuple(steps),
+            blockers=tuple(blockers),
+            ready=ready,
+            dry_run_only=True,
+            draft=None,  # Placeholder, will be set below
+        ),
+    )
+    
     return PromotionPlan(
         mode=derive_promotion_mode(identity.mode),
         forge_mode=identity.mode,
@@ -931,4 +1247,5 @@ def build_promotion_plan(
         blockers=tuple(blockers),
         ready=ready,
         dry_run_only=True,
+        draft=draft,
     )

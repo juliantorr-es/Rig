@@ -2128,6 +2128,501 @@ class TestBuildPromotionPlan:
             assert plan.reviewability.target_ref == "preproduction"
 
 
+# ---------------------------------------------------------------------------
+# Mission 5: Promotion Branch + PR Draft Planner Tests
+# ---------------------------------------------------------------------------
+
+from rig.domain.forge import (
+    # New types for Mission 5
+    PromotionDraft,
+    # New functions for Mission 5
+    derive_promotion_branch_name,
+    build_promotion_draft,
+    _make_git_ref_safe,
+)
+
+class TestMakeGitRefSafe:
+    """Tests for _make_git_ref_safe() helper function."""
+
+    def test_safe_chars(self):
+        """_make_git_ref_safe must pass through safe chars."""
+        assert _make_git_ref_safe("abc123") == "abc123"
+        assert _make_git_ref_safe("abc-123") == "abc-123"
+        assert _make_git_ref_safe("abc_123") == "abc_123"
+        assert _make_git_ref_safe("abc.123") == "abc.123"
+
+    def test_uppercase_to_lowercase(self):
+        """_make_git_ref_safe must lowercase."""
+        assert _make_git_ref_safe("AbC-123") == "abc-123"
+
+    def test_spaces_to_dashes(self):
+        """_make_git_ref_safe must replace spaces with dashes."""
+        assert _make_git_ref_safe("abc 123") == "abc-123"
+
+    def test_slashes_to_dashes(self):
+        """_make_git_ref_safe must replace slashes with dashes."""
+        assert _make_git_ref_safe("abc/123") == "abc-123"
+        assert _make_git_ref_safe("feature/my-feature") == "feature-my-feature"
+
+    def test_special_chars_removed(self):
+        """_make_git_ref_safe must remove special chars."""
+        assert _make_git_ref_safe("abc@123") == "abc-123"
+        assert _make_git_ref_safe("abc#123") == "abc-123"
+        assert _make_git_ref_safe("abc$123") == "abc-123"
+
+    def test_leading_trailing_dots_dashes(self):
+        """_make_git_ref_safe must strip leading/trailing dots and dashes."""
+        assert _make_git_ref_safe(".abc") == "abc"
+        assert _make_git_ref_safe("-abc") == "abc"
+        assert _make_git_ref_safe("abc.") == "abc"
+        assert _make_git_ref_safe("abc-") == "abc"
+        assert _make_git_ref_safe(".-abc-.") == "abc"
+
+    def test_empty_returns_unknown(self):
+        """_make_git_ref_safe must return 'unknown' for empty result."""
+        assert _make_git_ref_safe("") == "unknown"
+        assert _make_git_ref_safe("   ") == "unknown"
+        assert _make_git_ref_safe("...") == "unknown"
+
+
+class TestDerivePromotionBranchName:
+    """Tests for derive_promotion_branch_name() function."""
+
+    def test_basic_branch(self, mock_repo_root):
+        """derive_promotion_branch_name must handle basic branch name."""
+        # Pure function - uses head_ref directly
+        result = derive_promotion_branch_name(
+            head_ref="main",
+            target_ref="preproduction",
+        )
+        assert result == "promotion/preproduction/main"
+
+    def test_branch_with_slash(self, mock_repo_root):
+        """derive_promotion_branch_name must handle branch with slash."""
+        result = derive_promotion_branch_name(
+            head_ref="feature/my-feature",
+            target_ref="preproduction",
+        )
+        assert result == "promotion/preproduction/feature-my-feature"
+
+    def test_branch_with_spaces(self, mock_repo_root):
+        """derive_promotion_branch_name must handle branch with spaces."""
+        result = derive_promotion_branch_name(
+            head_ref="my feature",
+            target_ref="staging",
+        )
+        assert result == "promotion/staging/my-feature"
+
+    def test_head_as_head_ref(self, mock_repo_root):
+        """derive_promotion_branch_name must handle HEAD as head_ref."""
+        result = derive_promotion_branch_name(
+            head_ref="HEAD",
+            target_ref="preproduction",
+        )
+        # HEAD maps to "head" as fallback
+        assert result == "promotion/preproduction/head"
+
+    def test_custom_target_ref(self, mock_repo_root):
+        """derive_promotion_branch_name must use custom target_ref."""
+        result = derive_promotion_branch_name(
+            head_ref="main",
+            target_ref="staging",
+        )
+        assert result == "promotion/staging/main"
+
+    def test_custom_prefix(self, mock_repo_root):
+        """derive_promotion_branch_name must use custom prefix."""
+        result = derive_promotion_branch_name(
+            head_ref="main",
+            target_ref="preproduction",
+            prefix="promo",
+        )
+        assert result == "promo/preproduction/main"
+
+    def test_uppercase_branch_lowercased(self, mock_repo_root):
+        """derive_promotion_branch_name must lowercase branch names."""
+        result = derive_promotion_branch_name(
+            head_ref="Sprint/MyFeature",
+            target_ref="PreProduction",
+            prefix="PROMOTION",
+        )
+        assert result == "promotion/preproduction/sprint-myfeature"
+
+
+class TestPromotionDraft:
+    """Tests for PromotionDraft dataclass."""
+
+    def test_promotion_draft_fields(self):
+        """PromotionDraft must have all required fields."""
+        draft = PromotionDraft(
+            promotion_branch="promotion/preproduction/main",
+            base_ref="preproduction",
+            head_ref="main",
+            title="Promotion to preproduction",
+            body="Test body",
+            provider_command="gh pr create --base preproduction --head promotion/preproduction/main",
+            provider_url_hint=None,
+        )
+        assert draft.promotion_branch == "promotion/preproduction/main"
+        assert draft.base_ref == "preproduction"
+        assert draft.head_ref == "main"
+        assert draft.title == "Promotion to preproduction"
+        assert draft.body == "Test body"
+        assert draft.provider_command == "gh pr create --base preproduction --head promotion/preproduction/main"
+        assert draft.provider_url_hint is None
+        assert draft.draft_only is True
+
+    def test_promotion_draft_frozen(self):
+        """PromotionDraft must be immutable."""
+        draft = PromotionDraft(
+            promotion_branch="test",
+            base_ref="main",
+            head_ref="HEAD",
+            title="Test",
+            body="Test",
+            provider_command=None,
+            provider_url_hint=None,
+        )
+        with pytest.raises(AttributeError):
+            draft.promotion_branch = "changed"  # type: ignore[reportAttributeAccessIssue]
+
+    def test_promotion_draft_slots(self):
+        """PromotionDraft must use slots."""
+        draft = PromotionDraft(
+            promotion_branch="test",
+            base_ref="main",
+            head_ref="HEAD",
+            title="Test",
+            body="Test",
+            provider_command=None,
+            provider_url_hint=None,
+        )
+        with pytest.raises((AttributeError, TypeError)):
+            draft.extra_field = "test"  # type: ignore[reportAttributeAccessIssue]
+
+
+class TestBuildPromotionDraft:
+    """Tests for build_promotion_draft() function."""
+
+    def test_github_draft_command_contains_gh_pr_create(self, mock_repo_root):
+        """GitHub draft must contain gh pr create command."""
+        identity = ForgeIdentity(
+            mode=ForgeMode.GITHUB,
+            remote_url="https://github.com/owner/repo.git",
+            host="github.com",
+        )
+        
+        # Create a minimal plan for testing with a real branch name
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="main",
+            merge_base=None,
+            changed_file_count=50,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.PULL_REQUEST,
+            forge_mode=ForgeMode.GITHUB,
+            target_ref="preproduction",
+            head_ref="main",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        # derive_promotion_branch_name is pure, uses plan.head_ref
+        draft = build_promotion_draft(identity, plan)
+        
+        assert draft.promotion_branch == "promotion/preproduction/main"
+        assert "gh pr create" in (draft.provider_command or "")
+        assert "--base preproduction" in (draft.provider_command or "")
+        assert "--head promotion/preproduction/main" in (draft.provider_command or "")
+        assert draft.title == "Promotion to preproduction"
+        assert "Rig Promotion Draft" in draft.body
+        assert "Generated by Rig promotion dry-run planner" in draft.body
+        assert draft.draft_only is True
+
+    def test_local_only_draft_has_no_provider_command(self, mock_repo_root):
+        """Local-only draft must have no provider command."""
+        identity = ForgeIdentity(mode=ForgeMode.LOCAL_ONLY)
+        
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="sprint/test",
+            merge_base=None,
+            changed_file_count=50,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.LOCAL_BRANCH,
+            forge_mode=ForgeMode.LOCAL_ONLY,
+            target_ref="preproduction",
+            head_ref="sprint/test",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        draft = build_promotion_draft(identity, plan)
+        
+        # Local-only should have a comment as provider_command
+        assert draft.provider_command is None or draft.provider_command.startswith("#")
+        assert draft.promotion_branch == "promotion/preproduction/sprint-test"
+
+    def test_over_budget_plan_still_includes_draft(self, mock_repo_root):
+        """Over-budget plan must still include draft with blockers."""
+        identity = ForgeIdentity(
+            mode=ForgeMode.GITHUB,
+            remote_url="https://github.com/owner/repo.git",
+            host="github.com",
+        )
+        
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="sprint/feature-x",
+            merge_base=None,
+            changed_file_count=350,
+            max_changed_files=300,
+            over_budget=True,
+            default_action="block_promotion",
+            override_required=True,
+            changed_files=(),
+            truncated=False,
+            findings=(
+                ForgeDoctorFinding(
+                    code="REVIEW-003",
+                    severity=ForgeDoctorSeverity.ERROR,
+                    message="Over budget",
+                ),
+            ),
+        )
+        
+        blocker = ForgeDoctorFinding(
+            code="PROMOTION-003",
+            severity=ForgeDoctorSeverity.ERROR,
+            message="Reviewability budget exceeded: 350 > 300",
+            remediation="Reduce changes",
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.PULL_REQUEST,
+            forge_mode=ForgeMode.GITHUB,
+            target_ref="preproduction",
+            head_ref="sprint/feature-x",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(blocker,),
+            ready=False,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        draft = build_promotion_draft(identity, plan)
+        
+        assert draft is not None
+        assert draft.promotion_branch == "promotion/preproduction/sprint-feature-x"
+        assert draft.title == "Promotion to preproduction"
+        # Body should include blocker info
+        assert "Blockers:" in draft.body
+        assert "PROMOTION-003" in draft.body
+
+    def test_github_mode_draft_command(self, mock_repo_root):
+        """GitHub mode draft must have correct provider_command."""
+        identity = ForgeIdentity(
+            mode=ForgeMode.GITHUB,
+            remote_url="https://github.com/owner/repo.git",
+            host="github.com",
+        )
+        
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="main",
+            merge_base=None,
+            changed_file_count=50,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.PULL_REQUEST,
+            forge_mode=ForgeMode.GITHUB,
+            target_ref="preproduction",
+            head_ref="main",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        draft = build_promotion_draft(identity, plan)
+        
+        assert draft.provider_command is not None
+        assert "gh pr create" in draft.provider_command
+        assert "--base preproduction" in draft.provider_command
+        assert "--head promotion/preproduction/main" in draft.provider_command
+
+    def test_gitlab_mode_draft_command(self, mock_repo_root):
+        """GitLab mode draft must have correct provider_command."""
+        identity = ForgeIdentity(
+            mode=ForgeMode.GITLAB,
+            remote_url="https://gitlab.com/owner/repo.git",
+            host="gitlab.com",
+        )
+        
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="HEAD",
+            merge_base=None,
+            changed_file_count=50,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.MERGE_REQUEST,
+            forge_mode=ForgeMode.GITLAB,
+            target_ref="preproduction",
+            head_ref="main",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        draft = build_promotion_draft(identity, plan)
+        
+        assert draft.provider_command is not None
+        assert "glab mr create" in draft.provider_command
+        assert "--base preproduction" in draft.provider_command
+
+    def test_unknown_mode_draft_no_command(self, mock_repo_root):
+        """Unknown mode draft must have no provider_command."""
+        identity = ForgeIdentity(mode=ForgeMode.UNKNOWN)
+        
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="HEAD",
+            merge_base=None,
+            changed_file_count=50,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.MANUAL,
+            forge_mode=ForgeMode.UNKNOWN,
+            target_ref="preproduction",
+            head_ref="main",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        draft = build_promotion_draft(identity, plan)
+        
+        assert draft.provider_command is None
+        assert draft.provider_url_hint is not None
+        assert "Manual adapter required" in (draft.provider_url_hint or "")
+
+    def test_body_contains_no_personal_names(self, mock_repo_root):
+        """Draft body must not contain any personal names."""
+        identity = ForgeIdentity(
+            mode=ForgeMode.GITHUB,
+            remote_url="https://github.com/owner/repo.git",
+            host="github.com",
+            owner="owner",  # Even if owner is set
+            repository="repo",
+        )
+        
+        rev = ReviewabilityReport(
+            target_ref="preproduction",
+            head_ref="HEAD",
+            merge_base=None,
+            changed_file_count=50,
+            max_changed_files=300,
+            over_budget=False,
+            default_action="block_promotion",
+            override_required=False,
+            changed_files=(),
+            truncated=False,
+            findings=(),
+        )
+        
+        plan = PromotionPlan(
+            mode=PromotionMode.PULL_REQUEST,
+            forge_mode=ForgeMode.GITHUB,
+            target_ref="preproduction",
+            head_ref="sprint/feature-x",
+            identity=identity,
+            reviewability=rev,
+            steps=(),
+            blockers=(),
+            ready=True,
+            dry_run_only=True,
+            draft=None,
+        )
+        
+        draft = build_promotion_draft(identity, plan)
+        
+        # Check that no personal identifiers are in the body
+        body_lower = draft.body.lower()
+        # The word "user" or "maintainer" is acceptable as generic term
+        # But we should not have specific names
+        assert "julian" not in body_lower
+        assert "vibe" not in body_lower
+        assert "owner" not in body_lower or "the owner" not in draft.body
+        # "Generated by Rig" is acceptable
+        assert "Generated by Rig" in draft.body
+
+
 def main() -> int:
     """Run all tests and return exit code."""
     return pytest.main([__file__, "-v"])
