@@ -181,8 +181,51 @@
       "id": "mission-9",
       "research_required": false,
       "title": "GitHub Adapter Backend Boundary"
+    },
+    {
+      "id": "mission-10",
+      "research_required": false,
+      "title": "GitHub API Credential Model Research"
     }
   ],
+  "github_api_backend": {
+    "status": "planned",
+    "default_backend": "cli",
+    "allowed_libraries": ["pygithub", "direct_rest"],
+    "token_sources_allowed": [
+      "environment_variable",
+      "os_credential_store",
+      "github_app_installation_token",
+      "explicit_untracked_token_path"
+    ],
+    "token_sources_forbidden": [
+      "committed_config",
+      "adr_json",
+      "promotion_artifact_metadata",
+      "logs",
+      "test_fixtures"
+    ],
+    "minimum_permissions": [
+      {
+        "capability": "create_pull_request",
+        "github_permission": "Pull requests",
+        "access": "write"
+      },
+      {
+        "capability": "repository_contents_read",
+        "github_permission": "Contents",
+        "access": "read"
+      },
+      {
+        "capability": "repository_metadata_read",
+        "github_permission": "Metadata",
+        "access": "read"
+      }
+    ],
+    "redaction_required": true,
+    "fail_closed_on_missing_credentials": true,
+    "fail_closed_on_over_scoped_token": true
+  },
   "status": "proposed",
   "title": "Repository Forge Bootstrap and Promotion Abstraction",
   "updated_at": "2025-05-10T00:00:00Z",

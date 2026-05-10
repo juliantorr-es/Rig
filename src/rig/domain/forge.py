@@ -76,6 +76,37 @@ class GitHubBackendMode(Enum):
     API = "api"
 
 
+class GitHubApiLibraryChoice(Enum):
+    """Allowed Python library choices for GitHub API backend.
+
+    Mission 10: GitHub API Backend Credential Model
+
+    - PYGITHUB: Use the PyGithub library (recommended for standard operations)
+    - DIRECT_REST: Make direct REST API calls (for unsupported endpoints)
+    """
+    PYGITHUB = "pygithub"
+    DIRECT_REST = "direct_rest"
+
+
+class GitHubTokenSource(Enum):
+    """Allowed token sources for GitHub API backend.
+
+    Mission 10: GitHub API Backend Credential Model
+
+    Defines where GitHub API tokens can come from. Token values are NEVER
+    stored by Rig; these are only descriptions of allowed sources.
+
+    - ENVIRONMENT_VARIABLE: RIG_GITHUB_TOKEN or similar env var
+    - OS_CREDENTIAL_STORE: Platform native credential store (Keychain, etc.)
+    - GITHUB_APP_INSTALLATION_TOKEN: Token from GitHub App installation
+    - EXPLICIT_UNTRACKED_TOKEN_PATH: User-specified file in .gitignore
+    """
+    ENVIRONMENT_VARIABLE = "environment_variable"
+    OS_CREDENTIAL_STORE = "os_credential_store"
+    GITHUB_APP_INSTALLATION_TOKEN = "github_app_installation_token"
+    EXPLICIT_UNTRACKED_TOKEN_PATH = "explicit_untracked_token_path"
+
+
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------

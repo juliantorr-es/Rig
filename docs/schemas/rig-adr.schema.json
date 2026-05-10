@@ -1,0 +1,425 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rig.anigma.internal/schemas/rig-adr.schema.json",
+  "title": "Rig ADR Contract",
+  "description": "Machine-readable contract for a Rig Architecture Decision Record. Complements the human-readable Markdown ADR. The Markdown explains WHY; this JSON tells Rig WHAT to do. New ADRs should have both .md and .json files. The JSON must validate against this schema.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "adr_id",
+    "number",
+    "title",
+    "slug",
+    "status",
+    "markdown_path",
+    "workflow"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "github_api_backend": {
+      "type": "object",
+      "description": "GitHub API backend credential contract. Only for ADRs that define GitHub API integration.",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["planned", "alpha", "beta", "stable", "deprecated"],
+          "description": "Current status of the GitHub API backend."
+        },
+        "default_backend": {
+          "type": "string",
+          "enum": ["cli", "api"],
+          "description": "Default backend for GitHub operations."
+        },
+        "allowed_libraries": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Allowed Python libraries for API backend."
+        },
+        "token_sources_allowed": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Allowed sources for API tokens."
+        },
+        "token_sources_forbidden": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Forbidden sources for API tokens."
+        },
+        "minimum_permissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["capability", "github_permission", "access"],
+            "additionalProperties": false,
+            "properties": {
+              "capability": {"type": "string"},
+              "github_permission": {"type": "string"},
+              "access": {"type": "string", "enum": ["read", "write", "admin"]}
+            }
+          },
+          "description": "Minimum permissions required for API backend operations."
+        },
+        "redaction_required": {
+          "type": "boolean",
+          "description": "Whether token redaction is required in all output."
+        },
+        "fail_closed_on_missing_credentials": {
+          "type": "boolean",
+          "description": "Whether backend must fail closed when credentials are missing."
+        },
+        "fail_closed_on_over_scoped_token": {
+          "type": "boolean",
+          "description": "Whether backend must fail closed when token is over-scoped."
+        }
+      },
+      "required": [
+        "status",
+        "default_backend",
+        "allowed_libraries",
+        "token_sources_allowed",
+        "token_sources_forbidden",
+        "minimum_permissions",
+        "redaction_required",
+        "fail_closed_on_missing_credentials"
+      ]
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "rig.adr.v1",
+      "description": "Schema version identifier. Must be 'rig.adr.v1'."
+    },
+    "adr_id": {
+      "type": "string",
+      "pattern": "^adr[0-9]{4}$",
+      "description": "ADR identifier in lowercase adrNNNN format (e.g., adr0009)."
+    },
+    "number": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "ADR number as exactly 4-digit string (e.g., '0009')."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Human-readable ADR title."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Canonical slug derived from title using lowercase, hyphens, and alphanumeric only."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "accepted",
+        "deprecated",
+        "superseded"
+      ],
+      "description": "Current status of the ADR."
+    },
+    "markdown_path": {
+      "type": "string",
+      "pattern": "^docs/adr/[0-9]{4}-[a-z0-9-]+\\.md$",
+      "description": "Repo-relative path to the Markdown ADR file."
+    },
+    "workflow": {
+      "type": "object",
+      "required": [
+        "worktree_name",
+        "ledger_path",
+        "sprint_branch",
+        "promotion_branch"
+      ],
+      "additionalProperties": false,
+      "description": "Workflow contract fields derived from ADR identity.",
+      "properties": {
+        "worktree_name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Canonical worktree directory name (without path prefix)."
+        },
+        "ledger_path": {
+          "type": "string",
+          "pattern": "^\\.rig/work/adr/adr[0-9]{4}-[a-z0-9-]+$",
+          "description": "Path to ADR ledger directory under .rig/work/adr/."
+        },
+        "sprint_branch": {
+          "type": "string",
+          "pattern": "^sprint/adr[0-9]{4}-[a-z0-9-]+$",
+          "description": "Default sprint branch name pattern: sprint/adrNNNN-slug."
+        },
+        "promotion_branch": {
+          "type": "string",
+          "pattern": "^promotion/adr[0-9]{4}-[a-z0-9-]+$",
+          "description": "Default promotion target branch name."
+        },
+        "mission_branch_prefix": {
+          "type": "string",
+          "pattern": "^agent/adr[0-9]{4}-",
+          "description": "Prefix for mission branches: agent/adrNNNN-."
+        }
+      }
+    },
+    "authority_boundaries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "must_not"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "Machine-readable boundary identifier."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Human-readable description."
+          },
+          "must_not": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Actions that must NOT occur."
+          }
+        }
+      },
+      "description": "Authority boundaries agents must not cross."
+    },
+    "sprints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "research_required"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Sprint identifier."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Sprint title."
+          },
+          "research_required": {
+            "type": "boolean",
+            "description": "Whether sprint research is mandatory."
+          },
+          "missions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "title",
+                "intent"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+                  "minLength": 1,
+                  "maxLength": 60,
+                  "description": "Mission identifier."
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "description": "Mission title."
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Mission intent."
+                },
+                "branch_name": {
+                  "type": "string",
+                  "pattern": "^agent/adr[0-9]{4}-[a-z0-9-]+$",
+                  "description": "Mission branch name."
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Sprints for this ADR."
+    },
+    "validation_gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "blocking"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "Gate identifier."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Gate description."
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "Whether gate is blocking for promotion."
+          }
+        }
+      },
+      "description": "Validation gates (Rite of Deterministic Passage)."
+    },
+    "non_goals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "description": "Explicit non-goals."
+    },
+    "files_involved": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 250
+        }
+      },
+      "description": "Files grouped by slice."
+    },
+    "related_adrs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^adr[0-9]{4}$",
+            "description": "Related ADR identifier."
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^docs/adr/[0-9]{4}-[a-z0-9-]+\\.md$",
+            "description": "Path to related ADR markdown."
+          },
+          "relationship": {
+            "type": "string",
+            "enum": [
+              "depends_on",
+              "related",
+              "superseded_by",
+              "supersedes"
+            ],
+            "description": "Relationship type."
+          }
+        }
+      },
+      "description": "Related ADRs."
+    },
+    "reviewability_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_changed_files",
+        "default_action",
+        "override_allowed",
+        "override_requires_reason",
+        "applies_to",
+        "rationale"
+      ],
+      "properties": {
+        "max_changed_files": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of changed files allowed per promotion candidate."
+        },
+        "default_action": {
+          "type": "string",
+          "enum": ["block_promotion", "warn", "allow"],
+          "description": "Default action when budget is exceeded."
+        },
+        "override_allowed": {
+          "type": "boolean",
+          "description": "Whether overriding the budget limit is allowed."
+        },
+        "override_requires_reason": {
+          "type": "boolean",
+          "description": "Whether an override requires an explicit reason."
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "List of forge modes this budget applies to."
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Rationale for this budget."
+        }
+      },
+      "description": "Reviewability budget policy for promotion candidates."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When created."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When updated."
+    }
+  }
+}
