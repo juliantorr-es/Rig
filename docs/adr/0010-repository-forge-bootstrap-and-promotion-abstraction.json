@@ -1,0 +1,216 @@
+{
+  "schema_version": "rig.adr.v1",
+  "adr_id": "adr0010",
+  "number": "0010",
+  "title": "Repository Forge Bootstrap and Promotion Abstraction",
+  "slug": "repository-forge-bootstrap-and-promotion-abstraction",
+  "status": "proposed",
+  "markdown_path": "docs/adr/0010-repository-forge-bootstrap-and-promotion-abstraction.md",
+  "workflow": {
+    "worktree_name": "adr0010-repository-forge-bootstrap-and-promotion-abstraction",
+    "ledger_path": ".rig/work/adr/adr0010-repository-forge-bootstrap-and-promotion-abstraction",
+    "sprint_branch": "sprint/adr0010-repository-forge-bootstrap-and-promotion-abstraction",
+    "promotion_branch": "promotion/adr0010-repository-forge-bootstrap-and-promotion-abstraction",
+    "mission_branch_prefix": "agent/adr0010-"
+  },
+  "authority_boundaries": [
+    {
+      "id": "forge-neutral-core",
+      "description": "Rig core must not depend on any specific forge",
+      "must_not": [
+        "import forge-specific modules in core",
+        "assume GitHub-only features",
+        "require remote connectivity"
+      ]
+    },
+    {
+      "id": "adapter-isolation",
+      "description": "Forge adapters must not leak provider-specific behavior into core",
+      "must_not": [
+        "modify core workflow based on adapter mode",
+        "return forge-specific errors from core",
+        "use forge APIs in core validation"
+      ]
+    },
+    {
+      "id": "local-first",
+      "description": "Local-only mode must always work without any forge",
+      "must_not": [
+        "require forge API for promotion",
+        "fail if remote unavailable",
+        "assume remote branches exist"
+      ]
+    },
+    {
+      "id": "test-isolation",
+      "description": "Tests must not depend on forge availability",
+      "must_not": [
+        "use real forge APIs in tests",
+        "require network for tests",
+        "test forge-specific behavior in core tests"
+      ]
+    },
+    {
+      "id": "git-substrate",
+      "description": "Git is the canonical substrate",
+      "must_not": [
+        "replace git operations with forge APIs",
+        "use forge APIs for local checks",
+        "bypass git for remote operations"
+      ]
+    }
+  ],
+  "sprints": [
+    {
+      "id": "sprint-adapter-interface",
+      "title": "Adapter Interface Definition",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "mission-forge-protocol",
+          "title": "Define the ForgeAdapter protocol and implement LocalOnlyAdapter",
+          "intent": "Create forge adapter abstraction with protocol and local-only implementation",
+          "branch_name": "agent/adr0010-mission-forge-protocol"
+        }
+      ]
+    },
+    {
+      "id": "sprint-repo-bootstrap",
+      "title": "Repository Bootstrap",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "mission-forge-detection",
+          "title": "Implement repository bootstrap for forge detection and branch creation",
+          "intent": "Create repo_bootstrap.py with forge auto-detection and branch setup",
+          "branch_name": "agent/adr0010-mission-forge-detection"
+        }
+      ]
+    },
+    {
+      "id": "sprint-github-adapter",
+      "title": "GitHub Adapter",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "mission-github-integration",
+          "title": "Implement GitHubAdapter with full capability support",
+          "intent": "Create GitHub adapter with PR, branch protection, and CI status capabilities",
+          "branch_name": "agent/adr0010-mission-github-integration"
+        }
+      ]
+    },
+    {
+      "id": "sprint-gitlab-adapter",
+      "title": "GitLab Adapter",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "mission-gitlab-integration",
+          "title": "Implement GitLabAdapter",
+          "intent": "Create GitLab adapter with MR, branch protection, and pipeline capabilities",
+          "branch_name": "agent/adr0010-mission-gitlab-integration"
+        }
+      ]
+    },
+    {
+      "id": "sprint-gitea-adapter",
+      "title": "Gitea Adapter",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "mission-gitea-integration",
+          "title": "Implement GiteaAdapter",
+          "intent": "Create Gitea adapter with PR and basic CI capabilities",
+          "branch_name": "agent/adr0010-mission-gitea-integration"
+        }
+      ]
+    },
+    {
+      "id": "sprint-documentation",
+      "title": "Documentation and Polish",
+      "research_required": false,
+      "missions": [
+        {
+          "id": "mission-docs-and-polish",
+          "title": "Complete documentation and polish the implementation",
+          "intent": "Add user docs, troubleshooting guide, and final integration testing",
+          "branch_name": "agent/adr0010-mission-docs-and-polish"
+        }
+      ]
+    }
+  ],
+  "validation_gates": [
+    {"id": "gate-1", "description": "Sprint research completed", "blocking": true},
+    {"id": "gate-2", "description": "Mission handoff completed", "blocking": true},
+    {"id": "gate-3", "description": "Patch batches prechecked", "blocking": true},
+    {"id": "gate-4", "description": "Patch batches applied and validated", "blocking": false},
+    {"id": "gate-5", "description": "Merge-friendliness pass completed", "blocking": true},
+    {"id": "gate-6", "description": "work_doctor.py passed", "blocking": true},
+    {"id": "gate-7", "description": "Required tests passed", "blocking": true},
+    {"id": "gate-8", "description": "Out-of-scope findings recorded", "blocking": true},
+    {"id": "gate-9", "description": "Candidate source branch is clean", "blocking": true},
+    {"id": "gate-10", "description": "Candidate source branch HEAD is recorded", "blocking": true},
+    {"id": "gate-11", "description": "Preproduction branch exists locally", "blocking": true},
+    {"id": "gate-12", "description": "Merge simulation against preproduction passes", "blocking": true},
+    {"id": "gate-13", "description": "Preproduction working tree is clean before merge", "blocking": true},
+    {"id": "gate-14-github", "description": "GitHub Actions checks passing (optional, forge-specific)", "blocking": false},
+    {"id": "gate-14-gitlab", "description": "GitLab CI/CD pipeline passing (optional, forge-specific)", "blocking": false},
+    {"id": "gate-14-gitea", "description": "Gitea Actions checks passing (optional, forge-specific)", "blocking": false},
+    {"id": "gate-15", "description": "Required reviews approved (optional, forge-specific)", "blocking": false},
+    {"id": "gate-16", "description": "Branch protection allows merge (optional, forge-specific)", "blocking": false}
+  ],
+  "non_goals": [
+    "Rig becomes a CI/CD system",
+    "Rig supports fork-based workflows",
+    "Rig supports multiple forges simultaneously",
+    "Rig makes assumptions about branch naming",
+    "Rig manages forge credentials",
+    "Rig implements two-phase commit"
+  ],
+  "files_involved": {
+    "sprint_1": [
+      "src/rig/domain/forge/__init__.py",
+      "src/rig/domain/forge/local_adapter.py",
+      "src/rig/domain/forge/registry.py"
+    ],
+    "sprint_2": [
+      "scripts/repo_bootstrap.py",
+      ".rig/config/forge.yaml"
+    ],
+    "sprint_3": [
+      "src/rig/domain/forge/github_adapter.py"
+    ],
+    "sprint_4": [
+      "src/rig/domain/forge/gitlab_adapter.py"
+    ],
+    "sprint_5": [
+      "src/rig/domain/forge/gitea_adapter.py"
+    ],
+    "sprint_6": [
+      "docs/workflow/adr-sprint-mission-evidence.md",
+      "docs/forge/github.md",
+      "docs/forge/gitlab.md",
+      "docs/forge/gitea.md"
+    ],
+    "modified": [
+      "scripts/work_promote.py",
+      "docs/adr/README.md",
+      ".gitignore"
+    ]
+  },
+  "related_adrs": [
+    {"id": "adr0007", "path": "docs/adr/0007-workspace-domain-authority.md", "relationship": "depends_on"},
+    {"id": "adr0009", "path": "docs/adr/0009-agentic-workflow-refinement.md", "relationship": "depends_on"}
+  ],
+  "reviewability_budget": {
+    "max_changed_files": 300,
+    "default_action": "block_promotion",
+    "override_allowed": true,
+    "override_requires_reason": true,
+    "applies_to": ["local_only", "github", "gitlab", "gitea", "future_adapter"],
+    "rationale": "Keeps promotion candidates small enough for human and hosted AI review tools."
+  },
+  "created_at": "2025-05-09T00:00:00Z",
+  "updated_at": "2025-05-10T00:00:00Z"
+}

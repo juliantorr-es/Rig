@@ -14,6 +14,7 @@ Core principles:
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -179,6 +180,7 @@ class PromotionDraft:
     No mutation is performed - this is draft information only.
     
     Mission 5: Promotion Branch + PR Draft Planner
+    Mission 6: Promotion Body File Dry-Run Artifact - adds body_path
     """
     promotion_branch: str
     base_ref: str
@@ -188,6 +190,7 @@ class PromotionDraft:
     provider_command: str | None
     provider_url_hint: str | None
     draft_only: bool = True
+    body_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,6 +212,25 @@ class PromotionPlan:
     ready: bool
     dry_run_only: bool = True
     draft: PromotionDraft | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PromotionArtifact:
+    """Artifact for promotion body file dry-run.
+    
+    Represents the local filesystem artifact produced during dry-run promotion planning.
+    Contains the path to the PR/MR body file and its metadata.
+    No Git mutation is performed - this only writes local artifact files.
+    
+    Mission 6: Promotion Body File Dry-Run Artifact
+    """
+    artifact_id: str
+    directory: str
+    body_path: str
+    metadata_path: str
+    body_sha256: str
+    body_bytes: int
+    wrote_files: bool
 
 
 # ---------------------------------------------------------------------------
@@ -595,6 +617,7 @@ def _derive_provider_command(
     promotion_branch: str,
     target_ref: str,
     title: str,
+    body_path: str | None = None,
 ) -> tuple[str | None, str | None]:
     """Derive provider-specific command preview and URL hint.
     
@@ -603,6 +626,7 @@ def _derive_provider_command(
         promotion_branch: The promotion branch name
         target_ref: The target reference
         title: The PR/MR title
+        body_path: Optional path to body file for --body-file flag
         
     Returns:
         Tuple of (provider_command, provider_url_hint)
@@ -616,16 +640,22 @@ def _derive_provider_command(
                 f"gh pr create --base {target_ref} --head {promotion_branch} "
                 f'--title "{title}"'
             )
-            # For body, we'd use --body or --body-file
-            # Don't include body in command preview to keep it simple
+            # Use --body-file if body path is available
+            if body_path:
+                command += f" --body-file {body_path}"
             return command, None
         
         case ForgeMode.GITLAB:
             # glab mr create command (display only, not executed)
+            # Note: glab CLI may not support --body-file directly
+            # but we include it for consistency; adapter can handle specifically
             command = (
                 f"glab mr create --base {target_ref} --head {promotion_branch} "
                 f'--title "{title}"'
             )
+            if body_path:
+                # For GitLab, note that body-file support is adapter-dependent
+                command += f" # Body file: {body_path} (adapter-dependent)"
             return command, None
         
         case ForgeMode.GITEA:
@@ -657,10 +687,12 @@ def _derive_provider_command(
 def build_promotion_draft(
     identity: ForgeIdentity,
     plan: PromotionPlan,
+    body_path: str | None = None,
 ) -> PromotionDraft:
     """Build a complete promotion draft with branch name, title, body, and provider command.
     
     Mission 5: Promotion Branch + PR Draft Planner
+    Mission 6: Updated to include body_path for --body-file flag
     
     This is a PURE function - no side effects, no Git calls.
     All information is derived from the provided plan and identity.
@@ -668,9 +700,10 @@ def build_promotion_draft(
     Args:
         identity: Forge identity from build_forge_identity()
         plan: Promotion plan from build_promotion_plan()
+        body_path: Optional path to body file for provider command --body-file flag
         
     Returns:
-        PromotionDraft with all draft information
+        PromotionDraft with all draft information including body_path
     """
     # Derive promotion branch name (pure function, no Git calls)
     promotion_branch = derive_promotion_branch_name(
@@ -690,6 +723,7 @@ def build_promotion_draft(
         promotion_branch=promotion_branch,
         target_ref=plan.target_ref,
         title=title,
+        body_path=body_path,
     )
     
     return PromotionDraft(
@@ -701,6 +735,7 @@ def build_promotion_draft(
         provider_command=provider_command,
         provider_url_hint=provider_url_hint,
         draft_only=True,
+        body_path=body_path,
     )
 
 
@@ -1248,4 +1283,209 @@ def build_promotion_plan(
         ready=ready,
         dry_run_only=True,
         draft=draft,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Promotion Artifact Helpers (Mission 6)
+# ---------------------------------------------------------------------------
+
+def _make_filesystem_safe(name: str) -> str:
+    """Make a string safe for use as a filesystem path component.
+    
+    Args:
+        name: The string to make filesystem-safe
+        
+    Returns:
+        A string safe for use in filesystem paths: lowercase, alphanumeric with -_.
+    """
+    # Replace spaces, slashes, colons with dashes
+    safe = name.replace(" ", "-").replace("/", "-").replace(":", "-")
+    # Keep only alphanumeric, dots, underscores, and dashes
+    safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in safe)
+    # Strip leading/trailing dots and dashes
+    safe = safe.lstrip(".-").rstrip(".-")
+    # Lowercase
+    safe = safe.lower()
+    # If empty after processing, use "unknown"
+    if not safe:
+        safe = "unknown"
+    # Collapse multiple dashes
+    while "--" in safe:
+        safe = safe.replace("--", "-")
+    return safe
+
+
+def derive_promotion_artifact_id(
+    target_ref: str,
+    head_ref: str,
+    body_sha256: str,
+) -> str:
+    """Derive a deterministic artifact ID for promotion artifact.
+    
+    Mission 6: Promotion Body File Dry-Run Artifact
+    
+    The artifact ID is based on target_ref, head_ref, and body content hash.
+    This ensures the same promotion plan produces the same artifact ID.
+    
+    Args:
+        target_ref: Target reference for promotion
+        head_ref: Head reference for promotion
+        body_sha256: SHA256 hex digest of the body content
+        
+    Returns:
+        A deterministic, filesystem-safe artifact ID string
+        Format: promotion-{target}-{head}-{short_hash}
+    """
+    # Use short hash (first 12 chars) for readability
+    short_hash = body_sha256[:12]
+    
+    # Make refs filesystem-safe
+    safe_target = _make_filesystem_safe(target_ref)
+    safe_head = _make_filesystem_safe(str(head_ref))
+    
+    return f"promotion-{safe_target}-{safe_head}-{short_hash}"
+
+
+def derive_promotion_artifact_paths(
+    repo_path: Path | str,
+    artifact_id: str,
+    artifact_dir: str = ".rig/work/promotions",
+) -> tuple[str, str, str]:
+    """Derive artifact file paths from artifact ID and repo path.
+    
+    Mission 6: Promotion Body File Dry-Run Artifact
+    
+    Args:
+        repo_path: Path to the git repository root
+        artifact_id: The derived artifact ID
+        artifact_dir: Base directory for artifacts (default: ".rig/work/promotions")
+        
+    Returns:
+        Tuple of (directory_path, body_path, metadata_path)
+        - directory_path: Full path to artifact directory
+        - body_path: Full path to body.md file
+        - metadata_path: Full path to metadata.json file
+    """
+    base_dir = Path(repo_path) / artifact_dir / artifact_id
+    directory_path = str(base_dir)
+    body_path = str(base_dir / "body.md")
+    metadata_path = str(base_dir / "metadata.json")
+    return directory_path, body_path, metadata_path
+
+
+def _compute_body_sha256(body: str) -> str:
+    """Compute SHA256 hex digest of body content.
+    
+    Args:
+        body: The body content string
+        
+    Returns:
+        SHA256 hex digest string (lowercase, 64 characters)
+    """
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def build_promotion_artifact(
+    repo_path: Path | str,
+    plan: PromotionPlan,
+    write: bool = False,
+    artifact_dir: str = ".rig/work/promotions",
+) -> PromotionArtifact:
+    """Build a promotion artifact with body file and metadata.
+    
+    Mission 6: Promotion Body File Dry-Run Artifact
+    
+    This function computes artifact paths and body hashes. If write=True,
+    it creates the artifact directory and writes body.md and metadata.json files.
+    
+    NO GIT MUTATION: This function only writes local filesystem files under
+    the artifact directory. It does not modify Git history, branches, worktrees,
+    or remote state.
+    
+    Args:
+        repo_path: Path to the git repository root
+        plan: The promotion plan (must have draft with body)
+        write: If True, write artifact files to filesystem (default: False)
+        artifact_dir: Base directory for artifacts (default: ".rig/work/promotions")
+        
+    Returns:
+        PromotionArtifact with all artifact information
+        
+    Raises:
+        ValueError: If plan.draft is None or plan.draft.body is empty
+    """
+    if plan.draft is None:
+        raise ValueError("Cannot build artifact: plan.draft is None")
+    
+    body = plan.draft.body
+    if not body:
+        raise ValueError("Cannot build artifact: draft body is empty")
+    
+    # Compute body hash and size
+    body_sha256 = _compute_body_sha256(body)
+    body_bytes = len(body.encode("utf-8"))
+    
+    # Derive artifact ID
+    artifact_id = derive_promotion_artifact_id(
+        target_ref=plan.target_ref,
+        head_ref=plan.head_ref,
+        body_sha256=body_sha256,
+    )
+    
+    # Derive paths
+    directory, body_path, metadata_path = derive_promotion_artifact_paths(
+        repo_path=repo_path,
+        artifact_id=artifact_id,
+        artifact_dir=artifact_dir,
+    )
+    
+    # If writing, create directory and write files
+    wrote_files = False
+    if write:
+        Path(directory).mkdir(parents=True, exist_ok=True)
+        
+        # Write body.md
+        Path(body_path).write_text(body, encoding="utf-8")
+        
+        # Build and write metadata.json
+        metadata = {
+            "artifact_id": artifact_id,
+            "target_ref": plan.target_ref,
+            "head_ref": plan.head_ref,
+            "forge_mode": plan.forge_mode.name.lower(),
+            "promotion_mode": plan.mode.name.lower(),
+            "promotion_branch": plan.draft.promotion_branch,
+            "title": plan.draft.title,
+            "body_path": body_path,
+            "body_sha256": body_sha256,
+            "body_bytes": body_bytes,
+            "reviewability_changed_file_count": plan.reviewability.changed_file_count,
+            "reviewability_max_changed_files": plan.reviewability.max_changed_files,
+            "reviewability_over_budget": plan.reviewability.over_budget,
+            "ready": plan.ready,
+            "blockers": [
+                {
+                    "code": b.code,
+                    "severity": b.severity.value,
+                    "message": b.message,
+                    "remediation": b.remediation,
+                }
+                for b in plan.blockers
+            ],
+            "dry_run_only": plan.dry_run_only,
+        }
+        import json
+        Path(metadata_path).write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
+        
+        wrote_files = True
+    
+    return PromotionArtifact(
+        artifact_id=artifact_id,
+        directory=directory,
+        body_path=body_path,
+        metadata_path=metadata_path,
+        body_sha256=body_sha256,
+        body_bytes=body_bytes,
+        wrote_files=wrote_files,
     )

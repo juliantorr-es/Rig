@@ -31,13 +31,18 @@ from rig.domain.forge import (
     PromotionPlan,
     PromotionPlanStep,
     PromotionDraft,
+    PromotionArtifact,
     build_forge_identity,
     capabilities_for_mode,
     derive_promotion_mode,
+    derive_promotion_branch_name,
+    _derive_provider_command,
     build_doctor_findings,
     build_doctor_report,
     build_reviewability_report,
     build_promotion_plan,
+    build_promotion_draft,
+    build_promotion_artifact,
 )
 
 
@@ -233,8 +238,11 @@ def _serialize_promotion_plan_step(step: PromotionPlanStep) -> dict[str, Any]:
 
 
 def _serialize_promotion_draft(draft: PromotionDraft) -> dict[str, Any]:
-    """Serialize PromotionDraft to JSON-compatible dict."""
-    return {
+    """Serialize PromotionDraft to JSON-compatible dict.
+    
+    Mission 6: Includes body_path field
+    """
+    result: dict[str, Any] = {
         "promotion_branch": draft.promotion_branch,
         "base_ref": draft.base_ref,
         "head_ref": draft.head_ref,
@@ -243,6 +251,24 @@ def _serialize_promotion_draft(draft: PromotionDraft) -> dict[str, Any]:
         "provider_command": draft.provider_command,
         "provider_url_hint": draft.provider_url_hint,
         "draft_only": draft.draft_only,
+        "body_path": draft.body_path,
+    }
+    return result
+
+
+def _serialize_promotion_artifact(artifact: PromotionArtifact) -> dict[str, Any]:
+    """Serialize PromotionArtifact to JSON-compatible dict.
+    
+    Mission 6: Promotion Body File Dry-Run Artifact
+    """
+    return {
+        "artifact_id": artifact.artifact_id,
+        "directory": artifact.directory,
+        "body_path": artifact.body_path,
+        "metadata_path": artifact.metadata_path,
+        "body_sha256": artifact.body_sha256,
+        "body_bytes": artifact.body_bytes,
+        "wrote_files": artifact.wrote_files,
     }
 
 
@@ -271,8 +297,14 @@ def _serialize_promotion_plan(plan: PromotionPlan) -> dict[str, Any]:
     return result
 
 
-def _emit_human_promotion_plan(plan: PromotionPlan) -> None:
-    """Emit human-readable promotion plan to stdout."""
+def _emit_human_promotion_plan(
+    plan: PromotionPlan,
+    artifact: PromotionArtifact | None = None,
+) -> None:
+    """Emit human-readable promotion plan to stdout.
+    
+    Mission 6: Added artifact parameter to show body file info
+    """
     print("Promotion Plan (Dry-Run)")
     print("+" * 40)
     print(f"  Forge Mode: {plan.forge_mode.name.lower().replace('_', '-')}")
@@ -302,6 +334,16 @@ def _emit_human_promotion_plan(plan: PromotionPlan) -> None:
         if draft.provider_url_hint:
             print(f"    Provider URL Hint: {draft.provider_url_hint}")
         print(f"    Draft Only: {'Yes' if draft.draft_only else 'No'}")
+    
+    # Artifact information (Mission 6)
+    if artifact is not None:
+        print(f"\n  Artifact:")
+        print(f"    Body SHA256: {artifact.body_sha256}")
+        print(f"    Body Bytes: {artifact.body_bytes}")
+        print(f"    Body Path: {artifact.body_path}")
+        print(f"    Files Written: {'Yes' if artifact.wrote_files else 'No'}")
+        if not artifact.wrote_files:
+            print(f"    (Use --write-artifact to write files)")
     
     # Blockers
     if plan.blockers:
@@ -333,10 +375,15 @@ def _promote_handler(
     head_ref: str = "HEAD",
     max_changed_files: int | None = None,
     json_output: bool = False,
+    write_artifact: bool = False,
+    artifact_dir: str = ".rig/work/promotions",
 ) -> int:
     """Handler for `rig forge promote` command.
     
     Builds a promotion plan and emits it. Currently dry-run only.
+    
+    Mission 6: Added --write-artifact and --artifact-dir support for local
+    body file artifact generation.
     
     Args:
         repo_root: Path to the git repository
@@ -345,6 +392,8 @@ def _promote_handler(
         head_ref: Head reference for promotion (default: "HEAD")
         max_changed_files: Override max changed files budget (default: None = use 300)
         json_output: If True, emit JSON; otherwise human-readable text
+        write_artifact: If True, write artifact files to filesystem (default: False)
+        artifact_dir: Base directory for artifacts (default: ".rig/work/promotions")
         
     Returns:
         Exit code (0 for success/ready, 1 for errors/not ready)
@@ -372,11 +421,70 @@ def _promote_handler(
             print(f"Error: {e}", file=sys.stderr)
         return 1
     
+    # Build artifact if requested (Mission 6)
+    artifact: PromotionArtifact | None = None
+    if plan.draft is not None:
+        try:
+            # Build artifact always to compute paths (even if not writing)
+            artifact = build_promotion_artifact(
+                repo_path=repo_root,
+                plan=plan,
+                write=write_artifact,
+                artifact_dir=artifact_dir,
+            )
+            # Rebuild draft with artifact info and updated provider command
+            if artifact is not None:
+                # Rebuild provider command with body_path if writing
+                body_path_to_use = artifact.body_path if write_artifact else None
+                new_provider_command, new_provider_url_hint = _derive_provider_command(
+                    forge_mode=plan.forge_mode,
+                    promotion_branch=plan.draft.promotion_branch,
+                    target_ref=plan.target_ref,
+                    title=plan.draft.title,
+                    body_path=body_path_to_use,
+                )
+                
+                # Update the plan with the new draft that has body_path and updated command
+                updated_draft = PromotionDraft(
+                    promotion_branch=plan.draft.promotion_branch,
+                    base_ref=plan.draft.base_ref,
+                    head_ref=plan.draft.head_ref,
+                    title=plan.draft.title,
+                    body=plan.draft.body,
+                    provider_command=new_provider_command,
+                    provider_url_hint=new_provider_url_hint,
+                    draft_only=plan.draft.draft_only,
+                    body_path=body_path_to_use,
+                )
+                plan = PromotionPlan(
+                    mode=plan.mode,
+                    forge_mode=plan.forge_mode,
+                    target_ref=plan.target_ref,
+                    head_ref=plan.head_ref,
+                    identity=plan.identity,
+                    reviewability=plan.reviewability,
+                    steps=plan.steps,
+                    blockers=plan.blockers,
+                    ready=plan.ready,
+                    dry_run_only=plan.dry_run_only,
+                    draft=updated_draft,
+                )
+        except (ValueError, OSError) as e:
+            # Artifact building failed - log but don't fail the command
+            # This can happen if draft body is empty or write fails
+            if write_artifact:
+                print(f"Warning: Could not build artifact: {e}", file=sys.stderr)
+            artifact = None
+    
     if json_output:
-        _emit(_serialize_promotion_plan(plan))
+        result = _serialize_promotion_plan(plan)
+        # Include artifact in JSON output (Mission 6)
+        if artifact is not None:
+            result["artifact"] = _serialize_promotion_artifact(artifact)
+        _emit(result)
         return 0
     
-    _emit_human_promotion_plan(plan)
+    _emit_human_promotion_plan(plan, artifact)
     return 0 if plan.ready else 1
 
 
@@ -471,6 +579,18 @@ def register(subparsers, helpers):
         action="store_true",
         help="Output JSON instead of human-readable text",
     )
+    # Mission 6: Artifact writing flags
+    promote_parser.add_argument(
+        "--write-artifact",
+        action="store_true",
+        default=False,
+        help="Write promotion artifact files (body.md, metadata.json) to filesystem (default: False)",
+    )
+    promote_parser.add_argument(
+        "--artifact-dir",
+        default=".rig/work/promotions",
+        help="Base directory for promotion artifacts (default: .rig/work/promotions)",
+    )
     promote_parser.set_defaults(
         handler=lambda args: _promote_handler(
             helpers.repo_root,
@@ -479,6 +599,8 @@ def register(subparsers, helpers):
             head_ref=args.head_ref,
             max_changed_files=args.max_changed_files,
             json_output=args.json,
+            write_artifact=args.write_artifact,
+            artifact_dir=args.artifact_dir,
         )
     )
     

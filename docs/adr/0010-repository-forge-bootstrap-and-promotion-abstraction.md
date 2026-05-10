@@ -769,6 +769,58 @@ These are explicitly **out of scope** for this ADR:
 - Branch protection checks — Adapter-specific, deferred
 - CI status verification — Adapter-specific, deferred
 
+**Mission 6: Promotion Body File Dry-Run Artifact** — COMPLETED
+- Added `PromotionArtifact` dataclass with: artifact_id, directory, body_path, metadata_path, body_sha256, body_bytes, wrote_files
+- Extended `PromotionDraft` with `body_path` field for future --body-file flag support
+- Added `_make_filesystem_safe()` — Pure function for filesystem-safe string conversion
+- Added `derive_promotion_artifact_id()` — Deterministic artifact ID based on target_ref, head_ref, body_sha256
+- Added `derive_promotion_artifact_paths()` — Derives directory, body.md, and metadata.json paths
+- Added `_compute_body_sha256()` — Pure function for body content hashing
+- Added `build_promotion_artifact()` — Builds artifact, optionally writes files under `.rig/work/promotions/`
+- Updated `_derive_provider_command()` — Adds optional `body_path` parameter, generates `--body-file <path>` for GitHub, adapter-dependent note for GitLab
+- Updated `build_promotion_draft()` — Accepts optional `body_path` parameter, passes to provider command
+- Extended `rig forge promote` CLI:
+  - `--write-artifact` — Write artifact files (default: False)
+  - `--artifact-dir DIR` — Custom artifact directory (default: `.rig/work/promotions`)
+- Human output: Shows Body SHA256, Body Bytes, Body Path, Files Written indicator
+- JSON output: Includes `artifact` object with all artifact fields
+- Metadata JSON includes: artifact_id, target_ref, head_ref, forge_mode, promotion_mode, promotion_branch, title, body_path, body_sha256, body_bytes, reviewability fields, ready, blockers, dry_run_only
+- Updated provider command previews to use `--body-file` when body_path available:
+  - GitHub: `gh pr create --base <target> --head <branch> --title "<title>" --body-file <body_path>`
+  - GitLab: `glab mr create --base <target> --head <branch> --title "<title>" # Body file: <body_path> (adapter-dependent)`
+- Artifact path format: `.rig/work/promotions/promotion-{target}-{head}-{short_hash}/`
+- Artifact ID format: `promotion-{filesystem_safe_target}-{filesystem_safe_head}-{12_char_hash}`
+- No Git mutation: Only writes local filesystem files under artifact directory
+- No remote API calls: All operations are local filesystem only
+- No personal names in generated artifact contents (body.md, metadata.json)
+- Added 76 new tests for Mission 6 functionality covering: PromotionArtifact dataclass, filesystem-safe helpers, artifact ID derivation, path derivation, artifact building with/without write, SHA256 verification, body bytes, error handling, metadata content, provider command --body-file flag
+
+### Mission 6 No-Mutation Guarantee
+
+- `derive_promotion_artifact_id()` — Pure function (string manipulation and hash truncation only)
+- `derive_promotion_artifact_paths()` — Pure function (path string manipulation only)
+- `_compute_body_sha256()` — Pure function (hash computation only)
+- `_make_filesystem_safe()` — Pure function (string manipulation only)
+- `build_promotion_artifact(write=False)` — Pure computation: calculates artifact info without touching filesystem
+- `build_promotion_artifact(write=True)` — Only writes under `${artifact_dir}/${artifact_id}/` (default: `.rig/work/promotions/`); no Git calls, no remote API calls
+- Updated `_derive_provider_command()` — Still pure function, just accepts additional parameter
+- Updated `build_promotion_draft()` — Still pure function, just accepts additional parameter
+- CLI — Still dry-run only, artifact writing is opt-in via `--write-artifact`
+- Explicit statements: `"wrote_files": false` in JSON when not writing, `"Files Written: No"` in human output, `"(Use --write-artifact to write files)"` hint, `"No Git or remote state was mutated."` always present
+
+### Mission 6 Out-of-Scope
+
+- `--apply` mode — Still deferred to future mission; artifact consumed by adapter in future
+- Actual PR/MR creation — Still deferred; `gh pr create` and `glab mr create` are displayed but not executed
+- GitLab `--body-file` verification — Not verified if glab supports this flag; current implementation notes it as adapter-dependent
+- Artifact signing/cryptographic verification — body_sha256 is for content detection only, not security
+- Artifact cleanup/retention policy — Users manage `.rig/work/promotions/` manually
+- Artifact versioning — Each unique promotion plan gets unique artifact_id based on content hash; no separate version field
+- Multiple artifacts per promotion — Not needed; one artifact per unique plan (deterministic)
+- Forge adapter implementation — GitHubAdapter, GitLabAdapter, GiteaAdapter still deferred; artifact path made available to future adapters
+- Branch protection checks — Still adapter-specific, deferred
+- CI status verification — Still adapter-specific, deferred
+
 ---
 
 ## Machine-Readable Contract
