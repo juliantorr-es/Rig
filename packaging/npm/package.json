@@ -1,8 +1,5 @@
 {
-  "name": "rig",
-  "version": "0.1.0",
-  "private": true,
-  "bin": {
-    "rig": "./rig.js"
-  }
+  "name": "rig-ui",
+  "version": "0.0.0",
+  "private": true
 }

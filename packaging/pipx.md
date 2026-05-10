@@ -1,7 +1,6 @@
-# pipx
+# pipx Packaging
 
-```bash
-pipx install git+https://github.com/juliantorr-es/Rig
-```
+Guidance for installing Rig with `pipx`.
 
-Use `rig --help` after install.
+- Use a Python 3.14 interpreter.
+- Prefer isolated environments for CLI-only usage.

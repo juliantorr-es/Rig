@@ -582,9 +582,10 @@ export function renderRuntimeTopologyPanel(id, data, context) {
       topologyState.setGlobalState(newData.globalState);
     }
     
-    // Re-render
-    instrumentationLayer.clear();
-    _renderTopology(topologyState, instrumentationLayer, newData);
+    // Re-render (Retained Mode)
+    const renderedIds = new Set();
+    _renderTopology(topologyState, instrumentationLayer, newData, renderedIds);
+    instrumentationLayer.garbageCollect(renderedIds);
   };
 
   // Expose state accessor
@@ -650,7 +651,7 @@ function _createPanelHeader(title, runtimeEnvelope = null, operationalStatus = n
 }
 
 /** Render complete topology */
-function _renderTopology(topologyState, layer, data = {}) {
+function _renderTopology(topologyState, layer, data = {}, renderedIds = null) {
   const bounds = layer.bounds || rect(0, 0, 800, 600);
   const geometryMapper = topologyState.geometryMapper;
   
@@ -661,37 +662,37 @@ function _renderTopology(topologyState, layer, data = {}) {
   }
 
   // Render lanes first (background)
-  _renderLanes(topologyState, layer, bounds);
+  _renderLanes(topologyState, layer, bounds, renderedIds);
 
   // Render routing paths
-  _renderRoutingPaths(topologyState, layer, bounds);
+  _renderRoutingPaths(topologyState, layer, bounds, renderedIds);
 
   // Render topology connectors (edges)
-  _renderConnectors(topologyState, layer, bounds);
+  _renderConnectors(topologyState, layer, bounds, renderedIds);
 
   // Render nodes
-  _renderNodes(topologyState, layer, bounds);
+  _renderNodes(topologyState, layer, bounds, renderedIds);
 
   // Render proposals
-  _renderProposals(topologyState, layer, bounds);
+  _renderProposals(topologyState, layer, bounds, renderedIds);
 
   // Render integrity markers
-  _renderIntegrityMarkers(topologyState, layer, bounds);
+  _renderIntegrityMarkers(topologyState, layer, bounds, renderedIds);
 
   // Render replay sweep if active
   if (topologyState.replayState) {
-    _renderReplaySweep(topologyState, layer, bounds);
+    _renderReplaySweep(topologyState, layer, bounds, renderedIds);
   }
 
   // Render stream density lines
-  _renderStreamDensity(topologyState, layer, bounds);
+  _renderStreamDensity(topologyState, layer, bounds, renderedIds);
 
   // Render throughput bars
-  _renderThroughputBars(topologyState, layer, bounds);
+  _renderThroughputBars(topologyState, layer, bounds, renderedIds);
 }
 
 /** Render execution lanes */
-function _renderLanes(topologyState, layer, bounds) {
+function _renderLanes(topologyState, layer, bounds, renderedIds = null) {
   const geometryMapper = topologyState.geometryMapper;
   const nodeCount = topologyState.getAllNodes().length;
   const densityState = MotionUtils.calculateDensityCollapse(nodeCount, Math.max(1, Math.ceil(nodeCount / 5)), topologyState.getAllIntegrityMarkers().length);
@@ -728,12 +729,13 @@ function _renderLanes(topologyState, layer, bounds) {
       index: i
     });
     
-    layer.addPrimitive(lane);
+    const id = layer.patchPrimitive(lane);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
 /** Render routing paths */
-function _renderRoutingPaths(topologyState, layer, bounds) {
+function _renderRoutingPaths(topologyState, layer, bounds, renderedIds = null) {
   const edges = topologyState.getAllEdges();
   const geometryMapper = topologyState.geometryMapper;
 
@@ -753,12 +755,13 @@ function _renderRoutingPaths(topologyState, layer, bounds) {
       thickness: edge.active ? STROKE_WIDTH_THICK : STROKE_WIDTH_NORMAL
     });
 
-    layer.addPrimitive(path);
+    const id = layer.patchPrimitive(path);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
 /** Render topology connectors (edges as connectors) */
-function _renderConnectors(topologyState, layer, bounds) {
+function _renderConnectors(topologyState, layer, bounds, renderedIds = null) {
   const edges = topologyState.getAllEdges();
   const nodes = topologyState.getAllNodes();
   const geometryMapper = topologyState.geometryMapper;
@@ -777,12 +780,13 @@ function _renderConnectors(topologyState, layer, bounds) {
       sequence: edge.sequence
     });
 
-    layer.addPrimitive(connector);
+    const id = layer.patchPrimitive(connector);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
 /** Render topology nodes */
-function _renderNodes(topologyState, layer, bounds) {
+function _renderNodes(topologyState, layer, bounds, renderedIds = null) {
   const nodes = topologyState.getAllNodes();
   const geometryMapper = topologyState.geometryMapper;
 
@@ -908,7 +912,7 @@ function _getNodeStrokeColor(node) {
 }
 
 /** Render proposals */
-function _renderProposals(topologyState, layer, bounds) {
+function _renderProposals(topologyState, layer, bounds, renderedIds = null) {
   const proposals = topologyState.getAllProposals();
   const geometryMapper = topologyState.geometryMapper;
 
@@ -929,12 +933,13 @@ function _renderProposals(topologyState, layer, bounds) {
       ignored: proposal.ignored || false
     });
 
-    layer.addPrimitive(proposalNode);
+    const id = layer.patchPrimitive(proposalNode);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
 /** Render integrity markers */
-function _renderIntegrityMarkers(topologyState, layer, bounds) {
+function _renderIntegrityMarkers(topologyState, layer, bounds, renderedIds = null) {
   const markers = topologyState.getAllIntegrityMarkers();
   const geometryMapper = topologyState.geometryMapper;
 
@@ -954,12 +959,13 @@ function _renderIntegrityMarkers(topologyState, layer, bounds) {
       size: 14
     });
 
-    layer.addPrimitive(integrityMarker);
+    const id = layer.patchPrimitive(integrityMarker);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
 /** Render replay sweep */
-function _renderReplaySweep(topologyState, layer, bounds) {
+function _renderReplaySweep(topologyState, layer, bounds, renderedIds = null) {
   const sweepBounds = rect(
     bounds.width - 100,
     bounds.height - 100,
@@ -979,11 +985,12 @@ function _renderReplaySweep(topologyState, layer, bounds) {
     isReconstructed
   });
 
-  layer.addPrimitive(sweep);
+  const id = layer.patchPrimitive(sweep);
+  if (renderedIds) renderedIds.add(id);
 }
 
 /** Render stream density lines */
-function _renderStreamDensity(topologyState, layer, bounds) {
+function _renderStreamDensity(topologyState, layer, bounds, renderedIds = null) {
   const edges = topologyState.getAllEdges().filter(e => e.kind === 'stream');
   const geometryMapper = topologyState.geometryMapper;
   const densityState = MotionUtils.calculateDensityCollapse(topologyState.getAllNodes().length, Math.max(1, topologyState.lanes.size || 1), topologyState.getAllIntegrityMarkers().length);
@@ -1018,12 +1025,13 @@ function _renderStreamDensity(topologyState, layer, bounds) {
       tokensTotal: edge.tokensTransferred
     });
 
-    layer.addPrimitive(densityLine);
+    const id = layer.patchPrimitive(densityLine);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 
 /** Render throughput bars */
-function _renderThroughputBars(topologyState, layer, bounds) {
+function _renderThroughputBars(topologyState, layer, bounds, renderedIds = null) {
   const nodes = topologyState.getAllNodes().filter(n => n.kind === 'runtime');
   const geometryMapper = topologyState.geometryMapper;
   const padding = 16;
@@ -1043,7 +1051,8 @@ function _renderThroughputBars(topologyState, layer, bounds) {
       channel: 'assistant'
     });
 
-    layer.addPrimitive(throughputBar);
+    const id = layer.patchPrimitive(throughputBar);
+    if (renderedIds) renderedIds.add(id);
   }
 }
 

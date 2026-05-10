@@ -1,8 +1,10 @@
 # Rig
 
-**Models propose; Rig disposes.**
+**Models propose. Rig disposes.**
 
 Rig is a cryptographically governed control plane for local AI coding. It forces AI work through isolated Git worktrees, validation gates, and explicit review before anything touches your main branch.
+
+Rig began as tooling around Anigma, but the governed control plane now stands on its own.
 
 ## Why Rig Exists
 
@@ -165,6 +167,7 @@ Receipts form an immutable chain. Lost receipts = incomplete replay.
 | **CLI** | `python -m rig <command>` | Scriptable, deterministic workflows |
 | **Windowed UI** | `python -m rig ui` | Rich interactive control plane |
 | **Browser mode** | `python -m rig --debug ui --browser` | Web-based UI for development |
+| **Legacy shim** | `python -m rig tui` | Deprecation shim for the old terminal surface |
 
 ## Governance Doctrine
 

@@ -276,6 +276,26 @@ def _workspace_command_progress_widget(revision: int) -> WidgetProjection:
     )
 
 
+def _build_receipt_list_projection(repo_root: Path):
+    """Build a small receipt list projection for receipt-focused tests."""
+    store = get_receipt_store(repo_root)
+    receipts: list[Any] = []
+    for receipt in store.list(limit=100):
+        rid = getattr(receipt, "receipt_id", None) or getattr(receipt, "id", None)
+        receipts.append(
+            type(
+                "ReceiptProjection",
+                (),
+                {
+                    "id": rid,
+                    "kind": getattr(receipt, "kind", ""),
+                    "summary": getattr(receipt, "summary", "") or "",
+                },
+            )()
+        )
+    return type("ReceiptListProjection", (), {"title": "Receipt Log", "receipts": receipts})()
+
+
 def _workspace_proposal_lifecycle_widget(
     repo_root: Path,
     active_ws: Optional[dict],

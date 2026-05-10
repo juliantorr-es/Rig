@@ -949,6 +949,15 @@ export class DtgSvgRenderer {
   
   /** Render the complete DTG to an SVG element */
   render(parent = null) {
+    const startTime = performance.now();
+    if (window.__rig_metrics) {
+      window.__rig_metrics.lifecycle.renderCalls++;
+      window.__rig_metrics.topology.nodeCount = this.graph.nodes.length;
+      window.__rig_metrics.topology.edgeCount = this.graph.edges.length;
+      this.graph.nodes.forEach(n => window.__rig_metrics.topology.stableNodeIds.add(n.id));
+      this.graph.edges.forEach(e => window.__rig_metrics.topology.stableEdgeIds.add(e.id));
+    }
+    
     // Ensure layout is current
     if (this.graph.layoutDirty) {
       this.layout.layout();
@@ -975,7 +984,13 @@ export class DtgSvgRenderer {
     this._renderMarkersLayer(svg);
     
     if (parent) {
+      // Benchmark parent clearing if parent.innerHTML is used elsewhere, 
+      // but here we just append.
       parent.appendChild(svg);
+    }
+    
+    if (window.__rig_metrics) {
+      window.__rig_metrics.lifecycle.totalRenderTimeMs += (performance.now() - startTime);
     }
     
     return svg;

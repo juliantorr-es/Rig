@@ -82,7 +82,7 @@ def write_json(path: Path, data: dict[str, Any], *, indent: int | None = 2, sort
     # Write to temp file first, then rename for atomicity
     temp_path = path.with_suffix(path.suffix + ".tmp")
     write_text(temp_path, dump_json(data, indent=indent, sort_keys=sort_keys))
-    temp_path.rename(path)
+    temp_path.replace(path)
 
 
 # =============================================================================

@@ -8,7 +8,7 @@ from pathlib import Path
 from rig_tools import schema_validation, orchestration
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PYTHON = REPO_ROOT / ".build" / "venv" / "bin" / "python"
+PYTHON = Path(sys.executable)
 PYTHON_GE_314 = sys.version_info >= (3, 14)
 
 

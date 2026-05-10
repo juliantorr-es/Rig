@@ -10,7 +10,7 @@ from rig_tools import orchestration
 from rig_tools.atomic_io import write_json_atomic
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PYTHON = REPO_ROOT / ".build" / "venv" / "bin" / "python"
+PYTHON = Path(sys.executable)
 PYTHON_GE_314 = sys.version_info >= (3, 14)
 
 def _repo(tmp_path: Path) -> Path:

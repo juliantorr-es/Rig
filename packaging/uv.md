@@ -1,7 +1,6 @@
-# uv
+# uv Packaging
 
-```bash
-uv tool install git+https://github.com/juliantorr-es/Rig
-```
+Guidance for installing Rig with `uv`.
 
-Use `rig --help` after install.
+- Use a Python 3.14 runtime.
+- Keep the project environment reproducible and pinned.

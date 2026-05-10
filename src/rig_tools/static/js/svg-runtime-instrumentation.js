@@ -356,6 +356,50 @@ export class SvgStatefulLoader {
 // =============================================================================
 // SVG Primitive: Replay Sweep
 // =============================================================================
+// Metrics & Profiling (Phase 1)
+// =============================================================================
+
+/** Global metrics for rendering performance analysis */
+window.__rig_metrics = {
+  domOperations: {
+    createElement: 0,
+    removeChild: 0,
+    setAttribute: 0
+  },
+  lifecycle: {
+    clearCalls: 0,
+    renderCalls: 0,
+    totalRenderTimeMs: 0
+  },
+  topology: {
+    nodeCount: 0,
+    edgeCount: 0,
+    stableNodeIds: new Set(),
+    stableEdgeIds: new Set()
+  },
+  reset() {
+    this.domOperations = { createElement: 0, removeChild: 0, setAttribute: 0 };
+    this.lifecycle.clearCalls = 0;
+    this.lifecycle.renderCalls = 0;
+    this.lifecycle.totalRenderTimeMs = 0;
+  },
+  report() {
+    console.group('Rig Rendering Metrics (Phase 1)');
+    console.table(this.domOperations);
+    console.table(this.lifecycle);
+    console.log('Topology:', {
+      nodes: this.topology.nodeCount,
+      edges: this.topology.edgeCount,
+      stableNodesObserved: this.topology.stableNodeIds.size,
+      stableEdgesObserved: this.topology.stableEdgeIds.size
+    });
+    const avgTime = this.lifecycle.renderCalls > 0 ? (this.lifecycle.totalRenderTimeMs / this.lifecycle.renderCalls).toFixed(2) : 0;
+    console.log(`Avg Render Time: ${avgTime}ms`);
+    console.groupEnd();
+  }
+};
+
+// =============================================================================
 // Constants
 // =============================================================================
 
@@ -465,9 +509,11 @@ function svgId(prefix, ...components) {
 
 /** Create SVG element with namespace */
 function createSvgElement(tagName, attributes = {}) {
+  if (window.__rig_metrics) window.__rig_metrics.domOperations.createElement++;
   const el = document.createElementNS(SVG_NS, tagName);
   for (const [key, value] of Object.entries(attributes)) {
     if (value !== undefined && value !== null) {
+      if (window.__rig_metrics) window.__rig_metrics.domOperations.setAttribute++;
       el.setAttribute(key, String(value));
     }
   }
@@ -476,6 +522,7 @@ function createSvgElement(tagName, attributes = {}) {
 
 /** Safe attribute setting with validation */
 function setSvgAttr(el, attr, value) {
+  if (window.__rig_metrics) window.__rig_metrics.domOperations.setAttribute++;
   if (value !== undefined && value !== null) {
     if (attr === 'class' && typeof value === 'object') {
       el.setAttribute('class', Object.entries(value)
@@ -556,6 +603,35 @@ export class SvgExecutionLane {
     this.completed = options.completed || false;
     this.throughput = options.throughput || 0;
     this.maxThroughput = options.maxThroughput || 100;
+  }
+
+  /** Patch existing DOM element */
+  patch(g) {
+    // Update group attributes
+    setSvgAttr(g, 'data-state', this.state);
+    g.setAttribute('class', `svg-lane state-${this.state}`);
+
+    // Update background
+    const bg = g.querySelector('rect');
+    if (bg) {
+      setSvgAttr(bg, 'fill', this._getBgColor());
+      setSvgAttr(bg, 'stroke', this._getStrokeColor());
+      setSvgAttr(bg, 'opacity', this.active ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_LOW);
+      setSvgAttr(bg, 'x', this.bounds.x);
+      setSvgAttr(bg, 'y', this.bounds.y);
+      setSvgAttr(bg, 'width', this.bounds.width);
+      setSvgAttr(bg, 'height', this.bounds.height);
+    }
+
+    // Update label
+    const label = g.querySelector('text');
+    if (label) {
+      setSvgAttr(label, 'x', this.bounds.x + GEOMETRY.PADDING);
+      setSvgAttr(label, 'y', this.bounds.y + this.bounds.height / 2 + GEOMETRY.LABEL_OFFSET);
+      if (label.textContent !== this.label) {
+        label.textContent = this.label;
+      }
+    }
   }
 
   /** Render the lane as SVG group */
@@ -674,6 +750,19 @@ export class SvgRoutingPath {
     this.active = options.active || false;
     this.direction = options.direction || 'forward';
     this.thickness = options.thickness || STROKE_WIDTH_NORMAL;
+  }
+
+  /** Patch existing DOM element */
+  patch(g) {
+    setSvgAttr(g, 'data-state', this.state);
+    
+    const path = g.querySelector('path');
+    if (path) {
+      setSvgAttr(path, 'd', this._buildSmoothPath());
+      setSvgAttr(path, 'stroke', this._getStrokeColor());
+      setSvgAttr(path, 'stroke-width', this.thickness);
+      setSvgAttr(path, 'opacity', this.active ? SVG_COLORS.OPACITY_HIGH : SVG_COLORS.OPACITY_MINIMAL);
+    }
   }
 
   /** Render the path with smooth curves */
@@ -1679,9 +1768,29 @@ export class SvgInstrumentationLayer {
   removePrimitive(id) {
     const existing = this.elements.get(id);
     if (existing && existing.element && existing.element.parentNode) {
+      if (window.__rig_metrics) window.__rig_metrics.domOperations.removeChild++;
       existing.element.parentNode.removeChild(existing.element);
     }
     this.elements.delete(id);
+  }
+
+  /** Patch an SVG primitive (retained mode update) */
+  patchPrimitive(primitive) {
+    const existing = this.elements.get(primitive.id);
+    if (existing && existing.element) {
+      // Retained update: patch the existing DOM element
+      if (primitive.patch) {
+        primitive.patch(existing.element);
+      } else {
+        // Fallback: full replacement if primitive doesn't support patching yet
+        this.removePrimitive(primitive.id);
+        this.addPrimitive(primitive);
+      }
+    } else {
+      // First time render
+      this.addPrimitive(primitive);
+    }
+    return primitive.id;
   }
 
   /** Update an existing primitive */
@@ -1689,13 +1798,22 @@ export class SvgInstrumentationLayer {
     const existing = this.elements.get(id);
     if (existing) {
       existing.primitive.update(options);
-      this.removePrimitive(id);
-      this.addPrimitive(existing.primitive);
+      this.patchPrimitive(existing.primitive);
+    }
+  }
+
+  /** Remove primitives not included in the current render pass */
+  garbageCollect(activeIds) {
+    for (const id of this.elements.keys()) {
+      if (!activeIds.has(id)) {
+        this.removePrimitive(id);
+      }
     }
   }
 
   /** Clear all primitives from the layer */
   clear() {
+    if (window.__rig_metrics) window.__rig_metrics.lifecycle.clearCalls++;
     for (const id of this.elements.keys()) {
       this.removePrimitive(id);
     }
