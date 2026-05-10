@@ -1,45 +1,79 @@
 @layer tokens {
 :root {
-  color-scheme: light;
-  --bg: #f7f7f2;
-  --surface: #ffffff;
-  --text: #111111;
-  --border: #1a1a1a;
-  --muted: #5f6368;
-  --success: #1e8e3e;
-  --warning: #f9ab00;
-  --danger: #d93025;
-  --info: #1a73e8;
-  --idle: #9aa0a6;
-  --border-subtle: #eeeeee;
-  --surface-subtle: #f0f0f0;
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark; /* Rig is a runtime environment; dark mode is primary */
+  
+  /* --- Spacing System (4px Grid) --- */
+  --s-0: 0px;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
 
-  /* SVG & Status Colors */
-  --color-executing: #4CAF50;
-  --color-streaming: #2196F3;
-  --color-proposing: #FF9800;
-  --color-validating: #9C27B0;
-  --color-replaying: #00BCD4;
-  --color-stalled: #795548;
-  --color-complete: #8BC34A;
-  --color-failure: #F44336;
-  --color-idle: #9E9E9E;
+  /* --- Typography Scale (Modular) --- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 24px;
+  --fs-3xl: 32px;
+  
+  --lh-tight: 1.25;
+  --lh-base: 1.5;
+  --lh-loose: 1.75;
 
-  --color-integrity-ok: #4CAF50;
-  --color-integrity-warning: #FFC107;
-  --color-integrity-error: #F44336;
+  /* --- Semantic Color System (Health & Status) --- */
+  --color-bg: #0d0d0d;
+  --color-surface: #1a1a1a;
+  --color-surface-raised: #242424;
+  --color-surface-overlay: #2a2a2a;
+  
+  --color-border: #333333;
+  --color-border-subtle: #222222;
+  --color-border-accent: #444444;
 
-  --color-capability-default: #607D8B;
-  --color-capability-elevated: #FF5722;
-  --color-capability-restricted: #E91E63;
+  --color-text: #e0e0e0;
+  --color-text-muted: #888888;
+  --color-text-dim: #555555;
+  --color-text-inverse: #000000;
 
-  --color-background: #1E1E1E;
-  --color-foreground: #E0E0E0;
-  --color-grid: #424242;
-  --color-text: #CCCCCC;
-  --color-text-muted: #757575;
-  --color-stroke: #616161;
-  --color-fill-subtle: #333333;
+  /* Status Colors (The "Cognitive" Colors) */
+  --color-success: #4ade80; /* Execution / Validated */
+  --color-info: #60a5fa;    /* Streaming / Projections */
+  --color-warning: #fbbf24; /* Proposing / Governance */
+  --color-danger: #f87171;  /* Failure / Blocked */
+  --color-idle: #94a3b8;    /* Dormant / Stalled */
+  --color-replaying: #2dd4bf; /* Temporal Replay */
+  
+  /* SVG & Graph Tokens */
+  --color-graph-node: var(--color-surface-raised);
+  --color-graph-edge: var(--color-border-accent);
+  --color-graph-active: var(--color-info);
+  
+  /* --- Elevation & Materials --- */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.6);
+  
+  --blur-sm: blur(4px);
+  --blur-md: blur(8px);
+
+  /* --- Motion Primitives --- */
+  --t-fast: 150ms;
+  --t-base: 300ms;
+  --t-slow: 500ms;
+  
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 }

@@ -8,9 +8,10 @@
  * Every visual primitive must implement this interface.
  */
 export class RenderNode {
-  constructor(id, sequence = null) {
+  constructor(id, sequence = null, status = null) {
     this.id = id;
     this.sequence = sequence;
+    this.status = status;
     this.lastStateHash = null;
     this.lastSequence = null;
   }
@@ -127,12 +128,32 @@ export class SceneGraphManager {
 
       this.metrics.patchCalls++;
       primitive.patch(existing.element);
+      
+      // Motion Doctrine: Apply semantic state classes if changed
+      if (primitive.status) {
+        const oldStatus = existing.primitive ? existing.primitive.status : null;
+        if (primitive.status !== oldStatus) {
+          if (oldStatus) existing.element.classList.remove(`state-${oldStatus}`);
+          existing.element.classList.add(`state-${primitive.status}`);
+          // Add entry animation if it's a new "active" state
+          if (primitive.status === 'executing' || primitive.status === 'streaming') {
+            existing.element.classList.add('animate-entry');
+          }
+        }
+      }
+
       primitive.lastSequence = primitive.sequence;
       primitive.lastStateHash = newHash;
       this.elements.set(primitive.id, { primitive, element: existing.element });
     } else {
       this.metrics.renderCalls++;
       const element = primitive.render(this.container);
+      
+      // Motion Doctrine: Initial state class
+      if (primitive.status) {
+        element.classList.add(`state-${primitive.status}`, 'animate-entry');
+      }
+
       primitive.lastSequence = primitive.sequence;
       primitive.lastStateHash = primitive.getStateHash();
       this.elements.set(primitive.id, { primitive, element });

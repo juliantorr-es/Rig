@@ -1,9 +1,55 @@
 @layer states {
-.severity-info { color: var(--info); border-color: var(--info); }
-.severity-success { color: var(--success); border-color: var(--success); }
-.severity-attention { color: var(--warning); border-color: var(--warning); }
-.severity-danger { color: var(--danger); border-color: var(--danger); }
-.severity-idle { color: var(--idle); border-color: var(--idle); }
-.state-passed { color: var(--success); }
-.state-failed { color: var(--danger); }
+/* --- Semantic State Transitions --- */
+.severity-info { color: var(--color-info); border-color: var(--color-info); }
+.severity-success { color: var(--color-success); border-color: var(--color-success); }
+.severity-attention { color: var(--color-warning); border-color: var(--color-warning); }
+.severity-danger { color: var(--color-danger); border-color: var(--color-danger); }
+.severity-idle { color: var(--color-idle); border-color: var(--color-idle); }
+
+/* --- Meaningful Motion: Execution Pulses --- */
+@keyframes rig-pulse-executing {
+  0% { filter: drop-shadow(0 0 0px var(--color-success)); }
+  50% { filter: drop-shadow(0 0 8px var(--color-success)); }
+  100% { filter: drop-shadow(0 0 0px var(--color-success)); }
+}
+
+@keyframes rig-pulse-streaming {
+  0% { filter: drop-shadow(0 0 0px var(--color-info)); }
+  50% { filter: drop-shadow(0 0 6px var(--color-info)); }
+  100% { filter: drop-shadow(0 0 0px var(--color-info)); }
+}
+
+.state-executing {
+  animation: rig-pulse-executing var(--t-slow) var(--ease-in-out) infinite;
+}
+
+.state-streaming {
+  animation: rig-pulse-streaming var(--t-slow) var(--ease-in-out) infinite;
+}
+
+/* --- Meaningful Motion: Governance Blocks --- */
+@keyframes rig-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.state-blocked {
+  color: var(--color-danger);
+  animation: rig-shake var(--t-fast) var(--ease-in-out) 3;
+}
+
+/* --- Meaningful Motion: Entry/Exit --- */
+@keyframes rig-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-entry {
+  animation: rig-fade-in var(--t-base) var(--ease-out) forwards;
+}
+
+.transition-all {
+  transition: all var(--t-base) var(--ease-in-out);
+}
 }

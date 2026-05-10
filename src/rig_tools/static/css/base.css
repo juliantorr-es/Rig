@@ -1,11 +1,60 @@
 @layer base {
-* { box-sizing: border-box; }
-body {
+* {
+  box-sizing: border-box;
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-family);
-  height: 100vh;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+}
+
+code, pre, .status-mono, .replay-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+/* Scrollbar styling for the runtime environment */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-accent);
+}
+
+/* Global Transition Rules for Motion Continuity */
+.rig-transition {
+  transition: all var(--t-base) var(--ease-in-out);
+}
+
+/* Layer Visibility Controller */
+.cognitive-layer {
+  transition: opacity var(--t-base) var(--ease-in-out), 
+              transform var(--t-base) var(--ease-in-out);
+}
+
+.layer-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
 }
 }

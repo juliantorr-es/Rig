@@ -1,93 +1,129 @@
 @layer widgets {
-.widget {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  padding: 12px;
-}
-.widget h2 {
-  margin: 0 0 8px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.metric-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-.metric-item:last-child { border: none; }
-.label { font-size: 0.9rem; }
-.value { font-weight: bold; }
-.badge {
-  border: 1px solid var(--border);
-  padding: 2px 8px;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-}
-.validator-item { margin-bottom: 8px; }
-pre.validator-detail {
-  font-family: monospace;
-  font-size: 0.75rem;
-  background: var(--surface-subtle);
-  padding: 4px;
-  white-space: pre-wrap;
-  max-height: 100px;
-  overflow: auto;
-}
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  padding: 8px;
-  margin-bottom: 8px;
-  background: var(--surface);
-}
-.message { margin-bottom: 8px; padding: 4px; border-bottom: 1px solid var(--border-subtle); }
-.chat-composer { display: flex; gap: 4px; }
-.chat-composer input { flex: 1; padding: 4px; border: 1px solid var(--border); }
-.empty-state-reasons {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin: 8px 0 12px;
-  line-height: 1.4;
-}
-.manual-repo-input {
-  background: rgba(0, 0, 0, 0.02);
-  padding: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  margin-top: 12px;
-}
-.manual-repo-input label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-.manual-repo-input input {
-  width: 100%;
-  padding: 8px;
-  font-size: 0.85rem;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-.manual-repo-input button {
-  width: 100%;
-  margin-top: 8px;
-}
-.actions {
+/* --- Rig Card Foundation (RDL v1) --- */
+.rig-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--s-1);
+  padding: var(--s-3);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--s-2);
+  transition: border-color var(--t-fast) var(--ease-in-out),
+              box-shadow var(--t-fast) var(--ease-in-out);
 }
-.actions button {
-  padding: 8px 12px;
-  cursor: pointer;
+
+.rig-card:hover {
+  border-color: var(--color-border-accent);
+  box-shadow: var(--shadow-md);
 }
-.actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+
+/* Card Titles */
+.card-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--s-1);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: var(--s-1);
+}
+
+/* Section titles */
+.section-title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  margin-top: var(--s-2);
+}
+
+/* Status Rows */
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.status-label {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+
+.status-value {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* Status Badges & Semantic Colors */
+.status-success { color: var(--color-success); }
+.status-warning { color: var(--color-warning); }
+.status-danger { color: var(--color-danger); }
+.status-info { color: var(--color-info); }
+.status-idle { color: var(--color-idle); }
+
+/* --- Complex Widget Specialists --- */
+
+/* Audit Trail */
+.audit-trail-card .status-value.status-mono {
+  font-size: var(--fs-xs);
+  background: var(--color-surface-raised);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+/* Replay Timeline */
+.replay-timeline-card {
+  border-left: 3px solid var(--color-replaying);
+}
+
+.replay-status-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  background: var(--color-surface-raised);
+}
+
+.replay-status-current {
+  background: var(--color-replaying);
+  color: var(--color-text-inverse);
+}
+
+/* --- Lists & Connectivity --- */
+.list-compact {
+  list-style: none;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+.list-compact li::before {
+  content: "→";
+  margin-right: var(--s-1);
+  color: var(--color-text-dim);
+}
+
+/* --- Spatial Architecture Containers --- */
+.card-section {
+  padding: var(--s-2) 0;
+}
+
+.card-section.hint {
+  background: var(--color-surface-raised);
+  padding: var(--s-2);
+  border-radius: var(--s-1);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  border-left: 2px solid var(--color-info);
+}
+
+.card-section.warning {
+  background: rgba(248, 113, 113, 0.1);
+  padding: var(--s-2);
+  border-radius: var(--s-1);
+  font-size: var(--fs-xs);
+  border-left: 2px solid var(--color-danger);
 }
 }

@@ -1,4 +1,5 @@
 import { RenderNode, createHtmlElement, setHtmlAttr, SceneGraphManager } from '../core/render-graph.js';
+import { getCognitiveLayer } from '../app/cognitive-disclosure.js';
 
 /**
  * DebugPanelNode - Retained RenderNode for global renderer observability.
@@ -57,13 +58,16 @@ export class DebugPanelNode extends RenderNode {
   }
 
   patch(element) {
-    const isDebug = window.RIG_DEBUG || false;
-    if (isDebug !== this.isVisible) {
-      setHtmlAttr(element, 'style', { display: isDebug ? 'block' : 'none' });
-      this.isVisible = isDebug;
+    const isDebugLayer = getCognitiveLayer() >= 4;
+    const isDebugConfig = window.RIG_DEBUG || false;
+    const isVisible = isDebugLayer && isDebugConfig;
+    
+    if (isVisible !== this.isVisible) {
+      setHtmlAttr(element, 'style', { display: isVisible ? 'block' : 'none' });
+      this.isVisible = isVisible;
     }
 
-    if (!isDebug) return;
+    if (!isVisible) return;
 
     const metrics = SceneGraphManager.getGlobalMetrics();
     
@@ -76,7 +80,7 @@ export class DebugPanelNode extends RenderNode {
 
   getStateHash() {
     // Poll metrics every frame if visible
-    if (!window.RIG_DEBUG) return 'hidden';
+    if (getCognitiveLayer() < 4 || !window.RIG_DEBUG) return 'hidden';
     return JSON.stringify(SceneGraphManager.getGlobalMetrics());
   }
 }

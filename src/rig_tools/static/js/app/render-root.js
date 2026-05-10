@@ -1,6 +1,7 @@
 import { getProgressEvents } from './progress-store.js';
 import { SceneGraphManager, RenderNode, LegacyWidgetNode } from '../core/render-graph.js';
 import { DebugPanelNode } from '../widgets/debug-panel.js';
+import { shouldShowWidget, getCognitiveLayer } from './cognitive-disclosure.js';
 
 // Persistent managers per region to maintain retained state
 const regionManagers = new Map();
@@ -44,6 +45,9 @@ export function renderRoot({ projection, widgetRegistry, pendingIntents, renderC
     widgetIds.forEach(widgetId => {
       const widget = projection().widgets[widgetId];
       if (!widget) return;
+
+      // Cognitive Disclosure Filter
+      if (!shouldShowWidget(widget.type)) return;
       
       const renderer = widgetRegistry[widget.type] || widgetRegistry._fallback;
       const result = renderWidgetSafely(renderer, widgetId, widget);
