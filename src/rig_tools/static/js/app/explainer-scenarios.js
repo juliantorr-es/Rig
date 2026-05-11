@@ -7,17 +7,20 @@ import { ExplainerNode } from '../core/render-graph.js';
 export const ExplainerScenarios = {
   EXECUTION_PROPAGATION: {
     id: 'explainer-execution',
-    content: 'Execution propagation: This node emitted a validated state transition. Downstream consumers are reconciling projections.',
+    title: 'Causal Propagation',
+    content: 'A validated state transition has been emitted. Downstream observers are now reconciling their projections to maintain system-wide object constancy.',
     position: 'top'
   },
   GOVERNANCE_GATE: {
     id: 'explainer-governance',
-    content: 'Governance gate: The runtime rejected this mutation because the proposal lacked deterministic validation receipts.',
+    title: 'Governance Exception',
+    content: 'The runtime has blocked this mutation. Causal evidence check failed: the proposal lacked the deterministic validation receipts required by the active policy.',
     position: 'top'
   },
   TRUTHFUL_REPLAY: {
     id: 'explainer-replay',
-    content: 'Truthful replay: The UI is not replaying video frames. The topology is being deterministically re-projected from historical state.',
+    title: 'Deterministic Re-Projection',
+    content: 'This is not a video recording. The system is re-executing historical events through the projection engine to ensure total state traceability.',
     position: 'top'
   }
 };
@@ -29,5 +32,6 @@ export function triggerExplainer(scenarioKey, anchorId, duration = 5000) {
   const scenario = ExplainerScenarios[scenarioKey];
   if (!scenario) return null;
 
-  return new ExplainerNode(scenario.id, anchorId, scenario.content, scenario.position);
+  return new ExplainerNode(scenario.id, anchorId, scenario.title, scenario.content, scenario.position);
 }
+

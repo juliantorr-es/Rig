@@ -39,10 +39,24 @@ footer#footer {
 /* --- Spatial Geography (Cognitive Zones) --- */
 .zone-north { /* Orchestration / Intent */
   grid-column: 1 / -1;
+  border-bottom: 2px solid var(--color-border-subtle);
+  padding-bottom: var(--s-2);
 }
 
 .zone-west { /* Streaming / Live Execution */
   grid-column: 1;
+  border-right: 1px solid var(--color-border);
+  padding-right: var(--s-2);
+  position: relative;
+}
+/* Subtle structural landmark for the west zone */
+.zone-west::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: var(--s-3); height: var(--s-3);
+  border-top: 2px solid var(--color-border-accent);
+  border-left: 2px solid var(--color-border-accent);
 }
 
 .zone-center { /* Topology / Causality */
@@ -51,10 +65,24 @@ footer#footer {
 
 .zone-east { /* Governance / Validation */
   grid-column: 3;
+  border-left: 1px solid var(--color-border);
+  padding-left: var(--s-2);
+  position: relative;
+}
+/* Subtle structural landmark for the east zone */
+.zone-east::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: var(--s-3); height: var(--s-3);
+  border-top: 2px solid var(--color-border-accent);
+  border-right: 2px solid var(--color-border-accent);
 }
 
 .zone-south { /* Replay / History */
   grid-column: 1 / -1;
+  border-top: 2px solid var(--color-border-subtle);
+  padding-top: var(--s-2);
 }
 }
 /* --- Rig Overlay (Reliability System) --- */

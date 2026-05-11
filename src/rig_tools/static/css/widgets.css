@@ -139,14 +139,30 @@
 .rig-explainer-bubble {
   background: var(--color-surface-overlay);
   color: var(--color-text);
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-3);
   border-radius: var(--s-2);
   border: 1px solid var(--color-info);
+  max-width: 280px;
+  text-align: left;
+  box-shadow: var(--shadow-lg);
+}
+
+.rig-explainer-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--color-info);
+  margin-bottom: var(--s-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.3); /* matching --color-info subtly */
+  padding-bottom: var(--s-1);
+}
+
+.rig-explainer-content {
   font-size: var(--fs-xs);
-  font-weight: 500;
-  max-width: 240px;
-  line-height: var(--lh-tight);
-  text-align: center;
+  font-weight: 400;
+  line-height: var(--lh-base);
+  color: var(--color-text);
 }
 
 .rig-explainer-arrow {

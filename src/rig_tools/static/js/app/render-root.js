@@ -92,7 +92,7 @@ export function renderRoot({ projection, widgetRegistry, pendingIntents, renderC
     }
 
     projection().explainers.forEach(explainer => {
-      const node = new ExplainerNode(explainer.id, explainer.anchorId, explainer.content, explainer.position);
+      const node = new ExplainerNode(explainer.id, explainer.anchorId, explainer.title, explainer.content, explainer.position);
       manager.patchPrimitive(node);
       activeExplainerIds.add(node.id);
     });

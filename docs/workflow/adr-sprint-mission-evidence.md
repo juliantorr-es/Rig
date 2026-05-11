@@ -158,12 +158,19 @@ Evidence records what happened during mission and patch batch execution.
 - **Purpose**: Append-only progress ledger entries, heartbeats, tests, handoffs, receipts, commits, and out-of-current-scope findings
 - **Authority**: Evidence records observations; it does not define workflow authority
 - **Formats**: progress.jsonl (ADR-local), receipts, test results, handoff notes
-- **Rules**:
-  - `progress.jsonl` is **append-only**. Never delete or edit existing lines
-  - Generated projections and generated notes are **NOT authority**
-  - Out-of-scope findings do **not** expand the current mission or sprint
-  - Agents must heartbeat during long work
-  - Agents must record out-of-current-scope findings instead of ignoring them
+
+#### Evidence Rules:
+- `progress.jsonl` is **append-only**. Never delete or edit existing lines
+- Generated projections and generated notes are **NOT authority**
+- Out-of-scope findings do **not** expand the current mission or sprint
+- Agents must heartbeat during long work
+- Agents must record out-of-current-scope findings instead of ignoring them
+
+#### Visual Evidence Protocol (UI/Visualization):
+For missions affecting the User Interface or Visualization substrate, evidence must be **multimodal**:
+- **Verification**: Capture screenshots or video recordings using the `browser_subagent`.
+- **Causality**: Evidence must demonstrate that the change preserves **Object Constancy** (Heer & Robertson, 2007) and uses **Signaling** (Mayer & Moreno, 2003) to guide cognition.
+- **Artifacts**: Store media files in the artifacts directory and link them in the handoff.
 
 ### Review/Promotion: Governance Evaluation
 

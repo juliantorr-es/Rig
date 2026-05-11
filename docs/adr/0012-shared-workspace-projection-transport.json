@@ -1,0 +1,96 @@
+{
+  "schema_version": "rig.adr.v1",
+  "adr_id": "adr0012",
+  "number": "0012",
+  "title": "Shared Workspace Projection Transport",
+  "slug": "shared-workspace-projection-transport",
+  "status": "proposed",
+  "markdown_path": "docs/adr/0012-shared-workspace-projection-transport.md",
+  "workflow": {
+    "worktree_name": "adr0012-shared-workspace-projection-transport",
+    "ledger_path": ".rig/work/adr/adr0012-shared-workspace-projection-transport",
+    "sprint_branch": "sprint/adr0012-shared-workspace-projection-transport",
+    "promotion_branch": "promotion/adr0012-shared-workspace-projection-transport"
+  },
+  "non_goals": [
+    "ADR 0012 does not implement real-time collaborative code editing.",
+    "ADR 0012 does not allow multi-writer mutation without explicit governance locks.",
+    "ADR 0012 does not introduce a cloud-hosted authoritative state.",
+    "ADR 0012 does not optimize for low-latency gaming-style synchronization."
+  ],
+  "authority_boundaries": [
+    {
+      "id": "projection-authority",
+      "description": "Shared visibility must not bypass the authoritative projection builder.",
+      "must_not": [
+        "Enable multi-writer code mutation without locks",
+        "Allow state divergence between observers"
+      ]
+    },
+    {
+      "id": "governance-sync",
+      "description": "Mutation events must be synchronized via the governed event log.",
+      "must_not": [
+        "Bypass the Rig Governance Engine for shared apply requests",
+        "Implement eventually consistent mutation for project state"
+      ]
+    }
+  ],
+  "related_adrs": [
+    { "id": "adr0002", "path": "docs/adr/0002-projection-domain-consolidation.md", "relationship": "depends_on" },
+    { "id": "adr0004", "path": "docs/adr/0004-runtime-streaming-consolidation.md", "relationship": "depends_on" },
+    { "id": "adr0009", "path": "docs/adr/0009-agentic-workflow-refinement.md", "relationship": "related" },
+    { "id": "adr0011", "path": "docs/adr/0011-runtime-visualization-substrate.md", "relationship": "related" }
+  ],
+  "sprints": [
+    {
+      "id": "ms-r1",
+      "title": "Shared Visibility",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r1-transport",
+          "title": "Projection Delta Stream",
+          "intent": "Implement the SSE/WebSocket transport for projection deltas."
+        }
+      ]
+    },
+    {
+      "id": "ms-r2",
+      "title": "Shared Presence",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r2-presence",
+          "title": "Cursor and Selection Sync",
+          "intent": "Implement CRDT-lite synchronization for user cursors and spatial selections."
+        }
+      ]
+    },
+    {
+      "id": "ms-r3",
+      "title": "Governed Multiplayer",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r3-locks",
+          "title": "Shared Claim Visualization",
+          "intent": "Visualize worktree locks and proposal overlays across all connected clients."
+        }
+      ]
+    }
+  ],
+  "validation_gates": [
+    {
+      "id": "delta-consistency",
+      "description": "Observer state matches authority state after delta application",
+      "blocking": true
+    },
+    {
+      "id": "lock-enforcement",
+      "description": "Shared mutation is blocked without explicit claims",
+      "blocking": true
+    }
+  ],
+  "updated_at": "2026-05-10T20:07:00Z"
+}

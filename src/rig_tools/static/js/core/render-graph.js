@@ -78,9 +78,10 @@ export class LegacyWidgetNode extends RenderNode {
  * Anchors to an existing RenderNode ID in the scene graph.
  */
 export class ExplainerNode extends RenderNode {
-  constructor(id, anchorId, content, position = 'top') {
+  constructor(id, anchorId, title, content, position = 'top') {
     super(id);
     this.anchorId = anchorId;
+    this.title = title;
     this.content = content;
     this.position = position;
   }
@@ -92,7 +93,17 @@ export class ExplainerNode extends RenderNode {
     });
     
     const bubble = createHtmlElement('div', { class: 'rig-explainer-bubble' });
-    bubble.textContent = this.content;
+    
+    if (this.title) {
+        const titleEl = createHtmlElement('div', { class: 'rig-explainer-title' });
+        titleEl.textContent = this.title;
+        bubble.appendChild(titleEl);
+    }
+    
+    const contentEl = createHtmlElement('div', { class: 'rig-explainer-content' });
+    contentEl.textContent = this.content;
+    bubble.appendChild(contentEl);
+
     el.appendChild(bubble);
 
     const arrow = createHtmlElement('div', { class: 'rig-explainer-arrow' });
@@ -105,8 +116,15 @@ export class ExplainerNode extends RenderNode {
 
   patch(element) {
     const bubble = element.querySelector('.rig-explainer-bubble');
-    if (bubble && bubble.textContent !== this.content) {
-      bubble.textContent = this.content;
+    if (bubble) {
+      const titleEl = bubble.querySelector('.rig-explainer-title');
+      if (titleEl && this.title && titleEl.textContent !== this.title) {
+        titleEl.textContent = this.title;
+      }
+      const contentEl = bubble.querySelector('.rig-explainer-content');
+      if (contentEl && this.content && contentEl.textContent !== this.content) {
+        contentEl.textContent = this.content;
+      }
     }
     this.updatePosition(element);
   }
@@ -131,7 +149,7 @@ export class ExplainerNode extends RenderNode {
   }
 
   getStateHash() {
-    return JSON.stringify({ anchorId: this.anchorId, content: this.content, position: this.position });
+    return JSON.stringify({ anchorId: this.anchorId, title: this.title, content: this.content, position: this.position });
   }
 }
 

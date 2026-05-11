@@ -1,36 +1,142 @@
 {
-  "adr_id": "0011",
+  "schema_version": "rig.adr.v1",
+  "adr_id": "adr0011",
+  "number": "0011",
   "title": "Runtime Visualization Substrate",
+  "slug": "runtime-visualization-substrate",
   "status": "accepted",
-  "date": "2026-05-10",
-  "authors": ["antigravity"],
-  "context": "UI performance bottlenecks were identified as DOM lifecycle churn (teardown/rebuild) rather than SVG throughput. Exploratory sprint UI-R1 proved that a retained patching model eliminates this churn while preserving semantic identity.",
-  "decisions": [
-    "Transition from imperative redraw to retained render graph.",
-    "Formalize RenderNode (render/patch) interface.",
-    "Introduce SceneGraphManager for retention and garbage collection.",
-    "Preserve SVG as the primary substrate for accessibility and style integrity.",
-    "Bind visual element identity to authoritative Projection IDs."
-  ],
-  "consequences": {
-    "positive": [
-      "Significant reduction in DOM mutation and layout thrashing.",
-      "Persistence of visual state (selection, animation) across updates.",
-      "Stable accessibility tree for screen readers.",
-      "Clear architectural seam for future non-DOM renderers (Canvas/WebGPU)."
-    ],
-    "negative": [
-      "Increased logic complexity for state diffing and patching.",
-      "Risk of visual/DOM state desync if patch logic is incomplete."
-    ]
+  "markdown_path": "docs/adr/0011-runtime-visualization-substrate.md",
+  "workflow": {
+    "worktree_name": "adr0011-runtime-visualization-substrate",
+    "ledger_path": ".rig/work/adr/adr0011-runtime-visualization-substrate",
+    "sprint_branch": "sprint/adr0011-runtime-visualization-substrate",
+    "promotion_branch": "promotion/adr0011-runtime-visualization-substrate"
   },
-  "related_adrs": ["0002", "0004", "0009"],
+  "non_goals": [
+    "ADR 0011 does not make the renderer authoritative; state remains in the projection.",
+    "ADR 0011 does not introduce Canvas or WebGPU as required backends for demo stability.",
+    "ADR 0011 does not make educational narration a substitute for objective evidence.",
+    "ADR 0011 does not allow demo choreography to fabricate or simulate runtime state.",
+    "ADR 0011 does not optimize for visual spectacle over causal clarity."
+  ],
+  "authority_boundaries": [
+    {
+      "id": "projection-identity",
+      "description": "Visual identities must derive from projection IDs.",
+      "must_not": [
+        "Create visual nodes without projection source",
+        "Fabricate projection state for demo theater"
+      ]
+    },
+    {
+      "id": "operational-guardrails",
+      "description": "UI must respect churn and motion budgets.",
+      "must_not": [
+        "Exceed DOM churn budget per second",
+        "Execute un-governed ambient motion"
+      ]
+    }
+  ],
+  "related_adrs": [
+    {
+      "id": "adr0002",
+      "path": "docs/adr/0002-projection-domain-consolidation.md",
+      "relationship": "depends_on"
+    },
+    {
+      "id": "adr0004",
+      "path": "docs/adr/0004-runtime-streaming-consolidation.md",
+      "relationship": "related"
+    },
+    {
+      "id": "adr0009",
+      "path": "docs/adr/0009-agentic-workflow-refinement.md",
+      "relationship": "related"
+    }
+  ],
   "sprints": [
     {
       "id": "ui-r1",
-      "name": "Retained Render Graph Exploration",
-      "status": "completed",
-      "results": "Verified 100% steady-state DOM churn reduction."
+      "title": "Retained Prototype",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r1-core",
+          "title": "SVG Retention Proof",
+          "intent": "Verify steady-state DOM churn reduction."
+        }
+      ]
+    },
+    {
+      "id": "ui-r2",
+      "title": "Substrate Expansion",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r2-widgets",
+          "title": "Widget Migration",
+          "intent": "Migrate Timeline and Audit Trail to RenderNode."
+        }
+      ]
+    },
+    {
+      "id": "ui-r3",
+      "title": "Cognitive Experience",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r3-layers",
+          "title": "Progressive Disclosure",
+          "intent": "Implement RDL v1 and cognitive layers."
+        }
+      ]
+    },
+    {
+      "id": "ui-r4",
+      "title": "Demo Stabilization",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r4-demo",
+          "title": "Spatial Geography and Educational Narration",
+          "intent": "Implement stable runtime districts, explainer scenarios, boot reliability, and demo-mode boundaries."
+        }
+      ]
+    },
+    {
+      "id": "ui-r5",
+      "title": "Research-Aligned Validation",
+      "research_required": true,
+      "missions": [
+        {
+          "id": "r5-validation",
+          "title": "Doctrine Hardening",
+          "intent": "Implement reduced-motion, density controls, and churn regression tests."
+        }
+      ]
     }
-  ]
+  ],
+  "validation_gates": [
+    {
+      "id": "reduced-motion",
+      "description": "Motion respect check",
+      "blocking": true
+    },
+    {
+      "id": "provenance-check",
+      "description": "Explainer provenance verification",
+      "blocking": true
+    },
+    {
+      "id": "churn-budget",
+      "description": "DOM churn regression test",
+      "blocking": true
+    },
+    {
+      "id": "identity-ghosting",
+      "description": "Replay ghosting test",
+      "blocking": true
+    }
+  ],
+  "updated_at": "2026-05-10T19:43:00Z"
 }
